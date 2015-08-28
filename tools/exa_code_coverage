@@ -1,0 +1,424 @@
+#!/usr/bin/perl
+#
+# Copyright 2002, 2009 Seanodes Ltd http://www.seanodes.com. All rights
+# reserved and protected by French, UK, U.S. and other countries' copyright laws.
+# This file is part of Exanodes project and is subject to the terms
+# and conditions defined in the LICENSE file which is present in the root
+# directory of the project.
+#
+
+use strict;
+use warnings;
+use File::Basename;
+use Getopt::Long;
+use POSIX ":sys_wait_h";
+use File::Find;
+
+my $self = basename($0);
+
+# SSH commands in batch mode: won't ask for a password and will fail if no
+# password is present in the user's SSH config
+my $SSH_OPTS = "-o BatchMode=yes -o ConnectTimeout=5 -o ServerAliveCountMax=5"
+    . " -o ServerAliveInterval=5";
+my $SSH = "ssh -l root ${SSH_OPTS}";
+my $SCP = "scp ${SSH_OPTS}";
+my $LCOV= "lcov --quiet";
+
+sub usage() {
+    print <<EOF;
+
+Exanodes code coverage utility.
+
+Usage : ${self} -p <product> -n <nodes> [-f]
+
+Gather code coverage data after a run of system test and generate report.
+
+Options:
+    -p, --product     Name of the Exanodes release.
+    -n, --nodes       Regular expansion for the set of nodes.
+    -f, --final       If we want to generate the report.
+
+Notes:
+    - The code must be pushed on node with at least the following configure options
+    --with-coverage --keep-code --without-dkms --no-deps
+
+    - To include the local data, provide "localhost" in the node list
+
+Example:
+    ${self} -p exanodes-std -n "localhost node/0-9/" -f
+
+EOF
+
+    exit 1;
+}
+
+
+sub node_do($@) {
+    my ($node, @command) = @_;
+    if ($node eq "localhost") {
+        return system(@command);
+    }
+    my $ssh_cmd = "${SSH} ${node} '@{command}'";
+    #print "node_do: ssh_cmd = ${ssh_cmd}\n";
+    return system($ssh_cmd);
+}
+
+
+sub copy_from_node($$$) {
+    my ($node, $remote_file, $local_dir) = @_;
+    if ($node eq "localhost") {
+        return system("cp ${remote_file} ${local_dir}");
+    }
+    my $scp_cmd = "${SCP} root\@${node}:${remote_file} ${local_dir}";
+    #print "copy_from_node: ${scp_cmd}\n";
+    return system($scp_cmd);
+}
+
+
+sub copy_to_node($$$) {
+    my ($node, $local_file, $remote_dir) = @_;
+    if ($node eq "localhost") {
+        return system("cp ${local_file} ${remote_dir}");
+    }
+    my $scp_cmd = "${SCP} ${local_file} root\@${node}:${remote_dir}";
+    #print "copy_to_node: ${scp_cmd}\n";
+    return system($scp_cmd);
+}
+
+
+sub gen_html($$$) {
+    my ($title, $htmldir, $info) = @_;
+    my $cmd = "genhtml --show-details --title $title --output-directory $htmldir $info";
+    return system($cmd);
+}
+
+
+my %options;
+
+Getopt::Long::Configure("pass_through");
+Getopt::Long::Configure("no_auto_abbrev");
+if (!GetOptions(\%options, "node|n=s", "product|p=s", "final|f", "help|h")) {
+    print STDERR "Invalid options.\n";
+    exit 1;
+}
+
+&usage if $options{help};
+
+my $final = $options{final};
+
+if (!$options{product}) {
+    print STDERR "missing product name\n";
+    exit 1;
+}
+my $product_name = $options{product};
+
+if (!$options{node}) {
+    print STDERR "missing node\n";
+    exit 1;
+}
+my $node_regex = $options{node};
+
+if (@ARGV) {
+    print STDERR "unknown options/args: @{ARGV}\n";
+    exit 1;
+}
+
+my @node_list = split(" ", `exa_expand ${node_regex}`);
+print "Gathering coverage data of ${product_name} from @{node_list}\n";
+
+my $gcov_dir = "gcov-${product_name}";
+system("mkdir -p ${gcov_dir}");
+
+my $html_dir = "${gcov_dir}/html";
+
+my $info_dir = "${gcov_dir}/info";
+system("mkdir -p ${info_dir}");
+
+my $user_info_dir = "${info_dir}/user";
+system("mkdir -p ${user_info_dir}");
+
+my $kernel_info_dir = "${info_dir}/kernel";
+system("mkdir -p ${kernel_info_dir}");
+
+my $src_dir = "/home/pusher/rpm/BUILD/${product_name}";
+
+my $remote_tmp_dir = "/tmp/tmp-exanodes-coverage";
+
+
+sub copy_source_code($) {
+    my ($node) = @_;
+    my $err;
+
+    if (-d ${src_dir}) {
+        return;
+    }
+
+    $err = system("mkdir -p ${src_dir}");
+    if ($err) {
+        print STDERR "can not create ${src_dir} on local machine\n";
+        return $err;
+    }
+
+    my $archive = "${product_name}-source.tgz";
+
+    $err = node_do($node, "cd ${src_dir}"
+            . " && tar zcf ${archive} -- `find . -name \"*.[ch]\" -o -name \"*.[ch]pp\"`");
+
+    if ($err) {
+        print STDERR "failed archiving source code on node ${node}\n";
+        return $err;
+    }
+
+    $err = copy_from_node($node, "${src_dir}/${archive}", $src_dir);
+    if ($err) {
+        print STDERR "failed copying archived source code from node ${node}\n";
+        return $err;
+    }
+
+    $err = system("cd ${src_dir} && tar zxf ${archive}");
+    if ($err) {
+        print STDERR "failed decompressing archive ${archive}\n";
+        return $err;
+    }
+
+    unlink("${src_dir}/${archive}");
+    return;
+}
+
+
+sub install_lcov($) {
+    my ($node) = @_;
+
+    # Here we assume that the lcov rpm file
+    # is located in the same directory with this script
+    my $lcov_rpm = dirname($0) . "/lcov-1.6-1.noarch.rpm";
+    copy_to_node($node, ${lcov_rpm}, "/tmp");
+    node_do($node, "rpm -ivh /tmp/lcov-1.6-1.noarch.rpm");
+    return;
+}
+
+
+sub get_base_trace_file($) {
+    my ($node) = @_;
+
+    if (-e "${info_dir}/base.info") {
+        return;
+    }
+
+    my $lcov_capture_init_cmd =
+        "${LCOV} --capture --initial --directory ${src_dir}"
+        . " --output-file base.full.info";
+
+    my $lcov_extract_init_cmd =
+        "${LCOV} --output-file base.info --extract base.full.info"
+        . " \"${src_dir}/*\"";
+
+    node_do($node, "mkdir -p ${remote_tmp_dir}");
+
+    my $err = node_do($node,
+        "cd ${remote_tmp_dir} && ${lcov_capture_init_cmd} && ${lcov_extract_init_cmd}");
+    if ($err) {
+        return $err;
+    }
+
+    $err = copy_from_node($node, "${remote_tmp_dir}/base.info", $info_dir);
+
+    node_do($node, "rm -rf ${remote_tmp_dir}");
+    return $err;
+}
+
+
+sub get_kernel_trace_file($$) {
+    my ($node, $dir) = @_;
+
+    my $lcov_capture_cmd =
+        "${LCOV} --output-file kernel.full.info --capture --kernel-directory"
+        . " /module${src_dir}";
+
+    my $lcov_extract_cmd =
+        "${LCOV} --output-file kernel.${node}.info --extract kernel.full.info"
+        . " \"${src_dir}/*\"";
+
+    node_do($node, "mkdir -p ${remote_tmp_dir}");
+
+    my $err = node_do($node,
+        "cd ${remote_tmp_dir} && ${lcov_capture_cmd} && ${lcov_extract_cmd}");
+    if ($err) {
+        return $err;
+    }
+
+    $err = copy_from_node($node, "${remote_tmp_dir}/kernel.${node}.info", "${dir}/${node}.info");
+    node_do($node, "rm -rf ${remote_tmp_dir}");
+
+    return $err;
+}
+
+
+sub get_user_trace_file($) {
+    my ($node) = @_;
+
+    my $lcov_capture_cmd =
+        "${LCOV} --output-file user.full.info --capture --directory"
+        . " ${src_dir}";
+
+    my $lcov_extract_cmd =
+        "${LCOV} --output-file user.${node}.info --extract user.full.info"
+        . " \"${src_dir}/*\"";
+
+    node_do($node, "mkdir -p ${remote_tmp_dir}");
+
+    my $err = node_do($node,
+        "cd ${remote_tmp_dir} && ${lcov_capture_cmd} && ${lcov_extract_cmd}");
+    if ($err) {
+        return $err;
+    }
+
+    $err = copy_from_node($node, "${remote_tmp_dir}/user.${node}.info", "${user_info_dir}/${node}.info");
+    node_do($node, "rm -rf ${remote_tmp_dir}");
+
+    return $err;
+}
+
+
+########################################
+# Main actions start here
+########################################
+
+my $err;
+
+# Child processes
+my @children = ();
+
+# Global result we'll return at exit
+my $global_error = 0;
+
+#
+# A child process has terminated
+#
+sub child_terminated {
+    # Loop, as there may be several dead children
+    while (1) {
+	    my $died = waitpid(-1, WNOHANG);
+	    last if $died <= 0;
+
+	    $global_error = 1 if $? >> 8;
+
+	    # Update children info
+	    for my $i (0..scalar(@children)-1) {
+	        splice(@children, $i, 1)
+		    if defined($children[$i]) && $children[$i] == $died;
+	    }
+    }
+}
+
+# Handler for child termination
+$SIG{CHLD} = \&child_terminated;
+
+# Create new directory for the kernel trace files
+sleep(1);
+my ($sec,$min,$hour,$mday,$mon,$year,$wday,$yday,$isdst) = localtime(time);
+my $current_date = sprintf("%4d-%02d-%02d_%02d.%02d.%02d",
+                            $year+1900,$mon+1,$mday,$hour,$min,$sec);
+system("mkdir -p ${kernel_info_dir}/${current_date}");
+
+
+# FIXME Cleanup on failure
+foreach my $node (@node_list) {
+    my $child_pid = fork();
+
+    if ($child_pid < 0) {
+	    print STDERR "Failed forking child for target host ${node}";
+	    $global_error = 1;
+    	last;
+    }
+
+    if ($child_pid == 0) {
+	    $SIG{CHLD} = 'DEFAULT';
+	
+        #install_lcov($node);
+
+        # Ensure that coverage data is really written to disk
+        # TODO FIXME This can block the process
+        #node_do($node, "sync");
+
+        $err = get_kernel_trace_file($node, "${kernel_info_dir}/${current_date}");
+        if ($err) {
+            print STDERR "failed to get kernel trace file from node ${node}\n";
+        }
+
+        if ($final) {
+            $err = get_user_trace_file($node);
+            if ($err) {
+                print STDERR "failed to get user trace file from node ${node}\n";
+            }
+        }
+
+	    exit 0;
+    } else {
+	    push(@children, $child_pid);
+    }
+}
+
+
+#
+# Wait until all children completed or abort required
+#
+sleep(1)
+    while scalar(@children) > 0 && !$global_error;
+
+if ($global_error) {
+    print STDERR "### Killing child processes: @{children} ###\n";
+    while (scalar(@children) > 0) {
+	    kill('KILL', @children);
+	    sleep(1);
+    }
+}
+
+
+# Copy the source code to the local machine;
+# Create the baseline coverage data file;
+# Combine all trace files and generates the final report
+if ($final) {
+    my $src_node = $node_list[0];
+
+    $err = copy_source_code($src_node);
+    if ($err) {
+        print STDERR "failed to get source code from node ${src_node}\n";
+        exit 1;
+    }
+
+    $err = get_base_trace_file($src_node);
+    if ($err) {
+        print STDERR "failed to get base trace file from node ${src_node}\n";
+        exit 1;
+    }
+
+    # Remove previously created report if any
+    system("rm -rf ${info_dir}/all.info ${html_dir}");
+
+    my $tracefiles_param;
+
+    my $tf_finder = sub {
+        return if ! -f;
+        return if ! /\.info\z/;
+        $tracefiles_param = $tracefiles_param . " --add-tracefile ${File::Find::name}";
+    };
+    find($tf_finder, $info_dir);
+
+    # Combine data from all nodes
+    my $lcov_combine_cmd =
+        "lcov --test-name ${product_name} --output-file ${info_dir}/all.info ${tracefiles_param}";
+
+    print "lcov_combine_cmd = ${lcov_combine_cmd}\n";
+    $err = system(${lcov_combine_cmd});
+
+    if ($err) {
+        print STDERR "failed to combine trace files for product ${product_name}\n";
+        exit 1;
+    }
+
+    gen_html(${product_name}, $html_dir, "${info_dir}/all.info");
+}
+
+
+

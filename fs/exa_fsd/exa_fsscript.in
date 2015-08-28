@@ -1,0 +1,677 @@
+#!/bin/sh
+
+#
+# Copyright 2002, 2009 Seanodes Ltd http://www.seanodes.com. All rights
+# reserved and protected by French, UK, U.S. and other countries' copyright laws.
+# This file is part of Exanodes project and is subject to the terms
+# and conditions defined in the LICENSE file which is present in the root
+# directory of the project.
+#
+
+# --------------------------------------------------------------------------------
+# This file contains the commands used to interact automatically with filesystems
+# --------------------------------------------------------------------------------
+
+# --------------------------------------------------------------------------------
+# Should be run by admind with the following syntax :
+#     exa_fsscript PREPARE ext3|gfs|xfs [lock_proto hostname DEBUG|NODEBUG]
+#     exa_fsscript UNLOAD ext3|gfs|xfs Mountpoint data_device
+#     exa_fsscript CREATE ext3|xfs data_device
+#     exa_fsscript CREATE gfs nb_nodes data_device protocol uuid rg_size
+#     exa_fsscript [PREPARE|FINALIZE]RESIZE fstype data_device mountpoint [0|sizeKB]
+#     exa_fsscript CHECK [ext3|gfs] data_device PARAMETERS ouput_file REPAIR?TRUE:FALSE fs_specific_param
+#     exa_fsscript SET_LOGS sfs mountpoint device number_logs ouput_file
+#     exa_fsscript POST_MOUNT group_name fs_name mountpoint
+#     exa_fsscript PRE_UMOUNT group_name fs_name mountpoint
+#
+# NEEDS :
+#     Devices must exist.
+#     With EXT3, XFS :
+#     With Seanodes FS :
+#           - Seanodes FS must be installed (modules/deamons)
+#           - pgrep is used to test daemon existence
+#
+# EXIT :
+#     0 on success
+#     otherwise an error code.
+#
+# KNOWN PROBLEMS :
+#     - In case of blocking mount, the script exits normally. This is due to avoid Seanodes FS
+#       problems that would cause the hierarchy to be broken, and then Exanodes in
+#       its whole to assert and die.
+# --------------------------------------------------------------------------------
+
+# --------------------------------------------------------------------------------
+# Constants.
+
+WAIT_TIME_DAEMON=5
+WAIT_GULM_PROCESS_END=3
+GFS_MODULES="lock_harness lock_gulm sfs"
+GFS61_MODULES_DLM="dm-mod sfs lock_dlm"
+GFS61_MODULES_GULM="ipv6 lock_harness lock_gulm cman sfs"
+GFS61_MODULES_RM="sfs lock_gulm lock_dlm lock_harness dlm cman"
+LOG_FILE="@PKG_LOG_DIR@/exa_fsscript.log"
+CCSD_PIDFILE=/var/run/sistina/ccsd.pid
+MAX_WAIT_GULM=240
+MAX_RETRY_CMAN=3
+MAX_WAIT_CMAN=30
+RESIZELOGFILE=/tmp/resize2fs_exanodes.log
+
+ERR_INTERNAL=1
+ERR_MODULE=2
+ERR_EXECUTION=3
+ERR_SIZE=4
+ERR_TIMEOUT=5
+ERR_MKFS=6
+
+# --------------------------------------------------------------------------------
+# Functions
+
+# Log something.
+log()
+{
+    message="$*"
+    currenttime=`date`
+    echo "$currenttime $message" >> $LOG_FILE
+    return
+}
+
+# Display this script usage
+usage()
+{
+    echo "Call : $0 PREPARE ext3|(gfs lock_protocol debug)"
+    echo "       $0 UNLOAD ext3|gfs Mountpoint Device"
+    echo "       $0 CREATE ext3 Device"
+    echo "       $0 CREATE gfs cluster group volume nb_nodes data_device lock_gulm|lock_dlm uuid rg_size"
+    echo "       $0 [PREPARE|FINALIZE]RESIZE fstype data_device [0|sizeKB]"
+    echo "       $0 CHECK [ext3|gfs] data_device PARAMETERS ouput_file REPAIR?TRUE:FALSE fs_specific_param"
+    echo "       $0 SET_LOGS sfs mountpoint device number_logs ouput_file"
+    echo "       $0 POST_MOUNT group_name fs_name mountpoint"
+    echo "       $0 PRE_UMOUNT group_name fs_name mountpoint"
+}
+
+# Test a file is a block device
+# Arguments : 0 : file name.
+# Return : nothing, or exit on error.
+test_device()
+{
+    filename=$1
+    if [ ! -b $filename ]
+	then
+	log "ERROR : $filename is not a block device or does not exist."
+	exit 1
+    fi
+}
+
+# Clean exit with a given erroor code.
+# Argument : 0 : Error code to exit on.
+clean_exit()
+{
+    log "Out state $1 action_type=$action_type fs_type=$fs_type"
+    exit $1
+}
+
+# Test a process with the given name is already running.
+# Argument : 0 : Program name
+# Returns : 0 if not found,
+#           1 if found.
+test_process()
+{
+    processname=$1
+    log "Test process $processname is running"
+    pgrep $processname
+    retpgrep=$?
+    if [ "$retpgrep" = "0" ]
+	then
+	return 1
+    fi
+    return 0
+}
+
+# Loads a module list given as parameter
+# Argument : 0 : Module list
+# Returns : NONE.
+# Exit on ERROR.
+load_modules()
+{
+    modules_list=$1
+    for module in $modules_list
+      do
+      log "Loading module $module"
+      modprobe $module
+      error=$?
+      if [ "$error" != "0" ]
+	  then
+	  log "Failed to load module $module"
+	  clean_exit $ERR_MODULE
+	  fi
+      done
+    return
+}
+
+# --------------------------------------------------------------------------------
+# MAIN
+
+# Get and check arguments.
+log "All parameters: $*"
+action_type=$1
+fs_type=$2
+log "Run exa_fsscript with arguments : $action_type $fs_type"
+
+case "$action_type" in
+    UNLOAD)
+	mount_point=$3
+	data_device=$4
+	log "mount_point=$mount_point data_device=$data_device"
+	;;
+    PREPARE)
+	protocol=$3
+        gulmhostname=$4
+        DEBUG=$5
+	log "lock protocol=$protocol $gulmhostname $DEBUG"
+	;;
+    CREATE)
+	if [ "$fs_type" = "sfs" ] ; then
+	    nb_nodes=$3
+	    data_device=$4
+	    protocol=$5
+	    uuid=$6
+	    rg_size=$7
+	    log "nbnodes:$nb_nodes data_device:$data_device protocol:$protocol uuid:$uuid rg_size:$rg_size"
+	elif [ "$fs_type" = "ext3" -o "$fs_type" = "xfs"  ] ; then
+	    data_device=$3
+	    log "Run exa_fsscript with arguments : $data_device"
+	fi
+	if [ ! -b $data_device ] ; then
+	    log "Invalid block device: $data_device"
+	    usage
+	    clean_exit 1
+	fi
+	;;
+    *SIZE)
+	data_device=$3
+	mountpoint=$4
+	sizeKB=$5
+	log "data_device:$data_device mountpoint:$mountpoint sizeKB:$sizeKB"
+	;;
+    CHECK)
+	device=$3
+	parameters=$4
+	output_file=$5
+	check=$6
+	gfs_lock_protocol=$7
+	log "device:$device parameters:$parameters output_file:$output_file check:$check gfs_lock_protocol:$gfs_lock_protocol"
+	if [  "TEST$check" = "TEST" ]
+	    then
+	    log "Invalid usage for check"
+	    usage
+	    clean_exit $ERR_INTERNAL
+	fi
+	;;
+    SET_LOGS)
+	mountpoint=$3
+	device=$4
+	logs=$5
+	output_file=$6
+	log "mountpoint:$mountpoint device:$device logs:$logs output_file:$output_file"
+	if [  "TEST$$output_file" = "TEST" ]
+	    then
+	    log "Invalid usage for SET_LOGS"
+	    usage
+	    clean_exit $ERR_INTERNAL
+	fi
+	;;
+    POST_MOUNT)
+	group_name=$3
+	fs_name=$4
+	mount_point=$5
+	log "filesystem:$fs_name $mount_point"
+	;;
+
+    PRE_UMOUNT)
+	group_name=$3
+	fs_name=$4
+	mount_point=$5
+	log "filesystem:$fs_name $mount_point"
+	;;
+    *)
+	log "Invalid ACTION type : $action_type"
+	usage
+	clean_exit $ERR_INTERNAL
+	;;
+esac
+
+# --------------------------------------------------------------------------------
+# Execute command
+
+if [  "$fs_type" != "ext3" -a "$fs_type" != "sfs" -a "$fs_type" != "xfs" ]
+    then
+    log "Invalid FS type : $fs_type"
+    usage
+    clean_exit $ERR_INTERNAL
+fi
+
+# post_mount is a generic action and does not require a particular filesystem type
+if [ "$action_type" = "POST_MOUNT" ]
+    then
+    post_script=/etc/exanodes/postmount.d/${group_name}:${fs_name}
+    export mountpoint="$mount_point"
+    if [ -x $post_script ]; then
+      $post_script
+    fi
+    # We do not handle user script error
+    clean_exit 0
+fi
+
+# pre_umount is a generic action and does not require a particular filesystem type
+if [ "$action_type" = "PRE_UMOUNT" ]
+    then
+    post_script=/etc/exanodes/preumount.d/${group_name}:${fs_name}
+    export mountpoint="$mount_point"
+    if [ -x $post_script ]; then
+      $post_script
+    fi
+    # We do not handle user script error
+    clean_exit 0
+fi
+
+# Local filesystem
+if [ "$fs_type" = "ext3" ]
+    then
+    log "Filesystem type: ext3"
+    case "$action_type" in
+	PREPARE)
+	    clean_exit 0
+	    ;;
+
+	UNLOAD)
+	    clean_exit 0
+	    ;;
+
+	CREATE)
+	    mkfs.ext3 -q -b 4096 $data_device
+	    error=$?
+	    log "Create exited with error $error"
+	    if [ "$error" ==  "127" ]
+		then
+		clean_exit $ERR_EXECUTION
+	    fi
+	    if [ "$error" !=  "0" ]
+		then
+		clean_exit $ERR_MKFS
+	    fi
+	    clean_exit 0
+	    ;;
+
+	PREPARERESIZE)
+	    # fsck
+	    EMPTYFILE=/tmp/exanodes_void_file
+	    rm -f $EMPTYFILE
+	    touch $EMPTYFILE
+	    log "Run e2fsck..."
+	    e2fsck -l $EMPTYFILE -y $data_device >> $LOG_FILE 2>&1
+	    rm -f $EMPTYFILE
+	    error=$?
+	    log "fsck exited with error $error"
+	    if [ "$error" != "0" -a "$error" != "1" ] ; then
+		clean_exit $error
+	    fi
+            # remove the journal
+	    tune2fs -O^has_journal $data_device
+	    error=$?
+	    clean_exit $error
+	    ;;
+
+	RESIZE)
+	    if [ "$sizeKB" != "0" ] ; then
+                # Get size of a block
+		blocksize=$(tune2fs -l $data_device | grep 'Block size' |  cut -d: -f2)
+		size=$((1024*$sizeKB/$blocksize))
+                # resize
+		log "Run resize2fs with size $size..."
+		resize2fs $data_device $size > $RESIZELOGFILE  2>&1
+		error=$?
+	    else
+                # resize
+		log "Run resize2fs with the size of the device..."
+		resize2fs $data_device > $RESIZELOGFILE 2>&1
+		error=$?
+	    fi
+	    cat $RESIZELOGFILE >> $LOG_FILE
+	    log "resize2fs exited with error $error"
+	    if [ $error == "1" ]
+		then
+		grep "No space left on device" $RESIZELOGFILE
+		if [ "$?" == "0" ]
+		    then
+		    error=$ERR_SIZE
+		    fi
+	    fi
+	    rm $RESIZELOGFILE
+	    clean_exit $error
+	    ;;
+
+	FINALIZERESIZE)
+	    tune2fs -j $data_device >> $LOG_FILE 2>&1
+	    error=$?
+	    clean_exit $error
+	    ;;
+
+	CHECK)
+	    if [ "$check" == "TRUE" ]
+		then
+		check_option=" -y -f "
+	    else
+	    check_option=" -n -f "
+	    fi
+	    log "Running e2fsck $check_option $parameters $device"
+	    e2fsck $check_option $parameters $device >> $output_file 2>&1
+	    clean_exit $?
+	    ;;
+    esac
+fi
+
+# Local filesystem
+if [ "$fs_type" = "xfs" ]
+    then
+    log "Filesystem type: xfs"
+    case "$action_type" in
+       PREPARE)
+	    clean_exit 0
+	    ;;
+	UNLOAD)
+	    clean_exit 0
+	    ;;
+	CREATE)
+	    log "Running : mkfs.xfs -b size=4096 -f -s size=4096 $data_device"
+	    mkfs.xfs -b size=4096 -f -s size=4096 $data_device
+	    error=$?
+	    log "Create exited with error $error"
+	    if [ "$error" ==  "127" ]
+		then
+		clean_exit $ERR_EXECUTION
+	    fi
+	    clean_exit $error
+	    ;;
+	CHECK)
+            # First, try to mount/unmount. This is mandatory before running fsck on
+            # XFS : it doesn't allow to be run after a crash.
+            # Never mind the error. This will be checked later.
+	    randomdir=/tmp/mount_xfs_repair_$$
+	    mount -t xfs $device $randomdir > $output_file 2>&1
+	    umount $device >> $output_file 2>&1
+            # Then perform the test.
+	    if [ "$check" != "TRUE" ]
+		then
+		check_option=" -n "
+	    fi
+	    log "Running xfs_repair $check_option $parameters $device"
+	    xfs_repair $check_option $parameters $device >> $output_file 2>&1
+	    ret=$?
+	    if [ "$ret" == "1" -a "$check" != "TRUE" ]
+		then
+		ret=4
+	    fi
+	    clean_exit $ret
+	    ;;
+	RESIZE)
+	    xfs_growfs $mountpoint >> $LOG_FILE 2>&1
+	    clean_exit $?
+	    ;;
+	FINALIZERESIZE)
+	    clean_exit 0
+	    ;;
+	PREPARERESIZE)
+	    clean_exit 0
+	    ;;
+    esac
+fi
+
+# Seanodes FS file system
+if [ "$fs_type" == "sfs" ]
+    then
+    log "Filesystem type: Seanodes FS"
+    export PATH=/sbin:/usr/sbin:/bin:/usr/bin:$PATH
+
+    case "$action_type" in
+	PREPARE)
+	    case "$protocol" in
+		lock_dlm)
+                    # Try to load all GFS modules.
+	  	    load_modules "$GFS61_MODULES_DLM"
+                    # Test for daemon CCSD
+		    /etc/init.d/ccsd start
+                    # Start modules CMAN
+	            # At max, 3 retry loops.
+		    retry_loop=0
+		    cman_loop=0
+		    until [ "TEST$retry_loop" == "TEST$MAX_RETRY_CMAN" ]
+		      do
+		      let retry_loop=retry_loop+1
+		      /etc/init.d/cman start
+   	              # Test status
+		      counter=0
+		      until [ "TEST$cman_loop" != "TEST0" ]
+			do
+			sleep 1
+			cman_tool status 2>&1 | grep Cluster-Member
+			cman_status=$?
+			echo $cman_status
+			let counter=counter+1
+			if [ "TEST$cman_status" == "TEST0" ]
+			    then
+		            # Starting CMAN succeeded.
+			    log "Starting CMAN succeeded."
+			    cman_loop=1
+			    retry_loop=$MAX_RETRY_CMAN
+			fi
+			if [ "TEST$counter" == "TEST$MAX_WAIT_CMAN" ]
+			    then
+			    cman_loop=2
+			fi
+		      done
+		      if [ "TEST$cman_loop" == "TEST2" ]
+			  then
+	                  # Starting CMAN failed.
+			  log "Starting CMAN failed."
+			  cman_tool nodelist localhost >> $LOG_FILE
+			  /etc/init.d/cman stop
+			  /etc/init.d/ccsd stop
+			  clean_exit $ERR_TIMEOUT
+		      fi
+		    done
+		    clean_exit 0
+		    ;;
+
+		lock_gulm)
+                    # Try to load all GFS modules.
+		    load_modules "$GFS61_MODULES_GULM"
+	            # First test, don't start daemons if everything is already running.
+		    gulm_tool getstats localhost | grep Master
+		    gulm_status=$?
+		    if [ "$gulm_status" == "0" ]
+			then
+			log "Lock_gulm is already started and found a Master, don't try to start it again. Exit."
+			clean_exit 0
+		    fi
+		    if  [ "$gulm_status" == "127" ]
+			then
+			clean_exit $ERR_EXECUTION
+		    fi
+                    # Start daemon CCSD
+		    /etc/init.d/ccsd start
+		    error_ccsd=$?
+		    if [ "$error_ccsd" != "0" ]
+		    then
+			clean_exit $ERR_EXECUTION
+		    fi
+	            # Test for daemon LOCK_GULMD
+		    test_process lock_gulmd
+		    lock_gulmd_exist=$?
+		    log "LOCK_GULMD : $lock_gulmd_exist"
+		    if [ "$lock_gulmd_exist" = "0" ]
+			then
+     	                # Subtle difference from the 6.0 version : the "-c" argument tells to use ccsd.
+			LOGLEVEL="clear"
+			if [ "$DEBUG" == "DEBUG" ]
+			    then
+			    LOGLEVEL=Network,Fencing,Forking,LoginLoops
+			    fi
+			log "Run lock_gulmd with command : lock_gulmd -v $LOGLEVEL --name ${gulmhostname} -c"
+			lock_gulmd -v $LOGLEVEL --name ${gulmhostname} -c
+			wait_for_start=1
+		    fi
+	            # Test status
+		    gulm_loop=1
+		    counter=0
+		    until [ "TEST$gulm_loop" == "TEST0" ]
+		      do
+		      sleep 1
+		      gulm_tool getstats localhost:LTPX | grep "Master ="
+		      gulm_status=$?
+		      let counter=counter+1
+		      if [ "TEST$gulm_status" == "TEST0" ]
+			  then
+			  log "Starting GULM succeeded."
+			  pidof lock_gulmd_core > /var/run/lock_gulmd_core.pid
+			  clean_exit 0
+		      fi
+		      if [ "TEST$counter" == "TEST$MAX_WAIT_GULM" ]
+			  then
+			  gulm_loop=0
+		      fi
+		    done
+	            # Starting GULM failed.
+		    log "Starting GULM failed."
+		    gulm_tool nodelist localhost >> $LOG_FILE 2>&1
+		    gulm_tool shutdown localhost >> $LOG_FILE 2>&1
+		    /etc/init.d/lock_gulmd stop
+		    /etc/init.d/ccsd stop
+		    clean_exit $ERR_TIMEOUT
+		    ;;
+	    esac
+	    ;;
+
+	CREATE)
+	    log "Run sfs_mkfs -O -p $protocol -t $uuid -r $rg_size -j $nb_nodes $data_device"
+	    sfs_mkfs -O -p $protocol -t ${uuid} -r $rg_size -j $nb_nodes $data_device 2> /tmp/exa_fscreate > /tmp/exa_fscreate
+	    mkfs_result=$?
+	    cat /tmp/exa_fscreate >> $LOG_FILE
+	    grep -E "Partition too small for number/size of journals|is way too small" /tmp/exa_fscreate
+	    size_result=$?
+	    if [ "$size_result" != "1" ]
+		then
+		clean_exit $ERR_SIZE
+	    fi
+	    if [ "$mkfs_result" == "127" ]
+		then
+		clean_exit $ERR_EXECUTION
+	    fi
+	    if [ "$mkfs_result" != "0" ]
+		then
+		clean_exit $ERR_MKFS
+	    fi
+	    clean_exit 0
+	    ;;
+
+	UNLOAD)
+	    log "Unload Seanodes FS"
+	    /etc/init.d/sfs stop
+     	    # Shutdown CMAN
+	    cman_tool leave remove -w -t $WAIT_TIME_DAEMON
+	    cman_tool leave remove -t $WAIT_TIME_DAEMON force
+   	    # TODO : Manage an error when shutting down. This would mean very _bad_ things.
+	    /etc/init.d/ccsd stop
+	    killall -9 ccsd
+            # Shutdown GULM
+	    test_process lock_gulmd
+	    gulm_exist=$?
+	    log "GULM : $gulm_exist"
+	    if [ "$gulm_exist" == "1" ]
+		then
+		gulm_tool shutdown localhost:core >> $LOG_FILE 2>&1
+	    fi
+  	    # Clean-ups if things did not exited as expected.
+	    killall -9 lock_gulmd lock_gulmd_core lock_gulmd_LT000 lock_gulmd_LTPX
+	    # Kill sends a signal, which must be processed by Gulm, before test the process has exited.
+	    sleep $WAIT_GULM_PROCESS_END
+	    test_process lock_gulmd
+	    gulm_exist=$?
+	    if [ "$gulm_exist" == "1" ]
+		then
+		log "Unable to kill Gulm"
+		clean_exit $ERR_INTERNAL
+	    fi
+
+	    # remove all modules. "ipv6" may fail, but others shouldn't,
+	    # unless they are used by other applications.
+	    for module in $GFS61_MODULES_RM
+	      do
+	      rmmod $module
+	      done
+
+	    clean_exit 0
+	    ;;
+
+	PREPARERESIZE)
+	    clean_exit 0
+	    ;;
+
+	RESIZE)
+	    sfs_grow -q $data_device
+	    gfs_result=$?
+	    clean_exit $gfs_result
+	    ;;
+
+	CHECK)
+	    if [ "$check" == "TRUE" ]
+		then
+		check_option=" -y "
+	    else
+		check_option=" -n "
+	    fi
+	    # Get info on the lock_manager, if it exists...
+	    log "Get info about current lock manager given in SB"
+	    sfs_tool sb $device proto >> $LOG_FILE 2>&1
+	    # fsck
+	    log "sfs_fsck $check_option $parameters $device sent to : $output_file"
+	    sfs_fsck $check_option $parameters $device >> $output_file 2>&1
+	    exit_code=$?
+ 	    # Set back the lock_manager, if not done.
+	    log "Set back lock manager"
+	    echo y | sfs_tool sb $device proto $gfs_lock_protocol >> $LOG_FILE 2>&1
+	    clean_exit $exit_code
+	    ;;
+
+	SET_LOGS)
+	    number_of_logs=""
+	    while [ 1 ]
+	      do
+     	      # get the number of logs.
+	      number_of_logs=`sfs_tool jindex $mountpoint | grep Journal | wc -l`
+	      echo $number_of_logs > $output_file
+	      log "Actual number of logs : $number_of_logs"
+	      if [ "$number_of_logs" == "$logs" ]
+		  then
+		  clean_exit 0
+	      fi
+	      log "Execute sfs_jadd $device"
+	      sfs_jadd $device >> $LOG_FILE 2>&1
+	      retjadd=$?
+	      if [ "$retjadd" == "1" ]
+		  then
+		  clean_exit 0
+	      fi
+	      if [ "$retjadd" == "127" ]
+		  then
+		  clean_exit $ERR_EXECUTION
+	      fi
+	    done
+	    clean_exit 0
+	    ;;
+    esac
+fi
+log "Unknown file system type."
+
+# Never go here...
+clean_exit 1

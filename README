@@ -1,0 +1,28 @@
+Exanodes is a distributed storage system.
+
+see http://www.seanodes.com for details
+
+here is the list of build dependencies to be able to build the software
+
+seanodes-unittest (available on github)
+cmake
+rpm-build
+libxml2-devel
+boost-devel
+openssl-devel
+net-snmp-devel
+selinux-policy-devel
+headers for your kernel
+
+BUILD:
+
+mkdir build-exanodes && cd build-exanodes
+
+$ cmake /path/to/the/exanodes/git/checkout
+
+$ make dist
+
+$ rpmbuild -ts exanode-XXX.tgz #packet created by the make dist
+
+install the rpmbuilds in the ~/rpmbuild directory
+

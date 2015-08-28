@@ -1,0 +1,14 @@
+# exafsd executable will have:
+# label: system_u:object_r:exafsd_exec_t
+# MLS sensitivity: s0
+# MCS categories: <none>
+
+/usr/sbin/exa_fs*		--	gen_context(system_u:object_r:exafsd_exec_t,s0)
+/var/run/exa_fsd.pid			gen_context(system_u:object_r:exafsd_var_run_t,s0)
+/var/log/				gen_context(system_u:object_r:exafsd_var_log_t,s0)
+
+# Gulm is an exanodes daemon here...
+/usr/sbin/lock_gulmd		--	gen_context(system_u:object_r:exafsd_exec_t,s0)
+
+# sfs tools execute in exafsd domain
+/usr/sbin/sfs_*                 --      gen_context(system_u:object_r:exafsd_exec_t,s0)

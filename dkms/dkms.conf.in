@@ -1,0 +1,28 @@
+#
+# Copyright 2002, 2012 Seanodes Ltd http://www.seanodes.com. All rights
+# reserved and protected by French, UK, U.S. and other countries' copyright laws.
+# This file is part of Exanodes project and is subject to the terms
+# and conditions defined in the LICENSE file which is present in the root
+# directory of the project.
+#
+
+PACKAGE_VERSION="@EXA_EDITION_TAG@-@EXA_VERSION@"
+PACKAGE_NAME="@CMAKE_PROJECT_NAME@"
+
+MAKE[0]="make -C ${dkms_tree}/@CMAKE_PROJECT_NAME@/@EXA_EDITION_TAG@-@EXA_VERSION@/build LINUX_DIR=\"${kernel_source_dir}\" -f Makefile.dkms"
+CLEAN="make -C ${dkms_tree}/@CMAKE_PROJECT_NAME@/@EXA_EDITION_TAG@-@EXA_VERSION@/build LINUX_DIR=\"${kernel_source_dir}\" -f Makefile.dkms clean"
+
+BUILT_MODULE_NAME[0]="exa_common"
+BUILT_MODULE_LOCATION[0]="common/lib"
+DEST_MODULE_LOCATION[0]="/kernel/exanodes"
+
+BUILT_MODULE_NAME[1]="exa_rdev"
+BUILT_MODULE_LOCATION[1]="rdev/src/"
+DEST_MODULE_LOCATION[1]="/kernel/exanodes"
+
+@NO_EXA_BD@ BUILT_MODULE_NAME[2]="exa_bd"
+@NO_EXA_BD@ BUILT_MODULE_LOCATION[2]="target/linux_bd_target/module"
+@NO_EXA_BD@ DEST_MODULE_LOCATION[2]="/kernel/exanodes"
+
+REMAKE_INITRD="no"
+AUTOINSTALL="yes"

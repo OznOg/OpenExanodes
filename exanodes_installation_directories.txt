@@ -1,0 +1,41 @@
+Exanodes installation directories per platform
+
+|                        | Linux(1)            | Linux(2)                  | Linux(3)         | Linux(4)                | Windows                            |
+|------------------------+---------------------+---------------------------+------------------+-------------------------+------------------------------------|
+| CMAKE_INSTALL_PREFIX   | /usr                | /usr/local                | $                | /opt/exanodes           | C:\Program Files\Seanodes\Exanodes |
+| EXANODES_BIN_DIR       | /usr/bin            | /usr/local/bin            | $/exanodes/bin   | /opt/exanodes/bin       | ...\bin                            |
+| EXANODES_SBIN_DIR      | /usr/sbin           | /usr/local/sbin           | $/exanodes/sbin  | /opt/exanodes/sbin      | ...\sbin                           |
+| EXANODES_LIB_DIR       | /usr/lib            | /usr/local/lib            | $/exanodes/lib   | /opt/exanodes/lib       | ...\lib                            |
+| EXANODES_DATA_DIR      | /usr/share/exanodes | /usr/local/share/exanodes | $/exanodes/share | /opt/exanodes/share     | ...\share                          |
+| EXANODES_NODE_CONF_DIR | /etc/exanodes       | /usr/local/etc/exanodes   | $/exanodes/etc   | /etc/opt/exanodes       | C:\ProgramData\exanodes\etc        |
+| EXANODES_LOG_DIR       | /var/log/exanodes   | /var/log/exanodes         | $/exanodes/log   | /var/opt/exanodes/log   | C:\ProgramData\exanodes\log        |
+| EXANODES_CACHE_DIR     | /var/cache/exanodes | /var/cache/exanodes       | $/exanodes/cache | /var/opt/exanodes/cache | C:\ProgramData\exanodes\cache      |
+| man dir                | /usr/share/man      | /usr/local/share/man      | $/exanodes/man   | /opt/exanodes/man       | ...\man                            |
+
+NOTE: Could Linux(4) ([[http://tldp.org/LDP/Linux-Filesystem-Hierarchy/html/opt.html][/opt]]) be subsumed by a modified Linux(3)?
+
+See FHS description of /usr/local at [[http://www.pathname.com/fhs/pub/fhs-2.3.html#USRLOCALLOCALHIERARCHY][pathname.com]].
+
+From [[http://www.vistaheads.com/forums/microsoft-public-windows-vista-installation-setup/176056-program-files-programdata.html][VistaHeads]]:
+
+  Program Data is a "virtualized" folder used by Vista so that programs and
+  users running with normal rights can work around a security feature of
+  Vista. Only full Administrator users can write to the Program Files folder,
+  so any time a program or user with lesser rights wants to write to Program
+  Files, that action is redirected to Program Data instead.
+
+From [[http://social.technet.microsoft.com/Forums/en/itprovistasetup/thread/5d0afe20-6873-4c5b-b84c-2a6e397144f0][social.technet.microsoft.com]]:
+
+  The ProgramData folder contains all your application data, like program
+  settings, user data, etc, for all of the installed programs on the
+  computer.
+
+  Just for reference, the ProgramData folder holds the same files that were
+  contained in the \Documents and Settings\All Users and \Documents and
+  Settings\All Users\Application Data folders in XP.
+
+On Windows, Exanodes' config files should *not* be stored with the binaries:
+if a user removes Exanodes, then reinstalls it (during an upgrade, for
+instance) in a different directory, the binaries won't be able to find the
+existing config files. That's why on Windows the config files should be
+stored in C:\ProgramData.

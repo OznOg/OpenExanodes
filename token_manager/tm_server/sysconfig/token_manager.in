@@ -1,0 +1,158 @@
+#!/bin/bash
+
+#
+# Copyright 2002, 2010 Seanodes Ltd http://www.seanodes.com. All rights
+# reserved and protected by French, UK, U.S. and other countries' copyright laws.
+# This file is part of Exanodes project and is subject to the terms
+# and conditions defined in the LICENSE file which is present in the root
+# directory of the project.
+#
+
+#
+# Seanodes token manager start and stop
+#
+# chkconfig: 35 98 75
+# description: 	This runs Seanodes token manager for two-nodes cluster
+#
+### BEGIN INIT INFO
+# Provides:                     token_manager
+# Required-Start:               $local_fs $remote_fs $network $named $time
+# X-UnitedLinux-Should-Start:
+# Required-Stop:                $local_fs $remote_fs $network
+# X-UnitedLinux-Should-Stop:
+# Default-Start:                3 5
+# Default-Stop:                 0 1 2 6
+# Short-Description:            Seanodes token manager
+# Description:                  Start Seanodes token manager
+### END INIT INFO
+
+PATH="/sbin:/usr/sbin:/bin:/usr/bin:$PATH"
+
+export TOKEN_MANAGER_FILE="/var/cache/token_manager/tokens"
+export TOKEN_MANAGER_PORT="0"
+export TOKEN_MANAGER_PRIV_PORT="0"
+export TOKEN_MANAGER_LOGFILE="/var/log/token_manager.log"
+export TOKEN_MANAGER_SBIN_DIR="@SBIN_DIR@"
+
+RETVAL=0
+
+if [ -f /etc/SuSE-release ]; then
+    success() { echo -n [  OK  ]; }
+    failure() { echo -n [FAILED]; }
+elif grep -q "Debian GNU/Linux" /etc/issue ; then
+    . /lib/lsb/init-functions
+    success() { log_success_msg $@ ; }
+    failure() { log_failure_msg $@ ; }
+elif grep -q "Ubuntu" /etc/issue ; then
+    . /lib/lsb/init-functions
+    success() { log_success_msg $@ ; }
+    failure() { log_failure_msg $@ ; }
+else
+    . /etc/init.d/functions
+fi
+
+# Make sure umask is sane
+umask 022
+
+status() {
+	pid=`pidof $1`
+	if [ "$pid" != "" ] ; then
+	        echo "$1 (pid $pid) is running..."
+	        return 0
+	fi
+
+	# Check in var/run files
+	if [ -f /var/run/$1.pid ] ; then
+	        read pid < /var/run/$1.pid
+	        if [ "$pid" != "" ] ; then
+	                echo "$1 is not running but the pid file exists"
+	                return 1
+	        fi
+	fi
+	# Check in /var/lock/subsys
+	if [ -f /var/lock/subsys/$1 ]; then
+		echo "$1 is not running but subsys is locked"
+		return 2
+	fi
+	echo "$1 is stopped"
+	return 3
+}
+
+tm_startdaemon() {
+    echo -n "Start $1: "
+
+    DAEMONBIN=${TOKEN_MANAGER_SBIN_DIR}/$1
+    DAEMONCMD=${TOKEN_MANAGER_SBIN_DIR}/$*
+    test -e $DAEMONBIN || return 2 # no such file or directory
+    test -x $DAEMONBIN || return 13 # permission denied
+
+    $DAEMONCMD
+    RETVAL=$?
+    if [ $RETVAL -eq 0 ]; then
+	success "$1 successfully started"
+	echo
+    else
+	failure "Failed to start $1"
+	echo
+    fi
+    return $RETVAL
+}
+
+tm_killproc() {
+    echo -n "Stop $1: "
+
+    killproc $@
+    while pidof $1; do
+        usleep 100000
+    done
+    return 0
+}
+
+# --------------------------------------------------
+case "$1" in
+'start')
+    # check the daemon status to prevent tying to start it twice.
+    status token_manager | grep -v stopped
+    RETVAL=${PIPESTATUS[0]}
+    if [ $RETVAL -eq 0 ]; then
+        exit 0
+    fi
+
+    tm_startdaemon token_manager
+    RETVAL=$?
+
+    if [ $RETVAL -eq 0 ]; then
+	# The rc script needs this file to check that Exanodes is started.
+	test -d /var/lock/subsys && touch /var/lock/subsys/token_manager
+    fi
+    ;;
+
+'stop')
+    tm_killproc token_manager
+    RETVAL=$?
+
+    # The rc script needs this file to check that Exanodes is stopped.
+    /bin/rm -f /var/lock/subsys/token_manager
+    ;;
+
+'status')
+    status token_manager
+    ;;
+
+'force-reload')
+    sh $0 stop
+    sh $0 start
+    ;;
+
+'restart')
+    sh $0 stop
+    sh $0 start
+    ;;
+
+*)
+    echo "Usage: $0 {start | stop | restart | status}"
+    exit 1
+    ;;
+esac
+
+exit $RETVAL

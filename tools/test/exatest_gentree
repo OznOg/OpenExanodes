@@ -1,0 +1,112 @@
+#! /usr/bin/perl -w
+
+#
+# Copyright 2002, 2009 Seanodes Ltd http://www.seanodes.com. All rights
+# reserved and protected by French, UK, U.S. and other countries' copyright laws.
+# This file is part of Exanodes project and is subject to the terms
+# and conditions defined in the LICENSE file which is present in the root
+# directory of the project.
+#
+
+use strict;
+
+use IO::Handle;
+use Digest::MD5 qw(md5_hex);
+
+my $chunksize = 4096;
+
+# Each 10 files, 1 big one
+my $big_freq = 100;
+# Size of the bigest file is sizemax/big_factor
+my $big_factor = 50;
+
+my $medium_freq = 20;
+my $medium_factor = 200;
+
+my $small_freq = 1;
+my $small_factor = 204800;
+
+my $dir_ratio = 5;
+my $max_depth = 5;
+
+my($size, $root) = @ARGV;
+my $totalsize = 0;
+my $datablock = gen_datablock($chunksize);
+my $blocksize = do { use bytes; length($datablock) };
+
+sub usage {
+  my($name) = $0;
+
+  $name =~ s|^.*/||;
+
+  print STDERR <<"EOF";
+Usage:
+$name <size> <root>
+\tsize\tThe approximative size in bytes of the directory tree to generate.
+\troot\tThe directory where the tree should be rooted at.
+EOF
+  exit(42);
+}
+
+
+sub gen_datablock {
+  my($bs) = @_;
+  my $data = '';
+  my $count = 0;
+
+  while(length($data) < $bs) {
+    $data .= ++$count . "\n";
+  }
+
+  return $data;
+}
+
+
+sub gen_file {
+  my($fname, $size) = @_;
+  my $cur = 0;
+
+  open(OUT, '>', $fname) or die $!;
+  while($cur < $size) {
+    print OUT $datablock or die($!);
+    $cur += $blocksize;
+  }
+  OUT->flush();
+  $totalsize += -s OUT;
+  close(OUT);
+}
+
+
+sub do_gentree {
+  my @path;
+  my $count = 0;
+
+  mkdir($root);
+
+  while($totalsize < $size) {
+    my $name = sprintf('%010i', ++$count);
+
+    if(scalar(@path) < $max_depth && $count % $dir_ratio == 0) {
+      push(@path, "dir-$name");
+    } elsif(scalar(@path) && $count % $dir_ratio == 0) {
+      pop(@path);
+    }
+
+    mkdir(join('/', $root, @path));
+
+    if($count % $big_freq == 0) {
+      gen_file(join('/', $root, @path, $name), int($size / $big_factor));
+    } elsif($count % $medium_freq == 0) {
+      gen_file(join('/', $root, @path, $name), int($size / $medium_factor));
+    } elsif($count % $small_freq == 0) {
+      gen_file(join('/', $root, @path, $name), int($size / $small_factor));
+    }
+  }
+}
+
+
+if(!defined($size) || !defined($root)) {
+  usage();
+}
+
+do_gentree();

@@ -1,0 +1,59 @@
+[TEST_1]
+flushing_filter = mean min max
+sampling_period = 0
+flushing_period = 3
+sample_size = 1000
+
+[TEST_2]
+flushing_filter = mean min max
+sampling_period = 0
+flushing_period = 3
+sample_size = 1000
+
+[TEST_3]
+flushing_filter = mean min max
+sampling_period = 0
+flushing_period = 3
+sample_size = 1000
+
+[TEST_4]
+flushing_filter = mean min max
+sampling_period = 0
+flushing_period = 3
+sample_size = 1000
+
+[TEST_5]
+flushing_filter = mean min max
+sampling_period = 0
+flushing_period = 3
+sample_size = 1000
+
+[TEST_6]
+flushing_filter = mean min max
+sampling_period = 0
+flushing_period = 3
+sample_size = 1000
+
+[TEST_7]
+flushing_filter = mean min max
+sampling_period = 0
+flushing_period = 3
+sample_size = 1000
+
+[TEST_8]
+flushing_filter = mean min max
+sampling_period = 0
+flushing_period = 3
+sample_size = 1000
+
+[TEST_9]
+flushing_filter = mean min max
+sampling_period = 0
+flushing_period = 3
+sample_size = 1000
+
+[TEST_10]
+flushing_filter = mean min max
+sampling_period = 0
+flushing_period = 3
+sample_size = 1000

@@ -1,0 +1,105 @@
+#!/bin/bash
+
+function usage () {
+    echo $0 "-h|--help              This help"
+    echo $0 "-e|--enable FILE       Enable valgrind wrapper on FILE (default)"
+    echo $0 "-d|--disable FILE      Disable valgrind wrapper on FILE "
+    echo $0 "-t|--tool TOOL FILE    Specify valgrind tool (default: memcheck)"
+    exit 1
+}
+
+enable=0
+disable=0
+tool="memcheck"
+file=""
+
+while [ "$1" != "" ]; do
+case "$1" in
+ "-h" | "--help")
+    usage
+    shift
+    ;;
+ "-e" | "--enable")
+    enable=1
+    shift
+    ;;
+ "-d" | "--disable")
+    disable=1
+    shift
+    ;;
+ "-t" | "--tool")
+    shift
+    tool=$1
+    shift
+    ;;
+  *)
+    file=$1
+    shift
+    ;;
+esac
+done
+
+if [ "$enable" = "0" -a "$disable" = "0" ]; then
+    enable=1
+fi
+
+valgrind --tool=$tool true 2>/dev/null >/dev/null
+if [ $? != 0 ]; then
+    echo valgrind tool "$tool" does not seem to exist
+    exit 1
+fi
+
+if [ -z "$file" ]; then
+    echo file not specified
+    exit 1
+fi
+
+exec=$file
+if [ ! -f "$file" ]; then
+    exec=`which $file 2>/dev/null`
+fi
+
+if [ ! -f "$exec" ]; then    
+    echo $file: file not found
+    exit 1
+else
+    file=$exec
+fi
+
+if [ "$enable" = "1" ]; then
+    exectype=`file $file|grep "Bourne-Again shell script text executable"`
+
+    if [ -f $file.real -a "$exectype" != "" ]; then
+        echo $file is already valgrind-enabled.
+        exit 0
+    fi
+
+    mv $file $file.real
+
+    exec=`basename $file`
+
+    if [ "$tool" = "memcheck" ]; then
+        leakcheck="--leak-check=full"
+    else
+        leakcheck=""
+    fi
+    cat << EOF > $file
+#!/bin/bash
+valgrind --tool=$tool $leakcheck --log-file=/tmp/$exec.\$\$.valgrind.log --trace-children=yes $file.real \$@ >/tmp/$exec.\$\$.valgrind.out 2>/tmp/$exec.\$\$.valgrind.err
+EOF
+
+    chmod +x $file
+
+    echo Installed valgrind wrapper for $file. Logs will be found in /tmp/$exec.valgrind.'*'
+fi
+if [ "$disable" = "1" ]; then
+    exectype=`file $file|grep "Bourne-Again shell script text executable"`
+
+    if [ ! -f "$file.real" -o "$exectype" = "" ]; then
+        echo $file does not seem to be valgrind-enabled.
+        exit 0
+    fi
+
+    mv $file.real $file
+    echo Removed valgrind wrapper for $file.
+fi

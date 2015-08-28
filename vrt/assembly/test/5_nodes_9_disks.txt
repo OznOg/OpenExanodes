@@ -1,0 +1,15 @@
+# 5 nodes, 9 disks, disk size is heterogeneous
+# Node 1: 74 GB, 32 GB
+# Node 2: 58 GB, 38 GB
+# Node 3: 250 GB
+# Node 4: 48 GB, 48 GB
+# Node 5: 64 GB, 16 GB
+1	77594624
+1	33554432
+2	60817408
+2	39845888
+3	262144000
+4	50331648
+4	50331648
+5	67108864
+5	16777216

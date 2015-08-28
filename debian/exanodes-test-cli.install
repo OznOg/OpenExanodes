@@ -1,0 +1,4 @@
+etc/exanodes/regression_perf_testlist.list
+etc/exanodes/validation_testseries
+usr/bin/exatest_*
+usr/sbin/vl_commands-stress.sh

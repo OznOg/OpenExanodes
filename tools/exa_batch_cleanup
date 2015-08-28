@@ -1,0 +1,52 @@
+#!/bin/sh
+#
+# This script can be used to delete an Exanodes cluster very easily with Exanodes.
+#
+# -------------------------------------------------------------------------------------------
+# WARNING WARNING --- ALL YOUR DATA ON THIS EXANODES CLUSTER WILL BE LOST --- WARNING WARNING
+# -------------------------------------------------------------------------------------------
+#
+#
+if [ $# -eq "0" ]
+then
+  echo "Usage: `basename $0` options (-c)"
+  echo "Mandatory:"
+  echo " -c CLUSTER           The cluster name to stop and delete (all your data will be lost)"
+  exit 1
+fi
+
+while getopts "c:" Option
+do
+  case $Option in
+    c ) cluster=$OPTARG;;
+
+    * ) echo "You provided an unknwon option."; exit 1;;   # DEFAULT
+  esac
+done
+
+shift $(($OPTIND - 1))
+#  Decrements the argument pointer so it points to next argument.
+#  $1 now references the first non option item supplied on the command line
+#+ if one exists.
+
+echo "Parameters:"
+
+if [ -z "$cluster" ]
+then
+  echo "ERROR: You have to specify the cluster name with -c (e.g -c mycluster)"
+  exit 1
+fi
+printf "%16s %s" "CLUSTER" $cluster
+
+echo "\n"
+
+echo "\nCluster stop:"
+exa_clstop $cluster -r
+if [ $? -ne 0 ] ;then exit 1; fi
+
+exa_cldelete $cluster -RB -r
+if [ $? -ne 0 ] ;then exit 1; fi
+
+echo "\nDONE"
+
+exit 0

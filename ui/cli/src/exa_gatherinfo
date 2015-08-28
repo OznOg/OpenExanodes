@@ -1,0 +1,2018 @@
+#!/usr/bin/perl
+
+#
+# Copyright 2002, 2009 Seanodes Ltd http://www.seanodes.com. All rights
+# reserved and protected by French, UK, U.S. and other countries' copyright laws.
+# This file is part of Exanodes project and is subject to the terms
+# and conditions defined in the LICENSE file which is present in the root
+# directory of the project.
+#
+
+#
+# TODO:
+#   - Syslog not gathered, nobody complained... really missing ?
+#   - Kill children on ^C
+#   - Run exadiag_dumpconfig => take care of duplicates
+#
+
+use strict;
+use warnings;
+
+use Getopt::Long;
+use FileHandle;
+use File::Basename;
+use File::Path;
+use POSIX ":sys_wait_h";
+use File::Temp ":POSIX";
+use Cwd;
+
+my $this_script = $0;
+my $self = basename($this_script);
+
+# Risk levels
+use constant LEVEL_SAFE => 1;
+use constant LEVEL_RISKY => 2;
+use constant LEVEL_BREAK => 3;
+
+# SSH commands in batch mode: won't ask for a password and will fail if no
+# password is present in the user's SSH config
+my $SSH_OPTS = "-o BatchMode=yes -o ConnectTimeout=5 -o ServerAliveCountMax=5"
+    . " -o ServerAliveInterval=5";
+my $SSH = "ssh ${SSH_OPTS}";
+my $SCP = "scp ${SSH_OPTS}";
+
+# Options
+my $silent = 1;
+my $debugging = 0;
+my $level = LEVEL_SAFE;
+my $panic_dump = 0;
+my $start_date;
+
+# Per-node info (for each child process)
+my $this_node = "localhost";
+my $slave = 0;
+my $exa_version = "";
+my $sfs_installed = 0;
+
+# Directories
+my $EXA_ETC_DIR = "/etc/exanodes";
+my $EXA_CACHE_DIR = "/var/cache/exanodes";
+my $EXA_LOG_DIR = "/var/log";
+
+# Files
+my $EXA_CLUSTER_CONF = "exanodes.conf";
+my $EXA_LOG = "exanodes.log";
+
+# Gather dir path and naming pattern
+my $GATHER_DIR_PATH = "/tmp";
+my $GATHER_DIR_PREFIX = "exa_gather_";
+my $GATHER_LOCAL_DIR_PREFIX = "exa_gather_local_";
+
+# Local dir where each node stores its gathered data
+my $gather_dir;
+# Directory where the final, big archive is stored
+my $final_dir;
+
+# Some entries to keep
+my @proc_entry = ("ksyms", "meminfo", "kallsyms", "cmdline", "sys/vm/bdflush",
+		  "mounts","cpuinfo","partitions","scsi","modules", "interrupts");
+my @sys_entry = ("block");
+
+# Current category in which data is stored
+my $category = "";
+
+# Log file
+my $logfile;
+
+# Archiver settings
+my $archive_prog;
+my $archive_ext;
+my $archive_opt;
+
+#
+# Colors.
+#
+my $COLOR_SUCCESS  = "\e[1;32m";
+my $COLOR_FAILURE  = "\e[1;31m";
+my $COLOR_WARNING  = "\e[1;34m";
+my $COLOR_WARNING2 = "\e[1;35m";
+my $COLOR_NORMAL   = "\e[0;39m";
+
+sub success { return $COLOR_SUCCESS . "@_" . $COLOR_NORMAL; }
+sub failure { return $COLOR_FAILURE . "@_" . $COLOR_NORMAL; }
+sub attention  { return $COLOR_WARNING . "@_" . $COLOR_NORMAL; }
+sub attention2 { return $COLOR_WARNING2 . "@_" . $COLOR_NORMAL; }
+
+# Date as YYYY-MM-DD-hh-mm-ss
+sub date {
+    my $date = `LC_ALL=C date +%Y-%m-%d-%H-%M-%S`;
+    chop($date);
+    return $date;
+}
+
+# Return the local directory to which the local node info
+# is gathered
+sub local_dir() {
+    return "${gather_dir}/${this_node}";
+}
+
+#
+# Enter a category. May contain sub-categories. The corresponding
+# directories will be created as needed
+#
+sub enter_category($) {
+    my $cat = shift;
+
+    &debug(">>> entering category: ${cat}");
+
+    $category .= "/" . $cat;
+
+    my $path = &local_dir . "/" . $category;
+    &File::Path::mkpath($path);
+    chdir($path);
+
+    &debug("now in " . cwd);
+}
+
+#
+# Leave the current category. May contain sub-categories and must be a
+# suffix of the current category
+#
+sub leave_category($) {
+    my $cat = shift;
+
+    &debug("<<< leaving category: ${cat}");
+
+    if ($category !~ /$cat$/) {
+	&fatal("attempting to leave category '${cat}' while in '${category}'");
+    }
+
+    $category =~ s!/$cat$!!;
+    chdir(&local_dir . "/" . $category);
+
+    &debug("now in " . cwd);
+}
+
+# Return the local name of the given remote object
+sub local_name($) {
+    my $name = shift;
+    # Ensure the name doesn't end with a slash, otherwise basename will
+    # return an empty name
+    $name =~ s/\/$//;
+    return basename($name);
+}
+
+sub log_msg(@) {
+    print $logfile @_ if $logfile;
+}
+
+sub msg(@) {
+    return "@_\n" if !$this_node;
+    return "${this_node}: @_\n";
+}
+
+sub info(@) {
+    my $text = &msg(@_);
+    print $text;
+    &log_msg($text);
+}
+
+sub print_stderr(@) {
+    print STDERR @_;
+    &log_msg(@_);
+}
+
+sub warning(@) {
+    &print_stderr(&msg(&attention("WARNING: @_")));
+}
+
+sub error(@) {
+    &print_stderr(&msg(&failure("ERROR: @_")));
+}
+
+sub fatal(@) {
+    &print_stderr(&msg(&failure("FATAL: @_")));
+    exit 1;
+}
+
+sub debug(@) {
+    return if !$debugging;
+    print "(debug)", &msg(@_);
+}
+
+#
+# system() wrapper
+#
+sub sys(@) {
+    my $command = shift;
+
+    my $redirect;
+    if ($silent) {
+	$redirect = "2>/dev/null";
+    } else {
+	$redirect = "2>&1";
+    }
+
+    # XXX Must let Perl handle SIGCHILD, otherwise the backquoted command
+    # will fail
+   local $SIG{CHLD} = 'DEFAULT';
+
+    my $sys_cmd = "{ export LC_ALL=C; ${command}; } ${redirect}";
+    &debug("sys: '${this_node}' => '${sys_cmd}'");
+
+    my $cmd_output = `${sys_cmd}`;
+    my $r;
+    if (WIFEXITED($?)) {
+	$r = WEXITSTATUS($?);
+    } elsif (WIFSIGNALED($?)) {
+	my $sig = WTERMSIG($r);
+	&warning("command ${sys_cmd} interrupted by signal ${sig}");
+	$r = 1;
+    } elsif ($? == -1) {
+	$r = -1;
+    } else {
+	&warning("command returned ${?}");
+	$r = 1;
+    }
+
+    # If the command couldn't be executed, show what it was
+    if ($r < 0) {
+	chomp($cmd_output);
+	$cmd_output =~ s/\n/\n\t/g;
+	&fatal("failed to run ${sys_cmd} on ${this_node}:\n\t${cmd_output}");
+    }
+
+    return $r;
+}
+
+# Message printed at beginning of current step
+my @step_msg;
+
+#
+# Report beginning of current step
+#
+sub step(@) {
+    my @msg = @_;
+
+    &info("@{msg}...");
+    @step_msg = @msg;
+}
+
+#
+# Report end (success or failure) of current step
+#
+sub result($$) {
+    my ($err, $details) = @_;
+
+    my $color = ($err ? \&failure : \&success);
+    my $text = &$color(&msg("@{step_msg}: "
+		       . ($err == 0 ? "OK" : "FAILED")
+		       . (defined($details) ? ": ${details}" : "")));
+    print $text;
+    &log_msg($text);
+}
+
+#
+# Get the list of nodes comprising a given cluster by reading them in the
+# local cluster cache file
+#
+sub get_cluster_nodes($) {
+    my $cluster = shift;
+    my $cache_filename;
+
+    &debug("reading cache of cluster '${cluster}'");
+
+    if (defined($ENV{"EXANODES_CACHE_DIR"})) {
+	$cache_filename = $ENV{"EXANODES_CACHE_DIR"} . "/${cluster}.nodes";
+    } elsif ($> == 0) {
+	$cache_filename = "/var/cache/exanodes/${cluster}.nodes";
+    } else {
+	$cache_filename = $ENV{"HOME"} . "/.exanodes/cache/${cluster}.nodes";
+    }
+
+    if (!open(CACHE, $cache_filename)) {
+	return ();
+    }
+
+    # Read and ignore cluster uid
+    my $cluid = <CACHE>;
+    return () if !$cluid;
+
+    # Build list of nodes
+    my @nodes = ();
+    while (my $line = <CACHE>) {
+	my ($node) = $line =~ /(\S+)\s\.*/;
+	push(@nodes, $node);
+    }
+
+    close(CACHE);
+
+    return @nodes;
+}
+
+#
+# Display level usage list and help
+#
+sub level_usage($) {
+    my $exit_val = shift;
+
+    print "Available level of risk in the gather to perform:\n"
+	. "  " . &success("Level ".LEVEL_SAFE." is called 'SAFE'\n")
+	. "      it can be run at any moment and is safe for Exanodes' health\n"
+	. "  " . &attention2("Level ".LEVEL_RISKY." is called 'RISKY'\n")
+        . "      it could be dangerous and make your nodes' processes and kernel fail\n"
+	. "  " . &failure("Level ".LEVEL_BREAK." is called 'BREAK'\n")
+        . "      it is " . &failure("DANGEROUS") . " and will definitely make your nodes go down !\n"
+	. "Default is level 1.\n";
+    exit $exit_val;
+}
+
+#
+# Display usage help
+#
+sub usage($) {
+    my $exit_val = shift;
+
+    my $level_choices = LEVEL_SAFE . " | " . LEVEL_RISKY . " | " . LEVEL_BREAK
+	. " | help";
+
+    # Options 'slave' and 'gather-dir' must not be exposed in the usage
+    # help as they are meant for internal use between master and slave.
+    print "Gather data on nodes for debugging purposes
+Usage:
+  ${self} [<options>]
+Options:
+  -c, --cluster <CL>   Gather info from the nodes of cluster <CL>
+  -d, --debug          Debugging mode
+  --dir <DIR>          Directory where to put the gathered data
+  -f, --from-date      Gather logs starting from <DATE> (YYYY-MM-DD)
+  -h, --help           Display this usage help
+  -l, --level <LVL>    Risk level of the gather ops to perform,
+                       with <LVL> = ${level_choices}
+  -n, --node <REGEX>   Gather info from the specified node(s)
+  --panic-dump         Use this option when running this script after
+                       a kernel panic
+
+Notes:
+  * Options --cluster and --node are mutually exclusive
+  * A single trailing parameter is assumed to be the cluster to gather
+    info from (hence '--cluster' is optional)\n";
+
+    exit $exit_val;
+}
+
+#
+# Parse parameters
+#
+if (@ARGV == 0) {
+    &usage(1);
+}
+
+Getopt::Long::Configure("no_auto_abbrev");
+
+my %options;
+if (!GetOptions(\%options, "cluster|c=s", "debug|d", "dir=s", "from-date|f=s",
+		"gather-dir|g=s", "help|h", "level|l=s", "node|n=s", "panic-dump",
+		"slave|s=s")) {
+    &error("Type `${self} --help' for usage help.");
+    exit 1;
+}
+
+# The 'help' and 'debug' option must be checked 1st and 2nd, respectively
+&usage(0) if $options{"help"};
+$debugging = 1 if $options{"debug"};
+
+if ($options{"slave"}) {
+    $this_node = $options{"slave"};
+    $slave = 1;
+}
+
+# List of nodes to gather info from, built either from a cluster cache file
+# or a node regex
+my @node_list;
+
+my $cluster = $options{"cluster"};
+my $node_regex = $options{"node"};
+$final_dir = $options{"dir"};
+
+if ($slave) {
+    &fatal("option --cluster is for master mode only") if $cluster;
+    &fatal("option --node is for master mode only") if $node_regex;
+    &fatal("option --dir is for master mode only") if $final_dir;
+    if (@ARGV) {
+	&fatal("trailing parameters: @{ARGV}");
+    }
+} else {
+    # The cluster can be specified
+    if (@ARGV > 1) {
+	&fatal("too many parameters: @{ARGV}");
+    }
+
+    if ($ARGV[0]) {
+	&fatal("cluster specified twice: '${cluster}' and '${ARGV[0]}'")
+	    if $cluster;
+	$cluster = $ARGV[0];
+    }
+
+    if (!$cluster && !$node_regex) {
+	&fatal("missing cluster name or node regex");
+    } elsif ($cluster && $node_regex) {
+	&fatal("can't specify both cluster and node regex");
+    }
+
+    if ($cluster) {
+	@node_list = get_cluster_nodes($cluster);
+	if (!@node_list) {
+	    &fatal("cache inexistent or invalid for cluster '${cluster}'");
+	}
+    } elsif ($node_regex) {
+	if (&sys("which exa_expand >/dev/null") != 0) {
+	    &fatal("exa_expand not found, unable to expand node regex");
+	}
+	my $expand_output = `exa_expand ${node_regex} 2>/dev/null`;
+	chomp($expand_output);
+	@node_list = split(" ", $expand_output);
+	if (!@node_list) {
+	    &fatal("failed expanding regex '${node_regex}'");
+	}
+    }
+
+    &debug("MASTER MODE: node_list: @{node_list}");
+}
+
+if ($options{"from-date"}) {
+    $start_date = $options{"from-date"};
+    if ($start_date !~ /[0-9]{4}-[0-9]{2}-[0-9]{2}/) {
+	&fatal("invalid date format, must be YYYY-MM-DD");
+    }
+}
+&debug("from_date: ${start_date}") if $start_date;
+
+my $lvl = $options{"level"};
+if ($lvl) {
+    if ($lvl eq "help") {
+      &level_usage(0);
+    } elsif ($lvl >= LEVEL_SAFE && $lvl <= LEVEL_BREAK) {
+	$level = $lvl;
+    } else {
+	&fatal("invalid risk level: '${lvl}'");
+    }
+}
+&debug("risk level: ${level}");
+
+if ($slave) {
+    if ($options{"gather-dir"}) {
+	$gather_dir = $options{"gather-dir"};
+    } else {
+	&fatal("slave: missing required gather dir");
+    }
+    &debug("SLAVE MODE: this_node: ${this_node} gather_dir: ${gather_dir}");
+} else {
+    if ($options{"gather-dir"}) {
+	&fatal("master: gather dir option not allowed");
+    }
+    $gather_dir = File::Temp::tempnam($GATHER_DIR_PATH, $GATHER_DIR_PREFIX);
+
+    &debug("MASTER MODE: gather_dir: ${gather_dir}");
+}
+
+if ($options{"panic-dump"}) {
+    $panic_dump = 1;
+}
+&debug("panic dump: ${panic_dump}");
+
+#
+# Check whether a file or directory exists
+#
+sub exist($) {
+    return &sys("test -e " . shift) ? 0 : 1;
+}
+
+#
+# Set the archiver program to use
+#
+sub set_archiver {
+    if (&sys("which bzip2 >/dev/null") == 0) {
+	&debug("archiver is bzip2");
+	$archive_prog = "bzip2";
+	$archive_ext = "bz2";
+	$archive_opt = "j";
+    } else {
+	&debug("archiver is gzip");
+	$archive_prog = "gzip";
+	$archive_ext = "gz";
+	$archive_opt = "z";
+    }
+}
+
+#
+# Get the output of a remote command.
+# (The trailing newline is removed.)
+#
+sub get_output($) {
+    my $command = shift;
+    my $options = shift || "";
+
+    if ($command eq "") {
+	&fatal("empty command for get_output()");
+    }
+
+    if ($options eq "compressed") {
+	$command .= " | ${archive_prog} -";
+    }
+
+    my $output = `{ export LC_ALL=C; ${command}; } 2>/dev/null`;
+    chomp($output);
+
+    return $output;
+}
+
+sub get_output_compressed($) { return &get_output(shift, "compressed"); }
+
+#
+# Make a remote compressed copy of a file
+#
+sub compress($$) {
+    my ($source_file, $target_file) = @_;
+    return &sys("cat ${source_file} 2>/dev/null | ${archive_prog} -"
+	      . " | cat > ${target_file}");
+}
+
+#
+# Copy a file
+#
+sub copy($$) {
+    my $src_obj = shift;
+    my $options = shift || {};
+
+    if (!$src_obj) {
+	&warning("copy: empty source object");
+	return 0;
+    }
+
+    my $compress = $options->{"compress"} ? 1 : 0;
+    my $follow = $options->{"nofollow"} ? "" : "-L";
+    my $rename = $options->{"rename"};
+
+    my $local_obj = $rename || &local_name($src_obj);
+
+    &debug("copy: '${src_obj} to '${local_obj}' compress:${compress}");
+
+    my $err;
+
+    # Create temporary compressed file
+    my $temp_file;
+    if ($compress) {
+	$temp_file = File::Temp::tempnam("/tmp", "");
+	$err = &compress($src_obj, $temp_file);
+	if ($err) {
+	    &warning("copy: failed compressing '${src_obj}'");
+	    return $err;
+	}
+	$src_obj = $temp_file;
+	$local_obj .= ".gz";
+    }
+
+    # Copy the file (compressed file if set so)
+    $err = &sys("cp -r ${follow} --preserve=all ${src_obj} ${local_obj}");
+
+    # Delete temporary compressed file
+    if ($compress) {
+	&sys("rm ${temp_file}");
+    }
+
+    return $err;
+}
+
+sub copy_compressed($) { return &copy(shift, { "compress" => 1 }); }
+
+#
+# Save data to a file
+# we can create a new file or append to an existing one
+# the "mode" parameter allow you to choose
+# This function shouldn't be call directly
+# please use save() or save_append()
+#
+sub save_generic($@) {
+    my $filename = &local_name(shift);
+    my $mode = shift;
+    my @data = @_;
+
+#    &debug("save: saving to '${filename}': @{data}");
+
+    if (!open(FILE, $mode." ${filename}")) {
+	return 1;
+    }
+
+    if ($mode eq ">>") {
+	print FILE "##################################################\n";
+    }
+
+    my $printed = 0;
+    if (@data) {
+	for my $data (@data) {
+	    # XXX Need error checking
+	    if ($data) {
+		print FILE "${data}\n";
+		$printed++;
+	    }
+	}
+    }
+
+    if ($printed == 0) {
+	print FILE "(none)\n";
+    }
+
+    if ($mode eq ">>") {
+	print FILE "##################################################\n";
+    }
+
+    close(FILE);
+
+    return 0;
+}
+
+
+#
+# Save data to a new file
+#
+
+sub save($@) {
+    my $filename = &local_name(shift);
+    my @data = @_;
+
+    return &save_generic($filename,">",@data);
+}
+
+
+#
+# Save data to an exising file
+#
+
+sub save_append($@) {
+    my $filename = &local_name(shift);
+    my @data = @_;
+
+    return &save_generic($filename,">>",@data);
+}
+
+#
+# Get the local node's hostname
+#
+sub get_hostname() {
+    &step("getting hostname");
+
+    my $hostname = &get_output("hostname");
+    if ($hostname) {
+	&info("hostname: '${hostname}'");
+	&result(&save("hostname", $hostname));
+    } else {
+	&result(0);
+    }
+}
+
+#
+# Get the local node's date in long iso format (YYYY-MM-DD hh:mm)
+#
+sub get_date() {
+    &step("getting date");
+    my $date = &get_output("date +'\%Y-\%m-\%d \%H:\%M'");
+    if ($date) {
+        &info("date: ${date}");
+        &result(&save("date", $date));
+    } else {
+        &result(1);
+    }
+}
+
+#
+# Get the version of an Exanodes program.  Returns both the full version
+# (including revision) and a simplified version (e.g. "2.3")
+#
+sub get_program_version($) {
+    my $program = shift;
+
+    if (&sys("which ${program} >/dev/null") != 0) {
+	return ("none","none");
+    }
+
+    my $output = &get_output("${program} --version | grep 'Exanodes release'");
+    return ("none","none") if !$output;
+
+    my ($full_version) = $output =~ /^Exanodes release (.*)$/;
+    my ($short_version) = $full_version =~ /([0-9]+\.[0-9]+)/;
+
+    # FIXME: side effect !
+    $exa_version = $short_version;
+
+    return ($short_version, $full_version);
+}
+
+#
+# Get Exanodes' server and (possibly) cli versions
+#
+sub get_version() {
+    &step("getting Exanodes versions");
+
+    my ($short_server_version, $full_server_version) = &get_program_version("exa_admind");
+    my ($short_cli_version, $full_cli_version) = &get_program_version("exa_clinfo");
+
+    &save("exa_versions",
+	  "Server version: '${full_server_version}'",
+	  "CLI version   : '${full_cli_version}'");
+
+    &result($full_server_version ? 0 : 1);
+}
+
+#
+# Get the incarnation of a node
+#
+sub get_incarnation() {
+    &step("getting incarnation");
+    my $incarnation = &get_output("cat ${EXA_CACHE_DIR}/incarnation");
+    if ($incarnation) {
+	&debug("incarnation: '${incarnation}'");
+	&result(0);
+    } else {
+	&result(1);
+    }
+}
+
+#
+# Get the config of a node
+#
+sub get_cluster_config() {
+    &step("getting ${EXA_CLUSTER_CONF}");
+    my $err = &copy("${EXA_CACHE_DIR}/${EXA_CLUSTER_CONF}");
+    if ($err) {
+	&warning("${EXA_CLUSTER_CONF} not found");
+    }
+    &result(0);
+}
+
+#
+# Get examsg stats
+#
+sub get_examsg_slashproc() {
+    &step("getting examsg stats");
+
+    my $proc_data = &get_output("exa_msgd -s");
+
+    if (!open(PROC_DATA, ">" . &local_name("examsg_stats"))) {
+	&error("failed creating local file for examsg data");
+    } else {
+	print PROC_DATA $proc_data . "\n";
+	close(PROC_DATA);
+    }
+
+    &result(0);
+}
+
+#
+# Get the list of specified logs sorted in increasing date order.  Each
+# item in the returned list is a reference to a list of the form
+# <time,log>, where time is the timestamp of the log file.
+#
+sub log_list($) {
+    my $log_pattern = shift;
+
+    my @list = ();
+
+    my $output = get_output("ls --sort=time --reverse"
+			    . " --time-style=long-iso -l ${log_pattern}");
+    my @lines = split("\n", $output);
+    for my $line (@lines) {
+	my @data = split(" ", $line);
+	push(@list, ["${data[5]} ${data[6]}", $data[7]]);
+    }
+
+    return @list;
+}
+
+#
+# Return the long ISO format of the date of a given log line, using the
+# specified year
+#
+sub date_of_log_line($$) {
+    my ($line, $year) = @_;
+
+    my ($month, $day, $time) =
+	$line =~ /([A-Za-z]{3})\s+([0-9]+)\s+([0-9]{2}:[0-9]{2}:[0-9]{2})/;
+
+    return undef if !$month || !$day || !$time;
+
+    my %months = (
+        "Jan" => 1, "Feb" => 2, "Mar" => 3, "Apr" =>  4, "May" =>  5, "Jun" =>  6,
+        "Jul" => 7, "Aug" => 8, "Sep" => 9, "Oct" => 10, "Nov" => 11, "Dec" => 12
+    );
+    my $month_num = $months{$month};
+
+    my $iso_date = sprintf("%04d-%02d-%02d %s", $year, $month_num, $day, $time);
+
+    return $iso_date;
+}
+
+sub year_of_iso_date($) {
+    my ($year) = $_[0] =~ /([0-9]{4})-[0-9]{2}-[0-9]{2}/;
+    return $year;
+}
+
+#
+# Get the date of the first message in the given Exanodes log.
+#
+# Assumes 2.4 date format (long ISO) by default and reverts to
+# using pre-2.4 format if need be.
+#
+sub get_exa_log_first_date($$) {
+    my ($log_file, $file_date) = @_;
+
+    my $cat = ($log_file =~ /\.gz$/) ? "zcat" : "cat";
+    my $first_line = &get_output("${cat} ${log_file} | head -n 1");
+
+    my ($date) = $first_line =~ /^([0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2}.[0-9]{3})/;
+    if (!defined($date)) {
+	# The date is not in long ISO format (Exanodes 2.3 and earlier),
+	# convert it
+	my $file_year = &year_of_iso_date($file_date);
+	$date = &date_of_log_line($first_line, $file_year);
+    }
+
+    return $date;
+}
+
+#
+# Get the first and last dates of the given system message log
+#
+sub get_system_message_log_span($) {
+    my ($log_name, $log_date) = @_;
+
+    my $year = &year_of_iso_date($log_date);
+
+    my ($begin_date, $end_date);
+
+    my $cat = ($log_name =~ /\.gz$/) ? "zcat" : "cat";
+
+    my @lines = split("\n", &get_output("${cat} ${log_name} | head -n 10"));
+    for my $line (@lines) {
+	$begin_date = &date_of_log_line($line, $year);
+	last if $begin_date;
+    }
+
+    @lines = split("\n", &get_output("${cat} ${log_name} | tail -n 10"));
+    for my $line (reverse(@lines)) {
+	$end_date = &date_of_log_line($line, $year);
+	last if $end_date;
+    }
+
+    return ($begin_date, $end_date);
+}
+
+#
+# Get the list of /var/log/messages* logs from the one that contains the
+# specified reference date
+#
+sub get_system_message_logs($) {
+    my $ref_date = shift;
+
+    # Find the most recent system message log containing the reference date
+    my @msg_list = &log_list("/var/log/messages*");
+    my $best = -1;
+    for my $idx (0 .. scalar(@msg_list) - 1) {
+	my $item = $msg_list[$idx];
+	my ($log_date, $log_file) = @$item;
+
+	my ($begin_date, $end_date) =
+	    &get_system_message_log_span($log_file, $log_date);
+
+	if ($ref_date ge $begin_date && $ref_date le $end_date) {
+	    $best = $idx;
+	}
+    }
+
+    # Only gather the system message logs after the 'best' one
+    splice(@msg_list, 0, $best);
+
+    return @msg_list;
+}
+
+#
+# Get dmesg
+#
+sub get_dmesg() {
+    &step("getting dmesg info");
+
+    # Output of dmesg command
+    my $output = &get_output("dmesg");
+    if (!$output) {
+	&warning("no dmesg output");
+    } else {
+	if (&save("dmesg", $output) != 0) {
+	    &warning("failed saving dmesg output");
+	}
+    }
+
+    # Contents of /var/log/dmesg
+    my $err = &copy("/var/log/dmesg");
+    if ($err) {
+	&warning("/var/log/dmesg not found");
+    }
+
+    &result(0);
+}
+
+#
+# Gather *all* Xen logs (we don't try to be clever).
+#
+sub get_xen_logs() {
+    if (-d "/var/log/xen") {
+	&step("getting xen logs");
+	my $err = &copy("/var/log/xen");
+	&result($err);
+    }
+}
+
+#
+# Gather Exanodes logs and all system logs spanning the Exanodes log
+#
+sub get_all_logs() {
+    step("gathering logs");
+
+    my $err;
+
+    # Get the list of Exanodes logs
+    my @exa_list = &log_list("/var/log/exanodes.log*");
+
+    # Only keep the ones more recent than the starting date, if any
+    if ($start_date) {
+	my @exa_list_2 = grep { @$_[0] ge $start_date } @exa_list;
+	@exa_list = @exa_list_2;
+    }
+
+    # Get the date of the first line in the oldest Exanodes log
+    my $oldest_exa = $exa_list[0];
+    if (!$oldest_exa) {
+	&warning("no exa logs");
+	return;
+    }
+
+    my $first_date = &get_exa_log_first_date(@$oldest_exa[1], @$oldest_exa[0]);
+
+    my @msg_list = &get_system_message_logs($first_date);
+
+    # Gather Exanodes and system message logs
+    for my $log (@exa_list, @msg_list) {
+	my ($log_date, $log_file) = @$log;
+	&info("copying ${log_file}");
+	$err = &copy($log_file);
+	if ($err) {
+	    &warning("failed copying ${log_file}");
+	}
+    }
+
+    &get_dmesg;
+    &get_xen_logs;
+
+    &result($err);
+}
+
+#
+# Return the list of *all* installed packages
+#
+sub package_list() {
+    my $output = &get_output("rpm -qa");
+    if (!$output) {
+	return undef;
+    }
+    return split("\n", $output);
+}
+
+#
+# Save the list of all installed packages and, separately,
+# the lists of Exanodes and SFS packages
+#
+sub get_packages() {
+    &step("getting installed packages");
+
+    my @packages = &package_list;
+    if (!@packages) {
+	&result(1);
+	return;
+    }
+
+    if (&save("packages", @packages) != 0) {
+	&warning("failed saving list of all installed packages");
+    }
+
+    my @exa_packages = grep { /Exanodes/i } @packages;
+
+    if (&save("exa_packages", @exa_packages) != 0) {
+	&warning("failed saving list of Exanodes packages");
+    }
+    if (@exa_packages) {
+	&save("exa_rpm_check", &get_output("rpm -VK " . join(" ", @exa_packages)));
+    }
+
+    if ($this_node ne "localhost") {
+	my @sfs_packages;
+	@sfs_packages = grep { /seanodes-fs/ } @packages;
+	if (!@sfs_packages) {
+            # Before revision r22884, the package was named "SeanodesGFS"
+            @sfs_packages = grep { /SeanodesGFS/ } @packages;
+	}
+
+	$sfs_installed = @sfs_packages ? 1 : 0;
+
+	if (&save("sfs_packages", @sfs_packages) != 0) {
+	    &warning("failed saving list of Seanodes FS packages");
+	}
+	if (@sfs_packages) {
+	    &save("sfs_rpm_check", &get_output("rpm -VK " . join(" ", @sfs_packages)));
+	    &save("gcc", &get_output("gcc -v"));
+	}
+    }
+
+    &result(0);
+}
+
+#
+# Tell whether Exanodes is installed
+#
+sub exa_installed() {
+    my $output = &get_output("rpm -qa | grep -i exanodes");
+    return $output ? 1 : 0;
+}
+
+#
+# Get processes running on a node
+#
+sub get_processes() {
+    &step("getting running processes");
+
+    my $output = &get_output("ps aux | grep -E 'exa|sfs|gulm' | grep -v grep");
+    if (!$output) {
+	$output = "(no Exanodes nor SFS processes)";
+    }
+
+    &result(&save("processes", $output));
+}
+
+#
+# Get the output of a given sysrq
+#
+sub sysrq($$) {
+    my ($rq, $pattern) = @_;
+
+    my $r = &sys("echo ${rq} > /proc/sysrq-trigger");
+    return $r if $r;
+
+    # In order to extract only the *last* occurrence of the requested data,
+    # invert the message log, grep it, and invert the result
+    my $output = &get_output("tac /var/log/messages"
+			     . " | sed -n '1,/SysRq : ${pattern}/p'"
+			     . " | tac");
+
+    return &save("sysrq_${rq}", $output);
+}
+
+#
+# Get VRT info
+#
+sub get_vrt_info() {
+    &step("getting VRT info");
+
+    my $err = 0;
+
+    if ($level == LEVEL_RISKY) {
+	# Sysrq - mapping letter -> header of resulting output
+	my %ops = ("m" => "Show Memory",
+		   "t" => "Show State",
+		   "v" => ".*Seanodes Virtualizer state");
+	foreach my $rq (keys(%ops)) {
+	    if (&sysrq($rq, $ops{$rq}) != 0) {
+		&warning("failed getting output of sysrq ${rq}");
+		$err++;
+	    }
+	}
+    }
+
+    # Copy group info
+    my $proc = "/proc/exa/groups/";
+    if (&exist($proc)) {
+	&copy($proc);
+    } else {
+	&info("no ${proc}");
+    }
+
+    &result($err);
+}
+
+#
+# Get NBD info
+#
+sub get_nbd_info() {
+    &step("getting NBD info");
+
+    my $err = 0;
+
+    my $netstat_output = &get_output("netstat -panove");
+    if (!$netstat_output) {
+	&warning("failed getting netstat");
+	$err++;
+    }
+
+    if (&save("netstat", $netstat_output) != 0) {
+	&warning("failed saving netstat");
+	$err++;
+    }
+
+    my $ipcs_output = &get_output("ipcs");
+    if (!$ipcs_output) {
+	&warning("failed getting ipcs");
+	$err++;
+    }
+
+    if (&save("ipcs", $ipcs_output) != 0) {
+	&warning("failed saving ipcs");
+	$err++;
+    }
+
+    &result($err);
+}
+
+#
+# Get objdump of all Exanodes modules
+#
+sub get_modules_objdump() {
+    &step("getting modules objdump info");
+
+    my $err = 0;
+
+    my $module_path = "/lib/modules/\$(uname -r)/kernel/exanodes";
+
+    my $modules_str = &get_output("ls -1 ${module_path}");
+    if ($modules_str) {
+        my @modules = split("\n", $modules_str);
+        foreach my $module (@modules) {
+            &debug("objdumping module '${module}'");
+            my $r = &save("${module}.dump", &get_output("objdump -M intel -r -S ${module_path}/${module}"));
+            $err++ if $r != 0;
+        }
+    } else {
+        $err = 1;
+    }
+
+    &result($err);
+}
+
+#
+# Tell whether SFS is currently running
+#
+sub sfs_running() {
+    my $output = &get_output("ps aux | grep lock_gulmd | grep -v grep");
+    return $output ? 1 : 0;
+}
+
+#
+# Get SFS info
+#
+sub get_sfs() {
+    &step("getting SFS info");
+
+    # SFS cluster conf
+    my $err_conf = &copy("/etc/cluster/cluster.conf");
+    if ($err_conf) {
+	&warning("/etc/cluster/cluster.conf not found");
+    }
+
+    # Log of Exanodes' SFS script
+    my $script_log = "/var/log/exa_fsscript.log";
+    my $err_log = &copy($script_log);
+    if ($err_log) {
+	&warning("${script_log} not found");
+    }
+
+    # Nodelist and rawstats
+    my @info;
+    my $err_stats = 0;
+
+    if (&sfs_running) {
+	my $node_info = &get_output("gulm_tool nodelist localhost");
+	my $ltpx_info = &get_output("gulm_tool rawstats localhost:ltpx");
+	my $lt_info = &get_output("gulm_tool rawstats localhost:lt");
+
+	if ($node_info || $ltpx_info || $lt_info) {
+	    @info = ($node_info, $ltpx_info, $lt_info);
+	} else {
+	    $err_stats = 1;
+	}
+    } else {
+	@info = ("(SFS not running)");
+    }
+
+    if (!$err_stats) {
+	$err_stats = &save("sfs_rawstats", @info);
+    }
+
+    # Lockdumps of all mountpoints
+    if ($level == LEVEL_RISKY) {
+	my @mnt_list = split("\n", &get_output("grep sfs /proc/mounts"));
+	my $mnt_info = "";
+	for my $mnt (@mnt_list) {
+	    my @mnt_fields = split(" ", $mnt);
+	    my $mountpoint = $mnt_fields[1];
+	    my $mnt_data = &get_output("sfs_tool lockdump ${mountpoint}");
+	    if (!$mnt_data) {
+		$mnt_data = "(failed)";
+	    }
+	    $mnt_info .= "=== Mountpoint ${mountpoint} ===\n\n"
+		. $mnt_data . "\n\n";
+	}
+	&save("sfs_lockdumps", $mnt_info);
+    }
+
+    &result($err_conf || $err_log || $err_stats);
+}
+
+#
+# Get mount info
+#
+sub get_fstab_mtab() {
+    &step("getting mount info");
+    &copy("/etc/fstab");
+    &copy("/etc/mtab");
+    &result(0);
+}
+
+#
+# Get Xen info
+#
+sub get_xen() {
+    &step("getting Xen info");
+    &copy("/etc/xen", { "rename" => "etc_xen" });
+    &result(0);
+}
+
+#
+# Tell which process dumped a given core
+#
+sub core_process($) {
+    my $core = shift;
+
+    my $output = &get_output("file ${core}");
+    my ($process) = $output =~ /.* from \'(.*)\'/;
+
+    return $process;
+}
+
+#
+# Get the cores on a node.
+#
+sub get_cores() {
+    &step("getting cores");
+
+    my %cores;
+
+    my @core_list = split(" ", &get_output("ls /tmp/core*"));
+    &debug("core_list: @{core_list}");
+
+    # Copy the cores and the programs that generated them
+    foreach my $core (@core_list) {
+	my $process = &core_process($core);
+
+	if (!$process) {
+	    &warning("failed getting process of core '${core}'");
+	    next;
+	}
+
+	my $from_exa = (basename($process) =~ /^exa_/
+			|| basename($process) eq "lock_gulmd");
+	if (!$from_exa) {
+	    &debug("ignoring core '${core}': generated by '${process}',"
+		   . " not Exanodes nor SFS");
+	    next;
+	}
+
+	my $err = &copy($core);
+	if ($err) {
+	    &warning("failed getting core '${core}'");
+	}
+
+	# XXX Should we check that the program doesn't exist elsewhere ?
+	# (e.g. /usr/sbin, /usr/local/sbin/, etc)
+	my $program = &get_output("which ${process}");
+	if (!$program) {
+	    &warning("program '${process}' not found (for core '${core}')");
+	    next;
+	}
+
+	$err = &copy($program);
+	if ($err) {
+	    &warning("failed getting program '${program}' (for core '${core}')");
+	}
+    }
+
+    &result(0);
+}
+
+#
+# Get lshw output
+#
+sub get_lshw {
+    &step("getting lshw info");
+
+    my $output;
+    my $err;
+
+    $output = &get_output("lshw");
+    if (&save("lshw", $output) != 0) {
+        &warning("failed saving lshw");
+        $err++;
+    }
+   &result(0);
+}
+
+#
+# Get dmidecode output
+#
+sub get_dmidecode {
+    &step("getting dmidecode info");
+
+    my $output;
+    my $err;
+
+    $output = &get_output("dmidecode");
+    if (&save("dmidecode", $output) != 0) {
+        &warning("failed saving dmidecode");
+        $err++;
+    }
+   &result(0);
+}
+
+#
+# Get lspci output
+#
+sub get_lspci {
+    &step("getting lspci info");
+
+    my $output;
+    my $err;
+
+    $output = &get_output("lspci");
+    if (&save("lspci", $output) != 0) {
+        &warning("failed saving lspci");
+        $err++;
+    }
+
+    $output = &get_output("lspci -tv");
+    if (&save_append("lspci", $output) != 0) {
+        &warning("failed saving lspci -tv");
+        $err++;
+    }
+
+    $output = &get_output("lspci -tvn");
+    if (&save_append("lspci", $output) != 0) {
+        &warning("failed saving lspci -tvn");
+        $err++;
+    }
+
+    $output = &get_output("lspci -vv");
+    if (&save_append("lspci", $output) != 0) {
+        &warning("failed saving lspci -vv");
+        $err++;
+    }
+
+   &result(0);
+}
+
+#
+# Get ethernet configuration
+#
+sub get_ethernet_config {
+    &step("getting ethernet info");
+
+    my $output;
+    my $err;
+
+    my @interfaces=`ifconfig | grep \"Link encap\" | awk {'print \$1'} | grep -v lo`;
+
+    foreach my $interface (@interfaces) {
+        chomp $interface;
+
+        $output = &get_output("ethtool $interface 2>&1 | tr -d \"\\t\"| grep -i -e \"Speed\" -e \"Link detected\" -e \"duplex\"");
+	if (&save("ethtool-link.$interface", $output) != 0) {
+            &warning("failed saving "."ethtool-link.$interface" . "(Link)");
+            $err++;
+    	}
+
+        $output = &get_output("ethtool -k $interface 2>&1 |  tr -d \"\\t\" | grep -v \"Offload\"");
+	if (&save_append("ethtool-link.$interface", $output) != 0) {
+            &warning("failed saving "."ethtool-link.$interface" . "(Checksum)");
+            $err++;
+    	}
+
+        $output = &get_output("ethtool -i $interface 2>&1 | tr -d \"\\t\"");
+	if (&save_append("ethtool-link.$interface", $output) != 0) {
+            &warning("failed saving "."ethtool-link.$interface" . "(Driver)");
+            $err++;
+    	}
+    }
+
+    $output = &get_output("mii-tool");
+    if (&save("mii-tool", $output) != 0) {
+        &warning("failed saving mii-tool");
+        $err++;
+    }
+
+    $output = &get_output("ifconfig");
+    if (&save("ifconfig", $output) != 0) {
+        &warning("failed saving ifconfig");
+        $err++;
+    }
+
+   &result(0);
+}
+
+#
+# Get /proc fs
+#
+sub get_proc_fs {
+    &step("getting /proc filesystem");
+    foreach my $proc (@proc_entry) {
+	&copy("/proc/${proc}");
+    }
+
+   &result(0);
+}
+
+#
+# Get /sys fs
+#
+sub get_sys_fs {
+    &step("getting /sys filesystem");
+    foreach my $sys (@sys_entry) {
+	&copy("/sys/${sys}", { "nofollow" => 1 });
+    }
+
+   &result(0);
+}
+
+#
+# Get kernel info
+#
+sub get_kernel {
+    &step("getting kernel info");
+
+    my $output;
+
+    $output = &get_output("uname -vmr");
+    if (&save("uname", $output) != 0) {
+	&warning("failed saving uname");
+    }
+    # Used for kernel files, see below
+    my $kernel_version = (split(" ", $output))[0];
+
+    my @commands = (["lsmod", "lsmod"],
+		    ["depmod", "depmod -ae"],
+		    ["exa_modules", "find /lib/modules/`uname -r`/exanodes -name \"*.?o\"| xargs depmod -ne"]);
+
+    foreach my $cmd (@commands) {
+	my ($name, $cmdline) = @$cmd;
+	$output = &get_output($cmdline);
+	if (&save($name, $output) != 0) {
+	    &warning("failed saving ${name}");
+	}
+    }
+
+    # Symbolic links 'System.map' and 'config' may not be present (CentOS
+    # for instance) => use kernel version
+    my @kernel_files = ("/etc/modprobe.conf", "/etc/modprobe.preload",
+			"/etc/modules.conf",
+			"/boot/System.map-${kernel_version}",
+			"/boot/config-${kernel_version}",
+			"/etc/sysctl.conf");
+
+    foreach my $file (@kernel_files) {
+	if (&copy($file) != 0) {
+	    &warning("failed copying ${file}");
+	}
+    }
+
+    &result(0);
+}
+
+#
+# Get network name resolution info.
+#
+sub get_name_resolution {
+    &step("getting name resolution info");
+
+    foreach my $file ("/etc/hosts", "/etc/resolv.conf") {
+        if (&copy($file) != 0) {
+            &warning("failed copying ${file}");
+        }
+    }
+
+    &result(0);
+}
+
+#
+# Get sd|hdparm info on devices
+# It also grab the smart informations
+#
+sub get_diskinfo {
+    my $output;
+    &step ("getting disks info");
+    open (CAT, "cat /proc/partitions 2>&1 |");
+    while (<CAT>) {
+        my ($disk) = $_ =~ /\s*\d+\s*\d+\s*\d+\s*(\D*)$/;
+        if ($disk) {
+           chomp $disk;
+           my $output = &get_output("hdparm -Iacd /dev/$disk");
+	   if (&save("hdparm-$disk", $output) != 0) {
+	       &warning("failed saving hdparm-$disk");
+	   }
+ 	   $output = &get_output("sdparm -a /dev/$disk");
+	   if (&save("sdparm-$disk", $output) != 0) {
+	       &warning("failed saving sdparm-$disk");
+	   }
+ 	   $output = &get_output("smartctl -A /dev/$disk");
+	   if (&save("smart-$disk", $output) != 0) {
+	       &warning("failed saving smart-$disk");
+	   }
+ 	   $output = &get_output("smartctl -l selftest /dev/$disk");
+	   if (&save_append("smart-$disk", $output) != 0) {
+	       &warning("failed saving smart-$disk");
+	   }
+ 	   $output = &get_output("smartctl -A -d ata /dev/$disk");
+	   if (&save_append("smart-$disk", $output) != 0) {
+	       &warning("failed saving smart-$disk");
+	   }
+ 	   $output = &get_output("smartctl -l selftest -d ata /dev/$disk");
+	   if (&save_append("smart-$disk", $output) != 0) {
+	       &warning("failed saving smart-$disk");
+	   }
+	}
+    }
+   &result(0);
+}
+
+
+#
+# Get the CLI logs on the user's station.
+# Assumes the user executing this script is the one who has the CLI
+# logs and is on his station.
+# XXX Not quite right.
+#
+sub get_cli_logs {
+    &step("getting CLI logs");
+
+    my @log_list = split(" ", &get_output("ls ~/.exanodes/log/*.log"));
+    foreach my $log (@log_list) {
+	my $err = &copy($log);
+	if ($err) {
+	    &warning("failed getting CLI log '${log}'");
+	}
+    }
+
+    &result(0);
+}
+
+# Child processes
+my @children = ();
+my $CHILD_ABORT_SIG = 'KILL';
+
+# Global result we'll return at exit
+my $global_error = 0;
+
+#
+# A child process has terminated
+#
+sub child_terminated {
+    # Loop, as there may be several dead children
+    while (1) {
+	my $died = waitpid(-1, WNOHANG);
+	last if $died <= 0;
+
+	$global_error = 1 if $? >> 8;
+
+	# Update children info
+	for my $i (0..scalar(@children)-1) {
+	    splice(@children, $i, 1)
+		if defined($children[$i]) && $children[$i] == $died;
+	}
+    }
+}
+
+# Handler for child termination
+$SIG{CHLD} = \&child_terminated;
+
+#
+# Check whether the given node is the node executing this very script
+#
+sub node_is_self($) {
+    my $node = shift;
+
+    # Compare also with both the node's short and long names
+    # XXX Cache this?
+    return ($node eq "localhost" || $node eq &get_output("hostname -s")
+	    || $node eq &get_output("hostname"));
+}
+
+#
+# Copy this script to the specified node
+#
+sub copy_script_to_node($) {
+    my $node = shift;
+
+    if (&node_is_self($node)) {
+	# No need to copy script to myself: already have it ;-)
+	return 0;
+    }
+
+    &debug("copying ${this_script} to ${node}");
+
+    my $err = &sys("${SCP} ${this_script} root\@${node}:");
+    if ($err) {
+	&error("failed copying script to ${node}");
+	return $err;
+    }
+
+    return 0;
+}
+
+#
+# Run this script on the specified node.
+# Some actions aren't performed if the node is localhost, as this instance
+# of the script is running on said localhost, hence the script and data
+# are readily available, no copy is needed.
+#
+sub run_script_on_node($$) {
+    my ($node, $slave_dir) = @_;
+
+    my $err;
+
+    # Run the script
+    &debug("starting script on node ${node}, gather dir is ${slave_dir}");
+
+    my $cmd = "${self} --slave ${node} --gather-dir ${slave_dir}"
+	. " --level ${level}" . ($panic_dump ? " --panic-dump" : "") . ($debugging ? " -d" : "");
+
+    if (&node_is_self($node)) {
+	my $script_dir = dirname($this_script);
+	$cmd = "${script_dir}/${cmd}";
+    } else {
+        $cmd = "${SSH} -l root ${node} ./${cmd}";
+    }
+
+    $err = &sys($cmd);
+    if ($err) {
+	&error("error running script on ${node}");
+	return $err;
+    }
+
+    # Copy the resulting node info archive
+    &info("retrieving info from ${node}");
+    if (&node_is_self($node)) {
+	$err = &sys("mv ${slave_dir}/${node}.tar.* ${gather_dir}");
+    } else {
+	$err = &sys("${SCP} root\@${node}:${slave_dir}/${node}.tar.* ${gather_dir}");
+    }
+
+    if ($err) {
+	&error("failed retrieving info from ${node}");
+    } else {
+	# Delete temporary directory
+	if (&node_is_self($node)) {
+	    &sys("rm -fR ${slave_dir}");
+	} else {
+	    &sys("${SSH} -l root ${node} 'rm -fR ${slave_dir}'");
+	}
+    }
+
+    # Delete the script
+    if (!&node_is_self($node)) {
+	&sys("${SSH} -l root ${node} 'rm ${self}'");
+    }
+
+    return 0;
+}
+
+sub slave {
+    if ($this_node ne "localhost") {
+	&fatal("must be run as root") if $< != 0;
+    }
+
+    &set_archiver;
+
+    # Create the directory in which all gathered info will be stored.
+    if (!mkdir($gather_dir)) {
+	&fatal("failed creating directory ${gather_dir}");
+    }
+
+    chdir($gather_dir);
+
+    my $gather_log = "gather_${this_node}.log";
+    $logfile = new FileHandle("> ${gather_dir}/${gather_log}");
+    if (!$logfile) {
+	rmdir($gather_dir);
+	&fatal("Failed creating ${gather_dir}/${gather_log}");
+    }
+
+    my $dir = "${gather_dir}/${this_node}";
+    if (!-d $dir && !mkdir($dir)) {
+	&fatal("failed creating directory ${gather_dir}/${this_node}");
+    }
+
+    my $err;
+
+    chdir($dir);
+
+    &get_hostname;
+    &get_date;
+
+#    if (!&exa_installed) {
+    if (0) {
+ 	&warning("Exanodes not installed");
+	# Make it easy to see that Exanodes is not installed just by
+	# looking at the dir, instead of having to look at the script's log
+	&save("not_installed", "");
+    } else {
+	if ($this_node eq "localhost") {
+	    &enter_category("cli");
+	    &get_cli_logs;
+	    &leave_category("cli");
+
+            &enter_category("network");
+            &get_name_resolution;
+            &leave_category("network");
+	} else {
+	    &enter_category("logs");
+	    &get_all_logs;
+	    &get_dmesg;
+	    &leave_category("logs");
+
+	    &enter_category("software");
+
+	    &enter_category("proc");
+	    &get_proc_fs;
+	    &leave_category("proc");
+
+	    &enter_category("sys");
+	    &get_sys_fs;
+	    &leave_category("sys");
+
+	    &enter_category("kernel");
+	    &get_kernel;
+	    &leave_category("kernel");
+
+            &enter_category("network");
+            &get_name_resolution;
+            &leave_category("network");
+
+	    &enter_category("installed");
+	    &get_version;
+	    &get_packages;
+	    &leave_category("installed");
+
+	    &enter_category("exanodes");
+	    &get_cluster_config;
+	    &enter_category("cores");
+	    &get_cores;
+	    &leave_category("cores");
+	    &get_incarnation;
+	    &get_processes;
+	    &get_examsg_slashproc;
+	    &get_vrt_info;
+	    &get_nbd_info;
+            if ($panic_dump) {
+                &enter_category("modules");
+                &get_modules_objdump;
+                &leave_category("modules");
+            }
+	    &leave_category("exanodes");
+
+	    if ($sfs_installed) {
+		&enter_category("sfs");
+		&get_sfs;
+		&leave_category("sfs");
+	    }
+
+	    &enter_category("mounts");
+	    &get_fstab_mtab;
+	    &leave_category("mounts");
+
+	    &enter_category("xen");
+	    &get_xen();
+	    &leave_category("xen");
+
+	    &leave_category("software");
+
+	    #################################
+	    # Entering Hardware information #
+	    #################################
+
+	    &enter_category("hardware");
+	    &get_lshw;
+	    &get_dmidecode;
+	    &get_lspci;
+
+	    &enter_category("storage");
+	    &get_diskinfo;
+	    &leave_category("storage");
+
+            &enter_category("network");
+            &enter_category("ethernet");
+	    &get_ethernet_config;
+	    &leave_category("ethernet");
+
+	    &leave_category("network");
+
+	    &leave_category("hardware");
+	}
+
+	# Compute MD5 of gathered files
+	&info("computing MD5");
+	my $err = &sys("find -type f | sort | xargs md5sum > md5sum.txt");
+	if ($err) {
+	    &error("failed computing MD5");
+	}
+    }
+
+    chdir($gather_dir);
+
+    # Archive gathered info
+    &info("archiving gathered info");
+    $err = &sys("tar ${archive_opt}cf ${this_node}.tar.${archive_ext} ${gather_log} ${this_node}/");
+    if ($err) {
+	&error("failed building info archive");
+    }
+
+    return $err;
+}
+
+sub master {
+    &set_archiver;
+
+    # Make the directory in which all gathered info will be stored.
+    if (!mkdir($gather_dir)) {
+	&fatal("failed creating directory ${gather_dir}");
+    }
+
+    my $gather_log = "gather_master.log";
+    $logfile = new FileHandle("> ${gather_dir}/${gather_log}");
+    if (!$logfile) {
+	rmdir($gather_dir);
+	&fatal("Failed creating ${gather_dir}/${gather_log}");
+    }
+
+    # Copy the script to all nodes (except localhost)
+    foreach my $node (@node_list) {
+	if (&copy_script_to_node($node) != 0) {
+	    &fatal("do you have SSH keys for root access to all nodes?");
+	}
+    }
+
+    # Get current date, this will be used to generate a unique tarball
+    my $date = &date;
+    my $date_dir = dirname($gather_dir) . "/" . $date;
+    my $big_archive;
+
+    # First, check the final directory does not already exist and create it
+    # right away so that we can fail early.
+    if ($final_dir) {
+	if ($final_dir !~ /^\//) {
+	    $final_dir = cwd . "/" . $final_dir;
+	}
+	&debug("final dir is '${final_dir}'");
+	if (-e $final_dir) {
+	    if (!-d $final_dir) {
+		&fatal("'${final_dir}' is not a directory");
+	    }
+	} elsif (!mkdir($final_dir)) {
+	    &fatal("failed creating final directory '${final_dir}'");
+	}
+	$big_archive = "${final_dir}/${date}.tar";
+    } else {
+	$big_archive = "/tmp/${date}.tar";
+    }
+
+    # Temporary directory to use by the slave scripts on all nodes
+    my $slave_dir = File::Temp::tempnam($GATHER_DIR_PATH, $GATHER_DIR_PREFIX);
+    my $local_dir = File::Temp::tempnam($GATHER_DIR_PATH, $GATHER_LOCAL_DIR_PREFIX);
+
+    # Fork a child for each node and for localhost
+    foreach my $node ("localhost", @node_list) {
+	my $child_pid = fork();
+
+	if ($child_pid < 0) {
+	    &error("Failed forking child for target host ${node}");
+	    $global_error = 1;
+	    last;
+	} elsif ($child_pid == 0) {
+	    $SIG{CHLD} = 'DEFAULT';
+	    if ($node eq "localhost") {
+	      &run_script_on_node($node, $local_dir);
+	    } else {
+	      &run_script_on_node($node, $slave_dir);
+	    }
+	    exit 0;
+	} else {
+	    push(@children, $child_pid);
+	}
+    }
+
+    # Wait until all children completed or abort required
+    while (scalar(@children) > 0 && !$global_error) {
+	sleep (1);
+    }
+
+    if ($global_error) {
+	&debug("### Killing child processes: @{children} ###\n");
+	while (scalar(@children) > 0) {
+	    kill($CHILD_ABORT_SIG, @children);
+	    sleep(1);
+	}
+
+	print &failure("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n"
+		     . "!!! ERRORS - SEE MESSAGES ABOVE !!!\n"
+		     . "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n");
+    }
+
+    # Build the "big archive" and tell the user to send the info even if
+    # there were errors
+    my @node_archives = map { $_ . ".tar.${archive_ext}" } ("localhost", @node_list);
+
+    my $tar = &sys("mv ${gather_dir} ${date_dir} && cd ${date_dir}/.. "
+	       . " && tar cf ${big_archive} ${date}/gather_*log ${date}/*.tar*");
+    if ($tar) {
+	&error("failed making big archive ${date}");
+	return;
+    }
+
+    &sys("rm -fR ${date_dir}");
+    &info(&attention("ATTENTION: Info gathered in ${big_archive}"));
+    &info(&attention("ATTENTION: please send it in your bug report"));
+}
+
+if ($slave) {
+    &slave;
+} else {
+    &master;
+}
+
+$logfile->close();
+
+exit $global_error;
+
+
+__END__
+
+=pod
+
+=head1 NAME
+
+exa_gatherinfo - Gather Exanodes, OS and hardware information from the nodes
+
+=head1 SYNOPSIS
+
+  exa_gatherinfo [OPTIONS]
+
+=head1 DESCRIPTION
+
+This command will send and run a script on the nodes given to gather
+information of the required level. This information can be very useful
+to determine the performances expectations and to improve or support
+the cluster. The kind of information gathered depends on the level given
+to the command (See B<--level help>).
+
+=head1 OPTIONS
+
+Run the command with B<--help> in order to get a full description of
+all the options.
+
+Run the command with the parameter B<--level help> to see the level
+descriptions. The command uses level 1 by default.
+
+=head1 EXAMPLES
+
+$> exa_gatherinfo -n node/1-20/ --level 2 --dir data
+
+This command will create a directory named 'data' to store the info gathered
+from nodes 'node1', ..., 'node20'.
+
+$> exa_gatherinfo -c volvox
+
+This command will create directory /tmp/<date> (with <date> the date at
+which the command is run) where the info gathered from all the nodes of
+cluster 'volvox' will be stored.
+
+=head1 Advanced options (For debugging purpose only)
+
+  -g, --gather-dir <DIR>  Where to gather all info
+  -s, --slave <NODE>      Run as slave with node name <NODE>
+
+=head1 AUTHOR
+
+Copyright 2002, 2009 Seanodes. All rights reserved.
+
+=cut

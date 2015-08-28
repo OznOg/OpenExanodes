@@ -1,0 +1,36 @@
+= Hyper-V current issues =
+
+hEva is a short term for "Exanodes Virtual Appliance for Microsoft Hyper-V".
+
+
+Global notice:
+
+One of the only configuration known to have proper behavior with multicast is
+to set "Legacy Network Adapter" for all hEva and to uncheck "Allow management
+OS to share this network adapter" in Virtual Network's connection type.
+
+If one ore more hEva don't have network connection after that, swap the network
+cards on the same tab.
+
+This is HIGHLY empirical with very poor performances (30 IOPS on 2nodes/2disks)
+and extremely unstable configuration (lost the quorum). This issue doesn't occur
+with non-legacy network adapter.
+
+
+== Multicast not received in hEvas ==
+
+Multicast frames are not received by hEvas although they are correctly sent
+by hEvas and received by HyperV.
+
+Current workaround is to use a broadcast address instead of a multicast one.
+
+
+== Drives added in "Physical Hard Disk" mode aren't recognized by hEvas ==
+
+Drives can be added to a hEva with two methods:
+ - a passthru method (drives aren't virtualized and given directly to hEva)
+ - a file interface method (a big 0ed file is created on a filesystem).
+
+ The first method is currently defective.
+
+ Workaround is to use the second method.

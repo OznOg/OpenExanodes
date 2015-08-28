@@ -1,0 +1,297 @@
+#!/usr/bin/perl
+
+#
+# Copyright 2002, 2009 Seanodes Ltd http://www.seanodes.com. All rights
+# reserved and protected by French, UK, U.S. and other countries' copyright laws.
+# This file is part of Exanodes project and is subject to the terms
+# and conditions defined in the LICENSE file which is present in the root
+# directory of the project.
+#
+
+#
+# install the given rpm dist file to the given host
+#
+
+package exa_install;
+use Getopt::Long;
+use File::Basename;
+
+use strict;
+use warnings;
+
+#
+# By default, colors.
+#
+my $SETCOLOR_SUCCESS = sprintf("%c%s", 27, "[1;32m");
+my $SETCOLOR_FAILURE = sprintf("%c%s", 27, "[1;31m");
+my $SETCOLOR_WARNING = sprintf("%c%s", 27, "[1;34m");
+my $SETCOLOR_NORMAL  = sprintf("%c%s", 27, "[0;39m");
+
+sub init_nocolors {
+  $SETCOLOR_SUCCESS = "";
+  $SETCOLOR_FAILURE = "";
+  $SETCOLOR_WARNING = "";
+  $SETCOLOR_NORMAL  = "";
+}
+
+my $DEBUG      = "";
+my $FORCE      = "";
+my $UNINSTALL  = 0;
+my $PROTO      = "";
+my $SCP        = "scp -q";
+my @rpmfiles;
+
+sub usage
+{
+
+  print <<EOF;
+
+Exanodes management utility.
+Install an RPM package on a set of nodes
+
+Usage : exa_install [OPTION] -r 'RPM PACKAGE' [HOSTNAME...]
+
+  Install one or more rpm package on a set of nodes.
+  HOSTNAME... is a regular expansion for the nodes on which to install exanodes
+
+General Options:
+  -u, --uninstall       uninstall previous Exanodes packages before the install.
+  -f, --force           use --nodeps --force option with rpm
+  -p, --protocol=proto	run the remote command using the protocol (proto=rsh or ssh).
+                        ssh is the default.
+  -r, --rpm=FILE	specify the rpm package file
+      --nocolor		set the output color off (default=on)
+  -h, --help		display this help and exit
+
+Options NODENAME...:
+  This option is a regular expansion of the form:
+  PREFIX[/NUMBERING/]SUFFIX
+  With [/NUMBERING/] being a number followed by ':' or '-' and another
+  number. This numbering sequence can be repeated.
+  SUFFIX can be empty or another PREFIX[/NUMBERING/]
+
+  Example:
+  node/1-4/          => node1 node2 node3 node4
+  node/1-4/ node10   => node1 node2 node3 node4 node10
+  node/3:8-9/ node1  => node3 node8 node9 node1
+  node-/3-5:7:10-12/ => node-3 node-4 node-5 node-7 node-10 node-11 node-12
+  node-/1-2/-/3-4/   => node-1-3 node-1-4 node-2-3 node-2-4
+
+Example:
+ exa_install -r Exanodes-nodes-VERSION-DISTRIB.ARCH.rpm node/1-3/ node5
+ exa_install -r 'file1.rpm file2.rpm' node/1-3/ node5
+
+EOF
+
+  exit 1;
+}
+
+sub init {
+  my %options;
+
+  if (GetOptions(\%options, "protocol|p=s", "rpm|r=s",
+		 "nocolor", "uninstall|u",
+		 "force|f", "help|h") == 0) {
+    print("Try `$0 --help' for more information.\n");
+    exit 1;
+  }
+
+  if ($options{help}) {
+    &usage;
+  }
+
+  if ($options{'nocolor'}) {
+    init_nocolors();
+  }
+
+  $FORCE = "";
+  if ($options{force}) {
+    $FORCE= "--nodeps --force";
+  }
+  $UNINSTALL = 0;
+  if ($options{uninstall}) {
+    $UNINSTALL = 1;
+  }
+  $PROTO = "ssh";
+  if ($options{protocol}) {
+    $PROTO = $options{protocol};
+  }
+
+  if($PROTO ne "ssh" and $PROTO ne "rsh") {
+    print("ERROR: Unsupported protocol $PROTO\n");
+    exit 1;
+  }
+
+  if ($options{rpm}) {
+    @rpmfiles = split(' ', $options{rpm});
+
+    foreach my $rpmfile (@rpmfiles) {
+      if (!open(C_ERROR,$rpmfile)) {
+	print ("ERROR: Cannot open file $rpmfile\n");
+	exit 1;
+      }
+      close C_ERROR;
+    }
+  }
+
+  if(! @rpmfiles) {
+    print("ERROR: An rpm package must be specify the -r option\n");
+    exit 1;
+  }
+
+
+  if (scalar(@ARGV) < 1) {
+    print("You must specify at least one target hostname\n");
+    print("Try `$0 --help' for more information.\n");
+    exit 1;
+  }
+
+}
+
+sub test_error {
+  my $errormsg=$_[0];
+  my $error=$_[1];
+
+  if($error eq "0") {
+    print ($SETCOLOR_SUCCESS."$errormsg DONE\n".$SETCOLOR_NORMAL);
+  }
+  else {
+    print ($SETCOLOR_FAILURE."FAILED with error $error on $errormsg\n".$SETCOLOR_NORMAL);
+  }
+
+}
+
+&init;
+
+print("----------------------------------------\n");
+print("Protocol   : $PROTO\n");
+print("RPM file   : \n");
+foreach my $rpmfile (@rpmfiles) {
+  print("             $rpmfile\n");
+}
+
+# Change the scp command depending on the protocol
+if($PROTO eq "rsh") {
+  $SCP="rcp";
+}
+print("----------------------------------------\n");
+
+if (fork()) {
+  # Parent
+  wait;
+
+}
+else {
+  # Child
+  my $list_nodes = `exa_expand @ARGV`;
+  my @CLUSTER_NODES = split(/\s/,$list_nodes);
+
+  foreach(@CLUSTER_NODES) {
+
+    if (fork()) {
+      my $targethost = $_;
+
+      # It's an RPM
+
+      # ----------------------------------------
+      foreach my $rpmfile (@rpmfiles) {
+	print "Copying $rpmfile on $targethost\n";
+	system ("$SCP -r $rpmfile root\@$targethost:/tmp/") != -1
+	  or die ("ERROR: Failed to run $SCP\n");
+
+	test_error ("Copying $rpmfile on $targethost", $? >> 8) ;
+      }
+
+      my $rpmbase;
+      foreach my $rpmfile (@rpmfiles) {
+	$rpmbase .= " " . basename($rpmfile);
+      }
+
+      if ($UNINSTALL) {
+        my $oldrpmbase = `$PROTO -l root $targethost "rpm -qa | grep -E 'exanodes-|seanodes-fs-' | xargs echo"`;
+
+        # ----------------------------------------
+        # Remove these packages
+        print "Uninstalling Exanodes RPM on $targethost\n";
+        system ("$PROTO -l root $targethost \"rpm $FORCE -e $oldrpmbase\"") != -1
+            or die ("ERROR: Failed to run $PROTO\n");
+      }
+
+      # ----------------------------------------
+      print "Installing RPM on $targethost\n";
+      system ("$PROTO -l root $targethost \"cd /tmp; rpm $FORCE -Uvh $rpmbase;\"") != -1
+	or die ("ERROR: Failed to run $PROTO\n");
+
+      test_error ("Installing Exanodes RPM on $targethost", $? >> 8) ;
+
+      # ----------------------------------------
+      print "Erasing RPM files on $targethost \n";
+
+      system ("$PROTO -l root $targethost \"cd /tmp; rm -f $rpmbase;\"") != -1
+	or die ("ERROR: Failed to erase Exanodes RPM on $targethost\n");
+
+      test_error ("Erasing Exanodes RPM on $targethost", $? >> 8) ;
+
+      wait;
+      exit 0;
+    }
+  }
+}
+
+
+__END__
+
+=pod
+
+=head1 NAME
+
+Exanodes management utility.
+Install an RPM package on a set of nodes
+
+=head1 SYNOPSIS
+
+Usage : exa_install [OPTION] -r 'RPM PACKAGES' [NODENAME...]
+
+  Install the rpm package of Exanodes on a set of nodes.
+  NODENAME... is a regular expansion for the nodes on which to install exanodes
+
+General Options:
+  -f, --force           Use --nodeps --force option with rpm
+  -p, --protocol=proto  Run the remote command using the protocol
+                        (proto=rsh or ssh). ssh is the default.
+  -r, --rpm='FILES'     Specify the quoted list of rpm package files
+      --nocolor         Set the output color off (default=on)
+  -h, --help            Display this help and exit
+
+Options NODENAME...:
+  This option is a regular expansion of the form:
+  PREFIX[/NUMBERING/]SUFFIX
+  With [/NUMBERING/] being a number followed by ':' or '-' and another
+  number. This numbering sequence can be repeated.
+  SUFFIX can be empty or another PREFIX[/NUMBERING/]
+
+  Example:
+  node/1-4/          => node1 node2 node3 node4
+  node/1-4/ node10   => node1 node2 node3 node4 node10
+  node/3:8-9/ node1  => node3 node8 node9 node1
+  node-/3-5:7:10-12/ => node-3 node-4 node-5 node-7 node-10 node-11 node-12
+  node-/1-2/-/3-4/   => node-1-3 node-1-4 node-2-3 node-2-4
+
+
+=head1 EXAMPLE
+
+exa_install node/1-3/ node5 -r 'dkms-exanodes-gen-3.0-1.rhel5.x86_64.rpm
+                                exanodes-gen-nodes-3.0-1.rhel5.x86_64.rpm'
+
+=head1 SEE ALSO
+
+L<exa_clcreate>
+L<exa_clinfo>
+L<exa_clstart>
+L<exa_clstop>
+
+=head1 AUTHOR
+
+Copyright 2002, 2009 Seanodes. All rights reserved.
+
+=cut

@@ -1,0 +1,4 @@
+etc/exanodes/postmount.d/postmount.template
+etc/exanodes/preumount.d/preumount.template
+usr/sbin/exa_fsd
+usr/sbin/exa_fsscript

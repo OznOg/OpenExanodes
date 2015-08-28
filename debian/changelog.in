@@ -1,0 +1,5 @@
+@CMAKE_PROJECT_NAME@ (@EXA_EDITION_TAG@.@EXA_VERSION@) unstable; urgency=low
+
+  * Exanodes @EXA_EDITION_STR@ version @EXA_VERSION@.
+
+ -- Support <support@seanodes.com>  the date is automatically inserted by make dist

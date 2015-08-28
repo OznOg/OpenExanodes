@@ -1,0 +1,6 @@
+lib/modules/*/exanodes/exa_common.ko
+lib/modules/*/exanodes/exa_rdev.ko
+lib/modules/*/exanodes/exa_bd.ko
+lib/modules/*/exanodes/exa_lay_rainX.ko
+lib/modules/*/exanodes/exa_lay_sstriping.ko
+lib/modules/*/exanodes/exa_virtual.ko

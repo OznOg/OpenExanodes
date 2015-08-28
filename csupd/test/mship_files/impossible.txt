@@ -1,0 +1,5 @@
+0: 1111
+1: 1111
+# inconsistency: 2 should see itself
+2: 1011
+3: 1111

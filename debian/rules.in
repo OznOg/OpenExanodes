@@ -1,0 +1,141 @@
+#!/usr/bin/make -f
+# -*- makefile -*-
+# Sample debian/rules that uses debhelper.
+#
+# This file was originally written by Joey Hess and Craig Small.
+# As a special exception, when this file is copied by dh-make into a
+# dh-make output file, you may use that output file without restriction.
+# This special exception was added by Craig Small in version 0.37 of dh-make.
+#
+# Modified to make a template file for a multi-binary package with separated
+# build-arch and build-indep targets  by Bill Allombert 2001
+
+# Uncomment this to turn on verbose mode.
+#export DH_VERBOSE=1
+
+# This has to be exported to make some magic below work.
+export DH_OPTIONS
+
+CONFIGURE_OPTIONS :=
+DH_OPTIONS := -p@CMAKE_PROJECT_NAME@-doc -p@CMAKE_PROJECT_NAME@-nodes -p@CMAKE_PROJECT_NAME@-policy-empty -p@CMAKE_PROJECT_NAME@-policy-no-io-barriers -pdkms-@CMAKE_PROJECT_NAME@ -p@CMAKE_PROJECT_NAME@-cli -p@CMAKE_PROJECT_NAME@-test-nodes -p@CMAKE_PROJECT_NAME@-debug -p@CMAKE_PROJECT_NAME@-tools-nodes -p@CMAKE_PROJECT_NAME@-tools-cli
+
+
+
+ifneq (,$(findstring without-dkms,$(DEB_BUILD_OPTIONS)))
+  CONFIGURE_OPTIONS += -DWITH_DKMS=FALSE
+  DH_OPTIONS := $(shell echo $(DH_OPTIONS) | sed "s/-pdkms-@CMAKE_PROJECT_NAME@//")
+endif
+
+ifneq (,$(findstring without-nodes,$(DEB_BUILD_OPTIONS)))
+  CONFIGURE_OPTIONS += -DWITH_NODES=FALSE
+  DH_OPTIONS := $(shell echo $(DH_OPTIONS) | sed "s/-p@CMAKE_PROJECT_NAME@-nodes//")
+endif
+
+ifneq (,$(findstring without-cli,$(DEB_BUILD_OPTIONS)))
+  CONFIGURE_OPTIONS += -DWITH_CLI=FALSE
+  DH_OPTIONS := $(shell echo $(DH_OPTIONS) | sed "s/-p@CMAKE_PROJECT_NAME@-cli//")
+endif
+
+ifneq (,$(findstring with-filesystems,$(DEB_BUILD_OPTIONS)))
+  CONFIGURE_OPTIONS += -DWITH_FS=TRUE
+endif
+
+ifneq (,$(findstring with-monitoring,$(DEB_BUILD_OPTIONS)))
+  CONFIGURE_OPTIONS += -DWITH_MONITORING=TRUE
+  DH_OPTIONS += -p@CMAKE_PROJECT_NAME@-monitoring
+endif
+
+ifneq (,$(findstring without-test,$(DEB_BUILD_OPTIONS)))
+  CONFIGURE_OPTIONS += -DWITH_TEST=FALSE
+  DH_OPTIONS := $(shell echo $(DH_OPTIONS) | sed "s/-p@CMAKE_PROJECT_NAME@-test-nodes//")
+endif
+
+ifneq (,$(findstring without-tools,$(DEB_BUILD_OPTIONS)))
+  CONFIGURE_OPTIONS += -DWITH_TOOLS=FALSE
+  DH_OPTIONS := $(shell echo $(DH_OPTIONS) | sed -e "s/-p@CMAKE_PROJECT_NAME@-tools-nodes//") -e "s/-p@CMAKE_PROJECT_NAME@-tools-cli//")
+endif
+
+ifneq (,$(findstring with-debug,$(DEB_BUILD_OPTIONS)))
+  CONFIGURE_OPTIONS += -DCMAKE_BUILD_TYPE=Debug
+  DH_OPTIONS := $(shell echo $(DH_OPTIONS) | sed "s/-p@CMAKE_PROJECT_NAME@-debug//")
+endif
+
+debian/build/CMakeCache.txt:
+	dh_testdir
+	mkdir -p debian/build && cd debian/build && cmake ../.. \
+            -DCMAKE_VERBOSE_MAKEFILE=1 \
+            -DCMAKE_BUILD_TYPE=RelWithDebInfo \
+            $(CONFIGURE_OPTIONS) \
+            -DCMAKE_INSTALL_PREFIX=/usr \
+            -DSYSCONF_DIR=/etc \
+            -DCACHE_DIR=/var/cache \
+            -DLOG_DIR=/var/log \
+            -DPID_DIR=/var/run \
+            -DLIB_DIR=/usr/lib
+
+build: build-stamp
+
+build-stamp: debian/build/CMakeCache.txt
+	cd debian/build && $(MAKE)  -j `/usr/bin/getconf _NPROCESSORS_ONLN`
+	touch $@
+
+clean:
+	dh_testdir
+	dh_testroot
+	rm -f build-stamp
+	rm -rf debian/build
+	dh_clean
+
+install:
+	dh_testdir
+	dh_testroot
+	dh_clean -k
+#	dh_installdirs
+	cd debian/build && $(MAKE) DESTDIR=$(CURDIR)/debian/tmp install
+	for file in debian/*.install-core; do cp $$file `echo $$file | sed s'/-core$$//'`; done
+ifneq (,$(findstring with-filesystems,$(DEB_BUILD_OPTIONS)))
+	for file in debian/*.install-fs; do cat $$file >> `echo $$file | sed s'/-fs$$//'`; done
+endif
+ifneq (,$(findstring with-monitoring,$(DEB_BUILD_OPTIONS)))
+	for file in debian/*.install-monitoring; do cat $$file >> `echo $$file | sed s'/-monitoring$$//'`; done
+endif
+	dh_install \
+	  --sourcedir=debian/tmp \
+	  -Xusr/share/man/man1 \
+	  -Xetc/logrotate.d/@CMAKE_PROJECT_NAME@ \
+	  -Xetc/logrotate.d/exa_agentx \
+	  -Xetc/udev/rules.d/40-@CMAKE_PROJECT_NAME@.rules \
+	  --fail-missing \
+	  $(if $(PERL_VENDORLIB), $(PERL_VENDORLIB)/*) $(PERL_VENDORLIB)
+
+#MYVERSION:=$(shell grep '#define VERSION' config.h | cut -d '"' -f 2)
+
+binary: build install
+	dh_testdir
+	dh_testroot
+#	dh_installchangelogs ChangeLog
+	dh_installdocs
+	dh_installexamples
+#	dh_installmenu
+	dh_installlogrotate
+	DH_OPTIONS=-p@CMAKE_PROJECT_NAME@-nodes dh_installinit --onlyscripts --name=@CMAKE_PROJECT_NAME@ -- defaults 98 33
+	dh_installudev --priority=40
+	dh_installman
+	dh_installmodules
+	dh_link
+ifeq (,$(findstring with-symbols,$(DEB_BUILD_OPTIONS)))
+	dh_strip --dbg-package=@CMAKE_PROJECT_NAME@-debug
+endif
+	dh_compress -Xexa_batch_
+	dh_fixperms
+	dh_perl
+	dh_makeshlibs
+	dh_installdeb
+	dh_shlibdeps
+	dh_gencontrol
+	mkdir -p $(CURDIR)/debian/@CMAKE_PROJECT_NAME@-policy-no-io-barriers/usr/share/@CMAKE_PROJECT_NAME@
+	echo -e '<Exanodes release="3.0">\n  <tunables>\n    <tunable name="io_barriers" default_value="FALSE"/>\n  </tunables>\n</Exanodes>' > $(CURDIR)/debian/@CMAKE_PROJECT_NAME@-policy-no-io-barriers/usr/share/@CMAKE_PROJECT_NAME@/default_tunables.conf
+	dh_md5sums
+	dh_builddeb
+
+.PHONY: build clean binary install
