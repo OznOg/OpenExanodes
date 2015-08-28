@@ -1,0 +1,23 @@
+## <summary>policy for exafsd</summary>
+
+########################################
+## <summary>
+##	Execute a domain transition to run exafsd.
+## </summary>
+## <param name="domain">
+## <summary>
+##	Domain allowed to transition.
+## </summary>
+## </param>
+#
+interface(`exafsd_domtrans',`
+	gen_require(`
+		type exafsd_t, exafsd_exec_t;
+	')
+
+	domain_auto_trans($1,exafsd_exec_t,exafsd_t)
+
+	allow exafsd_t $1:fd use;
+	allow exafsd_t $1:fifo_file rw_file_perms;
+	allow exafsd_t $1:process sigchld;
+')

@@ -1,0 +1,2 @@
+KERNEL=="exa_*", SUBSYSTEM=="block", OPTIONS="ignore_device"
+

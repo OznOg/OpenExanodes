@@ -1,0 +1,11 @@
+[SENSOR_VERY_LONG_NAME]
+flushing_filter = mean median min max
+sampling_period = 1
+flushing_period = 3
+sample_size = 1000
+
+[SENSOR_SHORT]
+flushing_filter = raw
+sampling_period = 10
+flushing_period = 100
+sample_size = 500

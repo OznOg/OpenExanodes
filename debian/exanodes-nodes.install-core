@@ -1,0 +1,7 @@
+etc/init.d/exanodes
+usr/lib/exanodes/libnbd_netplugin_tcp.so
+usr/sbin/exa_clientd
+usr/sbin/exa_admind
+usr/sbin/exa_csupd
+usr/sbin/exa_msgd
+usr/sbin/exa_serverd

@@ -1,0 +1,4 @@
+[branch]
+exatest_url = exatest/gen3/trunk
+exatest_command = exatest_validation -T nightly --valopt='--wipe'
+

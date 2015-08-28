@@ -1,0 +1,48 @@
+#
+# Copyright 2002, 2009 Seanodes Ltd http://www.seanodes.com. All rights
+# reserved and protected by French, UK, U.S. and other countries' copyright laws.
+# This file is part of Exanodes project and is subject to the terms
+# and conditions defined in the LICENSE file which is present in the root
+# directory of the project.
+#
+
+#
+# CONFIG : constant releated to exanodes command line behavior
+#
+# ****************************************************
+# DON'T EDIT constantes.pm, EDIT only constantes.pm.in
+# ****************************************************
+package constantes;
+
+#
+$VERSION		 = "@EXA_VERSION@";
+
+$LIBRARYPATH 		 = "@PKG_DATA_DIR@/test";
+$BIN_DIR		 = "@BIN_DIR@";
+$SBIN_DIR		 = "@SBIN_DIR@";
+$SYSCONFDIR		 = "@SYSCONF_DIR@";
+$PKGDATADIR              = "@DATA_DIR@/exanodes";
+
+$TRUE 			 = 1;
+$FALSE 			 = 0;
+$DEBUG_LEVEL 		 = 0;
+
+# Parsing constants
+$DEFAULT_CONFFILE	 = $SYSCONFDIR."/exanodes/exanodes.conf";
+$DEFAULT_POLIFILE	 = $LIBRARYPATH."/policies.conf";
+$DEFAULT_STATTYPE        = "perf";
+$CONFFILE_NAMESIZE 	 = 15;
+$CONFFILE_ALLOWEDREGEXP  = "[^A-Za-z0-9\_\.-]";
+$CONFFILE_ALLOWEDNAME    = "A-Z a-z 0-9 _ . -";
+
+$SERVERDNAME 		 = "exa_serverd";
+$CSUPDNAME 		 = "exacsupd";
+$MSGDNAME 		 = "examsgd";
+$LOCKPATH 		 = "/var/lock";
+
+$ACCESSMODE_PRIVATE	 = 1;
+$ACCESSMODE_SHARED	 = 0;
+
+# Needed to allow module load
+1;
+

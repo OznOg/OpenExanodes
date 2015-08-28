@@ -1,0 +1,5 @@
+[REPART1]
+sampling_period = 0
+flushing_period = 1
+sample_size = 10000
+

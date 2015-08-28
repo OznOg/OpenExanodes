@@ -1,0 +1,62 @@
+package constantes;
+
+# CONFIG : constantes à configurer suivant le système
+# TODO : utiliser ./configure à l'installation pour faire ça automatiquement
+$INSTALLPATH = "@prefix@/share";
+$INSMOD = "/sbin/insmod";
+$RMMOD = "/sbin/rmmod";
+$LSMOD = "/sbin/lsmod";
+$PIDOF = "/sbin/pidof";
+# FIN CONFIG
+
+$TRUE = 1;
+$FALSE = 0;
+$SLEEPTIME = 0;
+$DEBUG_LEVEL = 0;
+
+$DEFAULT_CONFFILE="driveFUSION.conf";
+$ADMCMD_VERSION="0.6";
+$CLUSTER_TOKEN="cluster";
+$GROUP_TOKEN="group";
+$GROUPDEV_TOKEN="devices";
+$GROUPVOL_TOKEN="volumes";
+
+$CONFFILE_NAMESIZE = 16;
+$CONFFILE_ALLOWEDREGEXP = "[^A-Za-z0-9\_]";
+$CONFFILE_ALLOWEDNAME   = "A-Z a-z 0-9 _";
+
+$NBDPATH = "$INSTALLPATH/driveFUSION/sciNBD";
+$VRTPATH = "$INSTALLPATH/driveFUSION/vrt";
+$ADMPATH = "$INSTALLPATH/driveFUSION/adm";
+$LOCKPATH = "/var/lock";
+
+$ADMCMDPATH = "$ADMPATH/new_scripts";
+$SERVERDNAME = "smd_serverd";
+$SERVERD = "$NBDPATH/serveur/serverd/$SERVERDNAME";
+$EXPORTDNAME ="smd_exportd";
+$EXPORTD = "$NBDPATH/serveur/exportd/smd_exportd";
+$EXPORTE = "$NBDPATH/serveur/cmd_exporte/smd_exporte";
+$IMPORTE = "$NBDPATH/client/cmd_importe/smd_importe";
+$NBDMODNAME = "scimapdev";
+$NBDMOD = "$NBDPATH/client/client_module/$NBDMODNAME.o";
+$NBDDEVPATH = "/dev/$NBDMODNAME";
+$VRTMOD = "$VRTPATH/virtualiseur/virtualiseur.o";
+$VRTMODNAME = "virtualiseur";
+$VRTPROCDIR = "/proc/virtualiseur";
+$VRTPROCGROUPSDIR = "$VRTPROCDIR/groups";
+$VRTPROCCMD = "$VRTPROCDIR/zones_enregistrees";
+$VRTDEVPATH = "/dev/virtualiseur";
+$VRTPROCUZ = "used_zones";
+$VRTPROCAZ = "active_zones";
+
+$DEVINFOCMD = "$ADMPATH/new_scripts/devinfo";
+$TESTLOCKCMD = "$ADMPATH/new_scripts/testlock";
+$RAZSBGCMD = "$ADMPATH/new_scripts/raz_sbg_rdev";
+$VLCREATECMD = "$ADMCMDPATH/fusion_vlcreate.pl";
+$VLSTARTCMD = "$ADMCMDPATH/fusion_vlstart.pl";
+$VLSTOPCMD = "$ADMCMDPATH/fusion_vlstop.pl";
+$DGCREATECMD = "$ADMCMDPATH/fusion_dgcreate.pl";
+$DGSTARTCMD = "$ADMCMDPATH/fusion_dgstart.pl";
+$DGSTOPCMD = "$ADMCMDPATH/fusion_dgstop.pl";
+
+

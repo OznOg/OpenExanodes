@@ -1,0 +1,89 @@
+Source: exanodes
+Section: utils
+Priority: extra
+Maintainer: Support <support@seanodes.com>
+Build-Depends: debhelper (>= 5), cmake (>= 2.6), pkg-config, libxml2-dev (>= 2.6), linux-headers, libboost-dev, libibverbs-dev (>= 1.0.4-1), libibmad-dev (>= 1.2.1-1), libssl-dev (>= 0.9.8), libsnmp9-dev, libsmi2-common (>= 0.4.5+dfsg0-0.1), libstring-crc32-perl (>= 1.4), seanodes-unittesting (>= 1.0)
+Standards-Version: 3.7.2
+
+Package: exanodes-debug
+Architecture: any
+Depends: ${misc:Depends}
+Description: Debug information for exanodes
+ Debug information for exanodes
+
+Package: exanodes-cli
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}, exanodes-policy
+Description: CLI (command line interface) for exanodes
+ Command line interface for exanodes
+
+Package: exanodes-tools-cli
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}, exanodes-cli
+Description: Additional CLI commands for Exanodes
+ Additional CLI commands for Exanodes
+
+Package: exanodes-doc
+Architecture: any
+Description: Documentation for exanodes
+ Documentation for exanodes
+
+Package: exanodes-modules
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}
+Provides: exanodes-kernel
+Conflicts: exanodes-kernel
+Replaces: exanodes-kernel
+Description: Exanodes kernel modules (to use on nodes)
+ Exanodes kernel modules (to use on nodes)
+
+Package: dkms-exanodes
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}, dkms (>= 2.0.19)
+Provides: exanodes-kernel
+Conflicts: exanodes-kernel
+Replaces: exanodes-kernel
+Description: Exanodes kernel modules built (DKMS build)
+ Exanodes kernel modules built (DKMS build)
+
+Package: exanodes-policy-empty
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}
+Provides: exanodes-policy
+Conflicts: exanodes-policy
+Replaces: exanodes-policy
+Description: Empty Exanodes policy
+ Empty Exanodes policy
+
+Package: exanodes-policy-no-io-barriers
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}
+Provides: exanodes-policy
+Conflicts: exanodes-policy
+Replaces: exanodes-policy
+Description: Exanodes policy that disables io barriers
+ Exanodes policy that disables io barriers
+
+Package: exanodes-nodes
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}, exanodes-kernel, lsb-base (>= 3.1-23.2etch1)
+Description: exanodes daemons (to use on nodes)
+ Exanodes daemons (to use on nodes)
+
+Package: exanodes-monitoring
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}, exanodes-nodes (= ${binary:Version})
+Description: exanodes monitoring system
+ Exanodes monitoring system
+
+Package: exanodes-tools-nodes
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}, exanodes-nodes (= ${binary:Version})
+Description: Tools for exanodes (to use on nodes)
+ Tools for exanodes (to use on nodes)
+
+Package: exanodes-test-nodes
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}, exanodes-nodes (= ${binary:Version}), bonnie++ (>= 1.03a), stress (>= 0.18.4-1), netperf (>= 2.4.2-1), blocktools (>= 1.0-8sea)
+Description: Test utilities commands for exanodes (to use on nodes)
+ Test utilities for exanodes (to use on nodes)

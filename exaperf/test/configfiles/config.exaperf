@@ -1,0 +1,17 @@
+[NBD_CLIENT]
+flushing_filter = mean median min max
+sampling_period = 1
+flushing_period = 3
+sample_size = 1000
+
+[NBD_SERVER_REQ]
+flushing_filter = mean median min max
+sampling_period = 1
+flushing_period = 3
+sample_size = 1000
+
+[NBD_SERVER_BUF]
+flushing_filter = mean median min max
+sampling_period = 1
+flushing_period = 3
+sample_size = 1000

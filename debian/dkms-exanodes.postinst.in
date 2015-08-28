@@ -1,0 +1,11 @@
+#!/bin/sh
+
+
+echo "--- Build and install kernel modules with dkms. ---"
+dkms add -m @CMAKE_PROJECT_NAME@ -v @CMAKE_EDITION_TAG@-@EXA_VERSION@ --rpm_safe_upgrade &&
+dkms build -m @CMAKE_PROJECT_NAME@ -v @CMAKE_EDITION_TAG@-@EXA_VERSION@ --rpm_safe_upgrade --no-clean-kernel &&
+dkms install -m @CMAKE_PROJECT_NAME@ -v @CMAKE_EDITION_TAG@-@EXA_VERSION@ --rpm_safe_upgrade --force
+true
+
+
+

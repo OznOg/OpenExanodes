@@ -1,0 +1,11 @@
+[DUR_SEQ]
+flushing_filter = mean median min max detail
+sampling_period = 0
+flushing_period = 3
+sample_size = 10000
+
+[DUR_PAR]
+flushing_filter = mean median min max detail
+sampling_period = 0
+flushing_period = 3
+sample_size = 10000

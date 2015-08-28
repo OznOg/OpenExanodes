@@ -1,0 +1,228 @@
+#!/bin/bash
+
+#
+# Copyright 2002, 2009 Seanodes Ltd http://www.seanodes.com. All rights
+# reserved and protected by French, UK, U.S. and other countries' copyright laws.
+# This file is part of Exanodes project and is subject to the terms
+# and conditions defined in the LICENSE file which is present in the root
+# directory of the project.
+#
+
+self=`basename $0`
+
+function usage()
+{
+  echo "Usage: ${self} [options] <node regex>..."
+  echo "(See pushexa for available push options)"
+}
+
+if [ $# -lt 1 ]; then
+    exec >&2
+    echo "Bad number of parameters"
+    usage
+    exit 1
+fi
+
+# Pushing with rsync ?
+RSYNC=false
+
+OPTIONS=""
+regex=""
+
+while [ "${1}" != "" ]; do
+    if [[ "${1}" =~ ^- ]]; then
+	case $1 in
+	    --help)
+		usage
+		exit 0
+		;;
+	    --rsync)
+		RSYNC=true
+		OPTIONS="${OPTIONS} ${1}"
+		;;
+	    --uninstall-nodeps)
+		UNINSTALLNODEPS="--nodeps"
+		;;
+            *)
+		OPTIONS="${OPTIONS} ${1}"
+		;;
+	esac
+    else
+	regex="${regex} ${1}"
+    fi
+    shift
+done
+
+if [ "${regex}" == "" ]; then
+    echo "Missing node regex" >&2
+    exit 1
+fi
+
+if ! exa_expand ${regex} > /dev/null ; then
+  echo "exa_expand error, check the expand '${regex}'" >&2
+  exit 1
+fi
+
+ALLNODES=`exa_expand ${regex}`
+REF_NODE=`echo ${ALLNODES} | cut -d " " -f 1`
+OTHERS=${ALLNODES/${REF_NODE}/}
+
+if ! ${RSYNC}; then
+    ARCHIVE=`ls -1rt exanodes*z 2>/dev/null | head -1`
+    if [ "${ARCHIVE}" == "" ]; then
+	echo "Missing exanodes distfile" >&2
+	exit 1
+    fi
+    echo
+    echo
+    echo "Pushing using ${ARCHIVE} file"
+    echo
+    echo
+fi
+
+echo "Checking hosts"
+for i in `exa_expand ${regex}`
+do
+  ping -c 1 -w 1 $i > /dev/null || (echo "host ${i} unreachable" && exit -1)
+done || exit
+
+function wait_pid
+{
+    wait $1 >/dev/null 2>&1
+}
+
+function wait_all_pids
+{
+    while [ "$1" != "" ]; do
+       wait_pid ${1}
+       shift
+    done
+}
+
+PIDLIST=""
+for i in `exa_expand ${regex}`
+do
+  [ `ssh $i "pgrep exa_ | wc -l"` -gt 1 ] && { echo "There is a cluster started on $i ; please do exa_clstop first" ; exit 1 ; }
+  echo "Cleaning $i"
+  ssh $i "pkill -9 rpm; rpm -qa | grep -i exa | xargs rpm -e $UNINSTALLNODEPS ; rm -rf /home/pusher/rpm/BUILD/exanodes-*; rm -f /home/pusher/rpm/RPMS/*/*.rpm; rm -f /tmp/*.rpm" > /dev/null 2>&1 &
+  PIDLIST="${PIDLIST} $!"
+done
+
+wait_all_pids ${PIDLIST}
+
+#
+# Copy the distfile to all nodes *iff* not pushing with rsync
+#
+if ! ${RSYNC}; then
+    echo "Copying sources to nodes ${OTHERS}"
+
+    PIDLIST=""
+    for i in ${OTHERS}
+    do
+	echo "Copying sources to $i"
+	scp ${ARCHIVE} pusher@$i:/tmp > /dev/null 2>&1 &
+	PIDLIST="${PIDLIST} $!"
+    done
+
+    wait_all_pids ${PIDLIST}
+
+    PIDLIST=""
+    for i in ${OTHERS}
+    do
+	echo "Untaring on $i"
+	ssh pusher@$i "tar xzf /tmp/${ARCHIVE} -C /home/pusher/rpm/BUILD/" > /dev/null 2>&1 &
+	PIDLIST="${PIDLIST} $!"
+    done
+
+    wait_all_pids ${PIDLIST}
+fi
+
+#
+# Push to the reference node only
+#
+PUSHEXA=`dirname $0`/pushexa.pl
+if ${RSYNC}; then
+    PUSH_CMD="${PUSHEXA} ${REF_NODE} --ignore-owner ${OPTIONS}"
+else
+    PUSH_CMD="${PUSHEXA} -s ${ARCHIVE} ${REF_NODE} --ignore-owner --keep-code ${OPTIONS}"
+fi
+
+${PUSH_CMD} || exit -9
+
+if ${RSYNC}; then
+    # Same naming as in pushexa
+    ROOTDIR="~pusher/rsync";
+    DISTNAME="${USER}--"`basename $PWD`;
+
+    RSYNC_OPTS="--archive --compress --delete --verbose"
+
+    # Rsync from the reference node to all other nodes
+    PIDLIST=""
+    for i in ${OTHERS}; do
+	echo "Rsync'ing from ${REF_NODE} to ${i}"
+
+	TARGET_DIR="pusher@${i}:${ROOTDIR}";
+	RSYNC_CMD="rsync ${RSYNC_OPTS} ${ROOTDIR}/${DISTNAME} ${ROOTDIR}/${DISTNAME}.options ${TARGET_DIR}"
+
+	ssh pusher@${i} "mkdir -p ${ROOTDIR}" >/dev/null 2>&1
+	ssh pusher@${REF_NODE} ${RSYNC_CMD} >/dev/null 2>&1 &
+	PIDLIST="${PIDLIST} $!"
+    done
+
+    wait_all_pids ${PIDLIST}
+
+    # Install Exanodes on all nodes except the reference node
+    # since pushexa already took care of that
+    PIDLIST=""
+    for i in ${OTHERS}; do
+	echo "Installing on ${i} with 'make install'"
+	ssh root@${i} "cd ${ROOTDIR}/${DISTNAME} && make install" >/dev/null 2>&1 &
+	PIDLIST="${PIDLIST} $!"
+    done
+
+    wait_all_pids ${PIDLIST}
+
+    # Restart Exanodes on all nodes except the reference node
+    # since pushexa already took care of that
+    PIDLIST=""
+    for i in ${OTHERS}; do
+	echo "Restarting Exanodes on ${i}"
+	ssh root@${i} "depmod -ae; chkconfig --add exanodes; service exanodes restart" >/dev/null 2>&1 &
+	PIDLIST="${PIDLIST} $!"
+    done
+
+    wait_all_pids ${PIDLIST}
+else
+    ARCH=`ssh ${REF_NODE} "rpm --showrc | grep '^build arch' | sed 's/.*: //'"`
+    FILES=`ssh ${REF_NODE} "ls -rt /home/pusher/rpm/RPMS/$ARCH/"`
+
+    for file in ${FILES}
+    do
+	scp ${REF_NODE}:/home/pusher/rpm/RPMS/$ARCH/${file} /tmp
+    done
+
+    wait_all_pids ${PIDLIST}
+
+    PIDLIST=""
+    for file in ${FILES}
+    do
+	for i in `exa_expand ${regex}`
+	do
+	    echo "Copying to $i"
+	    scp /tmp/${file} $i:/tmp/${file} &
+	    PIDLIST="${PIDLIST} $!"
+	done
+	wait_all_pids ${PIDLIST}
+    done
+
+    PIDLIST=""
+    for i in `exa_expand ${regex}`
+    do
+	echo "Installing on $i"
+	ssh $i "cd /tmp && rpm -Uvh --replacepkgs `echo ${FILES} | tr '\n' ' '`" &
+	PIDLIST="${PIDLIST} $!"
+    done
+
+    wait_all_pids ${PIDLIST}
+
+fi

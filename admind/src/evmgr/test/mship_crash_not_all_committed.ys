@@ -1,0 +1,178 @@
+<?xml version="1.0"?>
+<scenario name="Crash when not all nodes have committed">
+
+  <description>
+    Crash a leader wannabe when some but not all nodes have
+    acknowledged having committed.
+
+    Meant to be run on a 3 nodes cluster: create the cluster, start
+    the scenario, then start the cluster.
+  </description>
+
+  <params>
+    <var name="nocommit_node" type="string" size="8"
+	 info="Node that won't receive COMMIT"/>
+  </params>
+
+  <!-- Beginning -->
+  <step label="BEGIN">
+    <when>
+      <cond type="wait" local_node="${yaourt_master}">
+	<wait name="mship received READY"/>
+      </cond>
+      <do>
+	<jump step="M_IDLE"/>
+      </do>
+    </when>
+
+    <when>
+      <cond type="wait" local_node="${nocommit_node}">
+	<wait name="mship received READY"/>
+      </cond>
+      <do>
+	<jump step="S_DROP"/>
+      </do>
+    </when>
+
+    <when>
+      <cond type="wait">
+	<wait name="mship received READY"/>
+      </cond>
+      <do>
+	<jump step="S_ANY"/>
+      </do>
+    </when>
+  </step>
+
+  <!-- Yaourt master: nothing todo -->
+  <step label="M_IDLE">
+  </step>
+
+  <!-- All nodes except dropper -->
+  <step label="S_ANY">
+    <when>
+      <cond type="pre">
+	<pre/>
+      </cond>
+      <do>
+	<wakeup waiting="mship received READY"/>
+      </do>
+    </when>
+
+    <!-- When a node has received as many YES as there are nodes in
+	 the cluster, it means it will become leader -->
+    <when>
+      <cond type="wait" cond.pass_count="3">
+	<wait name="mship received YES"/>
+      </cond>
+      <do>
+	<jump step="S_LEADER_WAIT_ALL_PREPARED"/>
+      </do>
+    </when>
+
+    <!-- Don't block on reception of YES -->
+    <when>
+      <cond type="wait">
+	<wait name="mship received YES"/>
+      </cond>
+      <do>
+	<wakeup waiting="mship received YES"/>
+      </do>
+    </when>
+  </step>
+
+  <!-- Dropper: will drop message COMMIT -->
+  <step label="S_DROP" inherit="S_ANY">
+    <when>
+      <cond type="pre">
+	<pre/>
+      </cond>
+      <do>
+	<wakeup waiting="mship received READY"/>
+      </do>
+    </when>
+
+    <when>
+      <cond type="wait">
+	<wait name="mship received COMMIT"/>
+      </cond>
+      <do>
+	<!-- Here, 1 means drop (see Exanodes source) -->
+	<wakeup waiting="mship received COMMIT" result="1"/>
+	<!-- Go back to "normal" step: we don't want to block
+	     on subsequent COMMIT messages -->
+	<jump step="S_ANY"/>
+      </do>
+    </when>
+  </step>
+
+  <!-- Leader: waiting for all nodes to be prepared -->
+  <step label="S_LEADER_WAIT_ALL_PREPARED">
+    <when>
+      <cond type="pre">
+	<pre/>
+      </cond>
+      <do>
+	<wakeup waiting="mship received YES"/>
+      </do>
+    </when>
+
+    <!-- The first series of ACKs is in reply to PREPARE. When the
+	 leader has received the ACKs from all nodes, it will start
+	 the commit phase -->
+    <when>
+      <cond type="wait" cond.pass_count="3">
+	<wait name="mship received ACK"/>
+      </cond>
+      <do>
+	<jump step="S_LEADER_CRASH_NOT_ALL_COMMITTED"/>
+      </do>
+    </when>
+
+    <!-- Don't block on ACK reception -->
+    <when>
+      <cond type="wait">
+	<wait name="mship received ACK"/>
+      </cond>
+      <do>
+	<wakeup waiting="mship received ACK"/>
+      </do>
+    </when>
+  </step>
+
+  <!-- Leader: crash during the commit phase when it has received all
+       commit ACKs except one -->
+  <step label="S_LEADER_CRASH_NOT_ALL_COMMITTED">
+    <when>
+      <cond type="pre">
+	<pre/>
+      </cond>
+      <do>
+	<!-- Reached this step being blocked, so unblock the node -->
+	<wakeup waiting="mship received ACK"/>
+      </do>
+    </when>
+
+    <!-- One of the non-leader nodes won't get delivered the COMMIT
+	 message and thus we'll crash when we have received 3 - 1 = 2
+	 acks -->
+    <when>
+      <cond type="wait" cond.pass_count="2">
+	<wait name="mship received ACK"/>
+      </cond>
+      <do>
+	<crash method="sysrq"/>
+      </do>
+    </when>
+
+    <when>
+      <cond type="wait">
+	<wait name="mship received ACK"/>
+      </cond>
+      <do>
+	<wakeup waiting="mship received ACK"/>
+      </do>
+    </when>
+  </step>
+
+</scenario>

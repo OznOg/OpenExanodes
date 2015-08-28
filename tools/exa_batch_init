@@ -1,0 +1,228 @@
+#!/bin/sh
+#
+# This script can be used to create a filesystem very easily with Exanodes.
+#
+# It makes the assumption that you have the same number of disks and at
+# the same path on each nodes.
+#
+# - With the SFS filesystem, a single group is created with 1 volume
+#   per node.
+# - With ext3, we create as many groups as the number of disks per node.
+#   We then create a private volume on each node with a round robin on
+#   these groups.
+#
+#
+if [ $# -eq "0" ]
+then
+  echo "Usage: `basename $0` options (-DNceimnstuy)"
+  echo "Mandatory:"
+  echo " -c CLUSTER           The cluster name to create"
+  echo " -i DISKS             The cluster disks to use (e.g. '/dev/xdb /dev/xdc')"
+  echo " -n NODES             The list of nodes of your cluster"
+  echo " -s SIZE              The size of the file system to create"
+  echo "Optional:"
+  echo " -m MOUNTPOINT        The mount point. The default is /mnt/exanodes"
+  echo " -t FSTYPE            The type of the file system, must be ext3 or sfs."
+  echo "                      The default is ext3"
+  echo " -u STRIPING_UNIT     Tuned striping unit"
+  echo " -e NB_SPARE          For the rainX layout, specify number of spare slots"
+  echo " -y LAYOUT            The layout type, must be sstriping or rainX."
+  echo "                      The default is sstriping"
+  echo ""
+  echo "Example:"
+  echo " Create an 1G EXT3 file system on each nodes and start it on each:"
+  echo '  exa_batch_init -c sam -n "xen8v1 xen8v2 xen8v3" -i /dev/xhdb -s 1G'
+  echo " Create a 1G SFS file system in a 3 nodes cluster and start it on 2 nodes:"
+  echo '  exa_batch_init -c sam -n "xen8v1 xen8v2 xen8v3" -i /dev/xhdb -s 1G -t sfs'
+  echo ""
+  exit 1
+fi
+
+# Default values
+layout=sstriping
+groupname=group
+fstype=ext3
+fsname=fs
+mountpoint=/mnt/exanodes
+nb_spare=0
+
+while getopts "c:e:n:i:y:D:s:m:N:u:t:" Option
+do
+  case $Option in
+    c ) cluster=$OPTARG;;
+    e ) nb_spare=$OPTARG;;
+    i ) disks=$OPTARG;;
+    m ) mountpoint=$OPTARG;;
+    n ) nodes=$OPTARG;;
+    s ) size=$OPTARG;;
+    t ) fstype=$OPTARG;;
+    u ) striping_unit=$OPTARG;;
+    y ) layout=$OPTARG;;
+
+    * ) echo "You provided an unknwon option."; exit 1;;   # DEFAULT
+  esac
+done
+
+shift $(($OPTIND - 1))
+#  Decrements the argument pointer so it points to next argument.
+#  $1 now references the first non option item supplied on the command line
+#+ if one exists.
+
+echo "Parameters:"
+
+if [ -z "$cluster" ]
+then
+  echo "ERROR: You have to specify the cluster name with -c (e.g -c mycluster)"
+  exit 1
+fi
+printf "%20s: %s\n" "CLUSTER" $cluster
+
+if [ -z "$nodes" ]
+then
+  echo "ERROR: You have to specify the nodes name with -n (e.g -n node1)"
+  exit 1
+fi
+nb_nodes=`echo $nodes |wc -w`
+printf "%20s: %s\n" "NODES" "$nodes"
+
+if [ -z "$disks" ]
+then
+  echo "ERROR: You have to specify the disk to use, the same on each nodes, with -i (e.g -i /dev/xdb)"
+  exit 1
+fi
+printf "%20s: %s\n" "DISKS" "$disks"
+nb_groups=`echo $disks | wc -w`
+nb_groups_used=$nb_groups
+
+if [ $nb_groups_used -gt $nb_nodes ]
+then
+  # Don't create more group than the number of nodes, it's useless
+  nb_groups_used=$nb_nodes
+fi
+
+if [ -z "$layout" ]
+then
+  echo "ERROR: You have to specify the layout to use with -y (e.g -y sstriping)"
+  exit 1
+fi
+printf "%20s: %s\n" "LAYOUT" $layout
+
+if  [ "$fstype" = "sfs" ] && [ "$nb_groups" > 1 ]
+then
+	nb_groups_used=1
+	nb_groups=1
+fi
+
+printf "%20s: %s\n" "NUMBER OF GROUPS" $nb_groups_used
+
+if [ "$layout" = "rainX" ]; then
+  printf "%20s: %s\n" "NUMBER OF SPARE" $nb_spare
+fi
+
+printf "%20s: %s\n" "FILE SYSTEM TYPE" $fstype
+
+if [ -z "$size" ]
+then
+  echo "ERROR: You have to specify the size of the file system to create with -s (e.g -s 1G)"
+  exit 1
+fi
+printf "%20s: %s\n" "SIZE" $size
+
+printf "%20s: %s\n" "MOUNTPOINT" $mountpoint
+
+if [ -n "$striping_unit" ]
+then
+  printf "%20s: %s\n" "STRIPING_UNIT" $striping_unit
+fi
+echo "\n"
+
+# ----------------------------------------
+# Test if the cluster is already created
+if [ ! -f /var/cache/exanodes/$cluster.nodes ]
+then
+  echo "Cluster creation:"
+  exa_makeconfig -c $cluster -n "$nodes" --disk "$disks" > /tmp/exa_start.$$
+  if [ $? -ne 0 ] ;then rm /tmp/exa_start.$$; exit 1; fi
+  exa_clcreate -RB -c /tmp/exa_start.$$ $cluster
+  rm -f /tmp/exa_start.$$
+fi
+exa_clstart $cluster
+
+# ----------------------------------------
+# Create the list of disks of the form nodeA:disk1 nodeB:disk1 nodeA:disk2 nodeB:disk2 ...
+nodesdisks=
+diskid=1
+for d in $disks
+do
+  for n in $nodes
+  do
+    nodesdisks="$nodesdisks $n:disk$diskid"
+  done
+  diskid=$(($diskid + 1))
+done
+nb_disks=`echo $nodesdisks | wc -w`
+
+# ----------------------------------------
+# Create the groups
+extra=" --extra"
+# Set the striping_unit
+if [ -n "$striping_unit" ]
+then
+  extra="$extra su_size=$striping_unit"
+fi
+if [ "$layout" = "rainX" ]; then
+  extra="$extra nb_spare=$nb_spare"
+fi
+
+first=1
+for i in `seq 0 $(($nb_groups_used-1))`
+do
+  echo "Group creation:"
+
+  # Create the list of node:disk for this group
+  if [ "$layout" = "sstriping" ]; then
+    first=$(($i*($nb_disks/$nb_groups_used)+1))
+    last=$((($i+1)*($nb_disks/$nb_groups_used)))
+    range="$first-$last"
+  elif [ "$layout" = "rainX" ]; then
+    # Several disks possible but in the case of this script only homogeneous on all nodes
+    last=$(($first-1+($nb_nodes*($nb_disks/$nb_groups_used/$nb_nodes))))
+    range="$first-$last"
+    first=$(($last+1))
+  fi
+  somedisks=`echo $nodesdisks | cut -d' ' -f$range`
+
+  echo exa_dgcreate -s $cluster:$groupname$i -y $layout --disk "\"$somedisks\"" $extra
+  exa_dgcreate -s $cluster:$groupname$i -y $layout --disk "$somedisks" $extra
+
+done
+
+# ----------------------------------------
+echo "File system creation:"
+if [ "$fstype" = "sfs" ]
+then
+  echo exa_fscreate -m $mountpoint -t $fstype -g $groupname$i $cluster:$fsname -s $size
+  exa_fscreate -m $mountpoint -t $fstype -g $groupname$i $cluster:$fsname -s $size
+  echo exa_fsstart $cluster:$fsname -a
+  exa_fsstart $cluster:$fsname -a
+  if [ $? -ne 0 ] ;then exit 1; fi
+
+else
+  # Create and start one file system per node, round robined on each group to enhance performance
+  g=0
+  for n in $nodes
+  do
+    echo exa_fscreate -m $mountpoint -t $fstype -g $groupname$g $cluster:$fsname$n -s $size
+    exa_fscreate -m $mountpoint -t $fstype -g $groupname$g $cluster:$fsname$n -s $size
+    echo exa_fsstart $cluster:$fsname$n -n $n
+    exa_fsstart $cluster:$fsname$n -n $n
+    if [ $? -ne 0 ] ;then exit 1; fi
+    g=$(($g+1))
+    if [ $g = $nb_groups_used ] ;then  g=0; fi
+  done
+fi
+
+# ----------------------------------------
+echo "\nDONE"
+
+exit 0

@@ -1,0 +1,8 @@
+echo "rsh $1 /root/scimapdev_brique_v1.5/smd_transfertd/smd_transfertd"
+rsh $1 /root/scimapdev_brique_v1.5/smd_transfertd/smd_transfertd
+
+echo "rsh $1 /root/scimapdev_brique_v1.5/smd_exportd/smd_exportd \`/sbin/pidof smd_transfertd\`"
+rsh $1 /root/scimapdev_brique_v1.5/smd_exportd/smd_exportd \`/sbin/pidof smd_transfertd\` 
+
+echo "rsh $1 /root/scimapdev_brique_v1.5/smd_exportd/smd_exporte -a /dev/hda6"
+rsh $1 /root/scimapdev_brique_v1.5/smd_exportd/smd_exporte -a /dev/hda6

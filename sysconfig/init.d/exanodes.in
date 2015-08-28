@@ -1,0 +1,288 @@
+#!/bin/bash
+
+#
+# Copyright 2002, 2009 Seanodes Ltd http://www.seanodes.com. All rights
+# reserved and protected by French, UK, U.S. and other countries' copyright laws.
+# This file is part of Exanodes project and is subject to the terms
+# and conditions defined in the LICENSE file which is present in the root
+# directory of the project.
+#
+
+#
+# Seanodes Exanodes start and stop
+#
+# chkconfig: 35 99 74
+# description: 	This runs Seanodes Exanodes
+#
+### BEGIN INIT INFO
+# Provides:                     exanodes
+# Required-Start:               $local_fs $remote_fs $network $named $time
+# X-UnitedLinux-Should-Start:
+# Required-Stop:                $local_fs $remote_fs $network
+# X-UnitedLinux-Should-Stop:
+# Default-Start:                3 5
+# Default-Stop:                 0 1 2 6
+# Short-Description:            Seanodes Exanodes
+# Description:                  Start Exanodes
+### END INIT INFO
+
+# WARNING: Exanodes is a clustered service. As such, the service it provides
+#          depends on other nodes to function. It means that the Exanodes volumes
+#          ARE NOT created once this script is complete but only after the
+#          CLUSTER AS A WHOLE is started.
+
+PATH="/sbin:/usr/sbin:/bin:/usr/bin:$PATH"
+
+# on Centos 7 md5 support is disabled by default in openssl, this prevents the
+# license checking to work correctly. Next lines enable it so that license
+# check works again.
+export NSS_HASH_ALG_SUPPORT=+MD5
+export OPENSSL_ENABLE_MD5_VERIFY=1
+
+export EXANODES_BIN_DIR="@NATIVE_BIN_DIR@"
+export EXANODES_SBIN_DIR="@NATIVE_SBIN_DIR@"
+export EXANODES_LIB_DIR="@NATIVE_PKG_LIB_DIR@"
+export EXANODES_DATA_DIR="@NATIVE_PKG_DATA_DIR@"
+export EXANODES_CACHE_DIR="@PKG_CACHE_DIR@"
+export EXANODES_PID_DIR="@PKG_PID_DIR@"
+export EXANODES_NODE_CONF_DIR="@PKG_NODE_CONF_DIR@"
+export EXANODES_LOG_DIR="@PKG_LOG_DIR@"
+@EXPORT_PERF_CONF_ENV@
+
+if [ "$exanodes" = "nostart" ]; then
+	echo "As required in the kernel command line, Exanodes will not be automatically started."
+	echo "You can start it manually with '/etc/init.d/exanodes start'."
+	exit 1
+fi
+
+RETVAL=0
+
+if [ -f /etc/SuSE-release ]; then
+    success() { echo -n [  OK  ]; }
+    failure() { echo -n [FAILED]; }
+elif grep -q "Debian GNU/Linux" /etc/issue ; then
+    . /lib/lsb/init-functions
+    success() { log_success_msg $@ ; }
+    failure() { log_failure_msg $@ ; }
+elif grep -q "Ubuntu" /etc/issue ; then
+    . /lib/lsb/init-functions
+    success() { log_success_msg $@ ; }
+    failure() { log_failure_msg $@ ; }
+else
+    . /etc/init.d/functions
+fi
+
+# Make sure umask is sane
+umask 022
+
+status() {
+	pid=`pidof $1`
+	if [ "$pid" != "" ] ; then
+	        echo "$1 (pid $pid) is running..."
+	        return 0
+	fi
+
+	# Check in var/run files
+	if [ -f /var/run/$1.pid ] ; then
+	        read pid < /var/run/$1.pid
+	        if [ "$pid" != "" ] ; then
+	                echo "$1 is not running but the pid file exists"
+	                return 1
+	        fi
+	fi
+	# Check in /var/lock/subsys
+	if [ -f /var/lock/subsys/$1 ]; then
+		echo "$1 is not running but subsys is locked"
+		return 2
+	fi
+	echo "$1 is stopped"
+	return 3
+}
+
+# usage: exa_unloadmodule <module name>
+exa_unloadmodule() {
+    echo -n "Unload $1: "
+    if [ "$(cat /proc/modules |grep "^$1 " )" = "" ] ; then
+	success "$1 is already unloaded"
+	echo
+	return 0
+    fi
+    rmmod -s $1
+    if [ $? -eq 0 ]; then
+	success "$1 successfully unloaded"
+	echo
+	return 0
+    else
+        failure "failed to unload $1"
+        echo
+        return 1
+    fi
+}
+
+exa_startdaemon() {
+    echo -n "Start $1: "
+
+    DAEMONBIN=${EXANODES_SBIN_DIR}/$1
+    DAEMONCMD=${EXANODES_SBIN_DIR}/$*
+    test -e $DAEMONBIN || return 2 # no such file or directory
+    test -x $DAEMONBIN || return 13 # permission denied
+
+    $DAEMONCMD
+    RETVAL=$?
+    if [ $RETVAL -eq 0 ]; then
+	success "$1 successfully started"
+	echo
+    else
+	failure "Failed to start $1"
+	echo
+    fi
+    return $RETVAL
+}
+
+exa_killproc() {
+    echo -n "Stop $1: "
+
+    killproc $@
+    while pidof $1; do
+        usleep 100000
+    done
+    return 0
+}
+
+# --------------------------------------------------
+case "$1" in
+'start')
+    exa_startdaemon exa_admind
+    RETVAL=$?
+
+    if [ $RETVAL -eq 0 ]; then
+	# The rc script needs this file to check that Exanodes is started.
+	test -d /var/lock/subsys && touch /var/lock/subsys/exanodes
+    fi
+    ;;
+
+'stop')
+
+    echo -n "Check no more Exanodes volumes are mounted: "
+
+    # Get Exanodes mountpoints still mounted.
+    remaining=`LC_ALL=C awk '!/^#/ && $1 ~ /\/dev\/exa/ {print $2}' /proc/mounts`
+
+    # First try: just umount
+    if [ -n "$remaining" ]; then
+        failure "Some Exanodes volumes are still mounted"
+        echo
+        echo -n "Umount $remaining: "
+	umount $remaining >& /dev/null
+	remaining=`LC_ALL=C awk '!/^#/ && $1 ~ /\/dev\/exa/ {print $2}' /proc/mounts`
+    fi
+
+    # Second try: send SIGTERM to apps before umounting
+    if [ -n "$remaining" ]; then
+        failure "Some processes still use $remaining"
+        echo
+        echo -n "Umount $remaining after terminating processes using it: "
+	/sbin/fuser -s -k -SIGTERM -m $remaining
+	sleep 5
+	umount $remaining >& /dev/null
+	remaining=`LC_ALL=C awk '!/^#/ && $1 ~ /\/dev\/exa/ {print $2}' /proc/mounts`
+    fi
+
+    # Third try: send SGIKILL to apps before umounting
+    if [ -n "$remaining" ]; then
+        failure "Processes did not qui with SIGTERM"
+        echo
+        echo -n "Umount $remaining after killing processes using it: "
+	/sbin/fuser -s -k -SIGKILL -m $remaining
+	sleep 1
+	umount $remaining >& /dev/null
+	remaining=`LC_ALL=C awk '!/^#/ && $1 ~ /\/dev\/exa/ {print $2}' /proc/mounts`
+    fi
+
+    # Fourth try: lazy unmount
+    if [ -n "$remaining" ]; then
+        failure "Processes did not died with SIGKILL"
+        echo
+        echo -n "Umount $remaining lazy: "
+	umount -l $remaining >& /dev/null
+    fi
+
+    success "No more Exanodes volume are mounted"
+    echo
+
+    sh $0 try-stop
+    exit $?
+    ;;
+
+'try-stop')
+    # Check if Exanodes is no more clusterized
+    echo -n "Checking the cluster is stopped: "
+    if ps -A | grep exa_msgd > /dev/null; then
+      failure "The cluster is started"
+      echo
+      echo "Please stop your cluster with exa_clstop on your admin node before."
+      exit 1
+    fi
+    success "The cluster is stopped"
+    echo
+
+    exa_killproc exa_admind
+    RETVAL=$?
+
+    # Usually, exa_bd and exa_rdev modules are unloaded by exa_admind
+    # but we remove them here to be able to restart exanodes after a
+    # crash of exa_admind that leaves them loaded.
+
+    exa_unloadmodule exa_bd
+    RETVAL=$?||$RETVAL
+
+    exa_unloadmodule exa_rdev
+    RETVAL=$?||$RETVAL
+
+    exa_unloadmodule exa_common
+    RETVAL=$?||$RETVAL
+
+    # The rc script needs this file to check that Exanodes is stopped.
+    /bin/rm -f /var/lock/subsys/exanodes
+    ;;
+
+'status')
+    status exa_admind
+    exit 0
+    ;;
+
+'status-cluster')
+    if ps -A | grep exa_msgd > /dev/null; then
+      echo "Cluster is running"
+      exit 1
+    fi
+    echo "Cluster is stopped"
+    exit 0
+    ;;
+
+'status-agentx')
+    if ps -A | grep exa_agentx > /dev/null; then
+      echo "AgentX is running"
+      exit 0
+    fi
+    echo "AgentX is stopped"
+    exit 3 # no such process
+    ;;
+
+'force-reload')
+    sh $0 stop && sh $0 start
+    exit $?
+    ;;
+
+'restart')
+    sh $0 stop && sh $0 start
+    exit $?
+    ;;
+
+*)
+    echo "Usage: $0 {start | stop | restart | status}"
+    exit 1
+    ;;
+esac
+
+exit $RETVAL

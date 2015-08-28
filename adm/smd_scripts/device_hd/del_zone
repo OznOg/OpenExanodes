@@ -1,0 +1,9 @@
+umount /mnt/storfactory/zone$1
+\rmdir /mnt/storfactory/zone$1
+
+if [ -f /proc/virtualiseur/zones_enregistrees ]
+then 
+echo "echo d $1 > /proc/virtualiseur/zones_enregistrees"
+echo "d $1" > /proc/virtualiseur/zones_enregistrees
+fi
+

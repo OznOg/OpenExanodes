@@ -1,0 +1,17 @@
+/*
+ * Copyright 2002, 2009 Seanodes Ltd http://www.seanodes.com. All rights
+ * reserved and protected by French, UK, U.S. and other countries' copyright laws.
+ * This file is part of Exanodes project and is subject to the terms
+ * and conditions defined in the LICENSE file which is present in the root
+ * directory of the project.
+ */
+
+#ifndef __EXA_VERSION_H
+#define __EXA_VERSION_H
+
+#define EXA_EDITION_STR  "${EXA_EDITION_STR}"
+#define EXA_EDITION_TAG  "${EXA_EDITION_TAG}"
+#define EXA_VERSION      "${EXA_VERSION}"
+#define EXA_PLATFORM_STR "${EXA_PLATFORM_STR}"
+
+#endif /* __EXA_VERSION_H */

@@ -1,0 +1,54 @@
+<?xml version="1.0"?>
+<Exanodes release="EXA_VERSION" format_version="1" config_version="0000002">
+<cluster name="sam" uuid="350098BB:0737461D:4AD8BDC0:39182AB5">
+<node name="sam52" hostname="123456789012345678901234567890123456789012345678901234567890123" number="0">
+<network hostname="192.168.108.152"/>
+<disk uuid="2D64378F:70360AA5:13D573B4:0D4C6DC1"/>
+<disk uuid="2D64378F:70360AA5:13D573B4:0D4C6DC2"/>
+<disk uuid="2D64378F:70360AA5:13D573B4:0D4C6DC3"/>
+<disk uuid="2D64378F:70360AA5:13D573B4:0D4C6DC4"/>
+</node>
+<node name="sam53" hostname="sam53.toulouse" number="1">
+<network hostname="192.168.8.153"/>
+<disk uuid="2D64378F:70360AA5:13D573B4:0D4C6DC5"/>
+<disk uuid="2D64378F:70360AA5:13D573B4:0D4C6DC6"/>
+<disk uuid="2D64378F:70360AA5:13D573B4:0D4C6DC7"/>
+<disk uuid="2D64378F:70360AA5:13D573B4:0D4C6DC8"/>
+</node>
+<node name="sam54" hostname="sam54.toulouse" number="2">
+<network hostname="192.168.8.154"/>
+<disk uuid="2D64378F:70360AA5:13D573B4:0D4C6DC9"/>
+<disk uuid="2D64378F:70360AA5:13D573B4:0D4C6DD0"/>
+<disk uuid="2D64378F:70360AA5:13D573B4:0D4C6DD1"/>
+<disk uuid="2D64378F:70360AA5:13D573B4:0D4C6DD2"/>
+</node>
+<node name="meep" hostname="HOSTNAME" number="4">
+<network hostname="192.168.8.42"/>
+</node>
+</cluster>
+<diskgroup name="group1" layout="sstriping" uuid="53CF86EB:21BCDEE7:78F6A71E:27057300" transaction="COMMITTED" goal="STARTED" tainted="FALSE">
+<physical>
+<disk uuid="2D64378F:70360AA5:13D573B4:0D4C6DC2" vrt_uuid="11111111:0C4B2AF2:68F3C8CC:631FAE45"/>
+<disk uuid="2D64378F:70360AA5:13D573B4:0D4C6DC6" vrt_uuid="22222222:0C4B2AF2:68F3C8CC:631FAE45"/>
+<disk uuid="2D64378F:70360AA5:13D573B4:0D4C6DD0" vrt_uuid="33333333:0C4B2AF2:68F3C8CC:631FAE45"/>
+</physical>
+<logical>
+<volume name="vol"  accessmode="SHARED" goal_stopped="00000000000000000000000000000006" goal_started="00000000000000000000000000000001" goal_readonly="00000000000000000000000000000000" transaction="COMMITTED" readahead="8192" uuid="C2C3875B:73F14C5C:86125580:01EA99AC">
+</volume>
+<volume name="fs" uuid="B283965F:5EDD47A9:8C319F56:BC370A04" accessmode="PRIVATE" goal_stopped="00000000000000000000000000000003" goal_started="00000000000000000000000000000004" goal_readonly="00000000000000000000000000000000" readahead="16384" transaction="COMMITTED">
+<fs size="1048576" type="ext3" mountpoint="/mnt/test" transaction="COMMITTED" sfs_uuid="" sfs_nb_logs="0" mount_option=""/>
+</volume>
+</logical>
+</diskgroup>
+<diskgroup name="group2" cluster="sam" layout="rainX" uuid="2D64378F:70360AA5:13D573B4:0D4C6DC1" transaction="COMMITTED" goal="STARTED" tainted="TRUE">
+<physical>
+<disk uuid="2D64378F:70360AA5:13D573B4:0D4C6DC1" vrt_uuid="44444444:0C4B2AF2:68F3C8CC:631FAE45"/>
+<disk uuid="2D64378F:70360AA5:13D573B4:0D4C6DC5" vrt_uuid="55555555:0C4B2AF2:68F3C8CC:631FAE45"/>
+<disk uuid="2D64378F:70360AA5:13D573B4:0D4C6DC9" vrt_uuid="66666666:0C4B2AF2:68F3C8CC:631FAE45"/>
+</physical>
+<logical>
+<volume name="vol" uuid="752FB80D:181110F3:151D40D3:0552FC55" accessmode="SHARED" goal_stopped="00000000000000000000000000000005" goal_started="00000000000000000000000000000002" goal_readonly="00000000000000000000000000000000" readahead="0" transaction="COMMITTED">
+</volume>
+</logical>
+</diskgroup>
+</Exanodes>

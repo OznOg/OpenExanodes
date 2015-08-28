@@ -1,0 +1,10 @@
+/var/log/token_manager.log {
+	daily
+        size=100M
+	compress
+	nomissingok
+	sharedscripts
+	postrotate
+		pkill -HUP token_manager
+	endscript
+}

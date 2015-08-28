@@ -1,0 +1,4 @@
+rsh $1 killall smd_exportd
+rsh $1 killall smd_transfertd
+rsh $1 /sbin/rmmod devmem
+

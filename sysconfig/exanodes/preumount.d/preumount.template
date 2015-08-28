@@ -1,0 +1,16 @@
+#!/bin/sh
+#
+# Scripts found in this directory will be called each time an
+# Exanodes file system is stopped on this node.
+#
+# You must name your script exactly like the name of your group
+# and filesystem using the syntax mygroup:myfilesystem
+# and make it executable with for example:
+# chmod +x /etc/exanodes/preumount.d/mygroup:myfs
+#
+# It receives the mount point of the file system in the environment
+# variable $mountpoint
+#
+
+# Example for unexporting an Exanodes file system from NFS
+exportfs -u *:$mountpoint

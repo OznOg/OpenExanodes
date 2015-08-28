@@ -1,0 +1,2 @@
+rsh $1 /root/scimapdev_brique_v1.5/smd_transfertd/smd_transfertd
+/root/scimapdev_controleur_v1.5/smd_importe/smd_importe $1

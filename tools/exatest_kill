@@ -1,0 +1,133 @@
+#!/bin/bash
+
+#
+# Copyright 2002, 2009 Seanodes Ltd http://www.seanodes.com. All rights
+# reserved and protected by French, UK, U.S. and other countries' copyright laws.
+# This file is part of Exanodes project and is subject to the terms
+# and conditions defined in the LICENSE file which is present in the root
+# directory of the project.
+#
+
+function usage()
+{
+    echo "Kill Exanodes processes and unload its modules"
+    echo "Usage: kill.sh [-c] [-g] [-l] [-h]"
+    echo "  -c = also remove the config file (implies -g)"
+    echo "  -g = also remove the node goal file"
+    echo "  -l = also remove the log file"
+    echo "  -h = this help"
+    echo
+    echo "Beware that options -c, -g and -l are usually overkill and you better"
+    echo "know what you are doing."
+    echo
+    echo "For backward compatibility purposes, options can be specified"
+    echo "without a leading dash."
+    exit 1
+}
+
+REMOVE_CFG=false
+REMOVE_GOAL=false
+REMOVE_LOG=false
+while [ "$1" != "" ]; do
+    case $1 in
+	c|-c) REMOVE_CFG=true ;;
+        g|-g) REMOVE_GOAL=true ;;
+	l|-l) REMOVE_LOG=true ;;
+	h|-h|*) usage ;;
+    esac
+    shift
+done
+
+# When removing the config file, also remove the goal file: no sense
+# in keeping it when there's no cluster configured
+if $REMOVE_CFG; then
+    REMOVE_GOAL=true
+fi
+
+PROCESSES=""
+get_processes()
+{
+   PROCESSES_NAMES=`ps aux \
+            |grep "exa" \
+            |grep -vw "grep" \
+            |grep -vE "exatest_kill" \
+            |grep -vw "gdb" \
+            |grep -vw "exa_gdb" \
+            |awk '{ print $11}'`
+
+   PROCESSES=`ps aux \
+            |grep "exa" \
+            |grep -vw "grep" \
+            |grep -vE "exatest_kill" \
+            |grep -vw "gdb" \
+            |grep -vw "exa_gdb" \
+            |awk '{ print $2}'`
+}
+
+killmodule()
+{
+  # check nbd is here
+  while [ `lsmod | grep -wc $1` -gt 0 ]
+  do
+    echo "Unloading kernel module: $1"
+    rmmod $1
+    sleep 0.2
+  done
+}
+
+killmodules() {
+  killmodule "exa_bd"
+  killmodule "exa_rdev"
+  killmodule "exa_msg"
+  killmodule "exa_common"
+}
+
+# Old ugly stuff
+if $REMOVE_CFG
+then
+  echo "Removing config, hostname and license files"
+  rm -f /var/cache/exanodes/exanodes.conf &> /dev/null
+  rm -f /var/cache/exanodes/hostname &> /dev/null
+  rm -f /var/cache/exanodes/license &> /dev/null
+  killall -HUP syslogd
+fi
+
+if $REMOVE_GOAL
+then
+    echo "Removing node goal file"
+    rm -f /var/cache/exanodes/node.goal &> /dev/null
+fi
+
+if $REMOVE_LOG
+then
+    echo "Removing log file"
+    rm -f /var/log/exanodes/exanodes.log &> /dev/null
+fi
+
+# kill all processes using their pid because on some machines using the name
+# doesn't seem to work
+
+i=0
+SIG="-TERM"
+get_processes
+
+while [ "$PROCESSES" != "" ]
+do
+  echo Killing with $SIG: $PROCESSES_NAMES
+  kill $SIG $PROCESSES >/dev/null 2>/dev/null
+  sleep 0.5
+  get_processes
+  if [ $i -gt 10 ]; then
+    SIG="-KILL"
+  fi
+  i=$(($i + 1))
+done
+
+# remove modules only if all exanodes processes are stopped
+if [ "$PROCESSES" = "" ]
+then
+  killmodules
+fi
+
+exit 0
+

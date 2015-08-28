@@ -1,0 +1,19 @@
+#!/bin/sh
+\cp /proc/virtualiseur/zones_enregistrees /tmp/liste1_zones
+echo "a $1" > /proc/virtualiseur/zones_enregistrees
+\cp /proc/virtualiseur/zones_enregistrees /tmp/liste2_zones
+
+no_zone=`diff /tmp/liste1_zones /tmp/liste2_zones | tail -n1 | cut -f 3 -d" "`
+echo "ajout zone = $no_zone. $1 UE" 
+
+echo "création /mnt/storfactory/zone$no_zone"
+mkdir /mnt/storfactory/zone$no_zone
+
+echo "mkfs -t ext2 /dev/virtualiseur/zone$no_zone"
+mkfs -t ext2 /dev/virtualiseur/zone$no_zone
+
+echo "mount -t ext2 /dev/virtualiseur/zone$no_zone /mnt/storfactory/zone$no_zone"
+mount -t ext2 /dev/virtualiseur/zone$no_zone /mnt/storfactory/zone$no_zone
+
+echo "add_smb_zone.pl zone$no_zone"
+/root/scimapdev_controleur_v1.5/smd_scripts/device_mem/add_smb_zone.pl zone$no_zone

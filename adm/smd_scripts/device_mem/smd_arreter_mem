@@ -1,0 +1,21 @@
+#!/bin/sh
+cd /root/scimapdev_controleur_v1.5/smd_scripts/device_mem
+rmmod virtualiseur
+rmmod scimapdev
+killall smd_commandd
+
+# démontage et effacement des répertoires
+cd /mnt/storfactory
+for i in 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15
+do
+if [ -d zone$i ] 
+then
+echo détruit la zone$i
+/root/scimapdev_controleur_v1.5/smd_scripts/device_mem/del_zone $i
+fi
+done
+
+cd /root/scimapdev_controleur_v1.5/smd_scripts/device_mem
+./arreter_brique_mem sam3
+#./arreter_brique_mem sam2
+./arreter_brique_mem sam4

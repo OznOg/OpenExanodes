@@ -1,0 +1,7 @@
+usr/bin/exa_fscheck
+usr/bin/exa_fscreate
+usr/bin/exa_fsdelete
+usr/bin/exa_fsresize
+usr/bin/exa_fsstart
+usr/bin/exa_fsstop
+usr/bin/exa_fstune

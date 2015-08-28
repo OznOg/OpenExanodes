@@ -1,0 +1,23 @@
+#!/bin/sh
+cd /root/DEV_VERSION/scimapdev_controleur_v1.5/smd_scripts/device_hd
+./exporte_hd sam1
+#./exporte_hd sam2
+#./exporte_hd sam3
+./exporte_hd sam4
+
+
+insmod /root/DEV_VERSION/scimapdev_controleur_v1.5/smd_bdd/scimapdev.o
+
+# layout = "STRIPING" ou "REFLEX"
+insmod /root/DEV_VERSION/virtualiseur_v1.2/virtualiseur/virtualiseur.o layout="STRIPING" 
+#/root/scimapdev_controleur_v1.5/smd_commandd/smd_commandd
+
+./importe sam1
+#./importe sam2
+#./importe sam3
+./importe sam4
+
+#sleep 1
+
+#/root/virtualiseur_v1.2/vrtadm/vrtadm -b -n 4 /dev/scimapdev/brique*
+

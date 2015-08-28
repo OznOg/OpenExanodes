@@ -1,0 +1,11 @@
+echo "rsh $1 /sbin/insmod /root/device_mem/devmem.o"
+rsh $1 /sbin/insmod /root/device_mem/devmem.o 
+
+echo "rsh $1 echo add $2 > /proc/devmem/briques_enregistrees"
+rsh $1 echo "add $2" ">" /proc/devmem/briques_enregistrees 
+
+echo "rsh $1 /root/scimapdev_brique_v1.5/smd_exportd/smd_exportd"
+rsh $1 /root/scimapdev_brique_v1.5/smd_exportd/smd_exportd
+
+echo "rsh $1 /root/scimapdev_brique_v1.5/smd_exportd/smd_exporte -a /dev/devmem/brique0"
+rsh $1 /root/scimapdev_brique_v1.5/smd_exportd/smd_exporte -a /dev/devmem/brique0

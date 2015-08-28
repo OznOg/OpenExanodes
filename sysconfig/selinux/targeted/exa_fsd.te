@@ -1,0 +1,55 @@
+policy_module(exafsd,1.0.0)
+
+#============= All requirements ==============
+
+require {
+	type mount_t;
+	type insmod_t;
+
+ 	type shell_exec_t;
+ 	type insmod_exec_t;
+	type mount_exec_t;
+ 	type initrc_exec_t;
+
+	type unlabeled_t;
+}
+
+########################################
+#
+# Declarations
+#
+
+type exafsd_t;
+type exafsd_exec_t;
+domain_type(exafsd_t)
+
+init_daemon_domain(exafsd_t, exafsd_exec_t)
+
+# mount and modules programs are executed in their own domain
+domain_auto_trans(exafsd_t, mount_exec_t, mount_t)
+domain_auto_trans(exafsd_t, insmod_exec_t, insmod_t)
+
+# forking to the exafsd domain
+domain_auto_trans(exafsd_t, exafsd_exec_t, exafsd_t)
+domain_auto_trans(exafsd_t, shell_exec_t, exafsd_t)
+
+# Init scripts are executed in the init RC domain.
+domain_auto_trans(exafsd_t, initrc_exec_t, initrc_t)
+
+# We are not confined to anything. Looks ugly, you can do it the hard
+# way by defining stricter rules (on your spare time if you wish).
+unconfined_domain(exafsd_t)
+
+# log files
+type exafsd_var_log_t;
+logging_log_file(exafsd_var_log_t)
+
+# pid files
+type exafsd_var_run_t;
+files_pid_file(exafsd_var_run_t)
+
+#============= mount_t =============
+
+allow mount_t exafsd_t:fifo_file write;
+allow mount_t exafsd_t:process sigchld;
+allow mount_t unlabeled_t:filesystem { mount unmount };

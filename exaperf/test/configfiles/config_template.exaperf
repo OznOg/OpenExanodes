@@ -1,0 +1,6 @@
+[TEMPLATE]
+flushing_filter = mean min max
+sampling_period = 0
+flushing_period = 1
+sample_size = 1000
+

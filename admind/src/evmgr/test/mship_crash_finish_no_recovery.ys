@@ -1,0 +1,49 @@
+<?xml version="1.0"?>
+<scenario name="Crash in 3PC finish just before triggering recovery">
+
+  <description>
+    Crash the leader when it has finished committing (all nodes have
+    acked the commit) but just before it triggers the recovery.
+
+    Meant to be run on a 3 nodes cluster: create the cluster, start
+    the scenario, then start the cluster.
+  </description>
+
+  <params>
+    <var name="first_leader" type="string" size="8"
+	 info="Node that will be the leader first (i.e., first node of
+	 cluster)"/>
+  </params>
+
+  <step label="BEGIN">
+    <when>
+      <cond type="pre" local_node="${yaourt_master}">
+	<pre/>
+      </cond>
+      <do>
+	<jump step="M_MAIN"/>
+      </do>
+    </when>
+  </step>
+
+  <step label="M_MAIN">
+    <when>
+      <cond type="wait" origin.node="${first_leader}">
+	<wait name="finish_cc"/>
+      </cond>
+      <do>
+  	<crash method="sysrq" node="${first_leader}"/>
+      </do>
+    </when>
+
+    <when>
+      <cond type="wait">
+	<wait name="finish_cc"/>
+      </cond>
+      <do>
+	<wakeup waiting="finish_cc"/>
+      </do>
+    </when>
+  </step>
+
+</scenario>

@@ -1,0 +1,8 @@
+#!/bin/sh
+
+echo "--- Uninstall kernel modules with dkms. ---"
+dkms remove -m @CMAKE_PROJECT_NAME@ -v @CMAKE_EDITION_TAG@-@EXA_VERSION@ --rpm_safe_upgrade --all
+true
+
+
+

@@ -1,0 +1,74 @@
+%define ver      	@VERSION@
+%define RELEASE 	1
+%define rel     	%{?CUSTOM_RELEASE} %{!?CUSTOM_RELEASE:%RELEASE}
+%define prefix		/usr
+
+Summary: driveFUSION / StorAgency
+Name: 		driveFUSION
+Version: 	%ver
+Release: 	%rel
+Copyright: 	GPL
+Group: 		TBD
+Source:		http://www.storagency.com/driveFUSION-%{PACKAGE_VERSION}.tar.gz
+BuildRoot: 	/var/tmp/drivefusion-%{PACKAGE_VERSION}-root
+URL: 		http://www.storagency.com
+Docdir: 	%{prefix}/share/doc/driveFUSION-%{PACKAGE_VERSION}
+Requires:	kernel >= 2.4
+Packager:       Bruno Coudoin <bcoudoin.coudoin@storagency.com>
+
+%description
+TBD
+
+%package sci
+Summary:        SCI Modules
+Group: 		TBD
+Requires:       %name
+
+%description sci
+TBD
+
+%prep
+%setup -q
+
+%build
+%ifarch alpha
+  MYARCH_FLAGS="--host=alpha-redhat-linux"
+%endif
+
+CFLAGS="$RPM_OPT_FLAGS" ./configure --quiet $MYARCH_FLAGS --prefix=%{prefix} \
+	 --localstatedir=/var/lib
+
+if [ "$SMP" != "" ]; then
+  make -j$SMP MAKE="make -j$SMP"
+else
+  make
+fi
+
+%install
+rm -rf $RPM_BUILD_ROOT
+
+make prefix=$RPM_BUILD_ROOT%{prefix} install >install.log 2>&1
+
+%clean
+rm -rf $RPM_BUILD_ROOT
+
+%post 
+depmod -a
+
+%postun 
+
+%files
+%defattr(-, root, root)
+%doc ABOUT AUTHORS COPYING ChangeLog INSTALL NEWS README TODO 
+%attr(-, root, games) %{prefix}/bin/*
+%{prefix}/bin/*
+/lib/modules/*/misc/*
+
+%define date	%(echo `LC_ALL="C" date +"%a %b %d %Y"`)
+%changelog
+* %{date} StorAgency <support@storagency.com>
+
+$Log$
+Revision 1.1  2003/08/28 22:15:15  bcoudoin
+Initial revision
+

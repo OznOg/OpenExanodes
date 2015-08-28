@@ -1,0 +1,467 @@
+SEANODES DEFINITIONS ::= BEGIN
+
+
+
+IMPORTS
+    MODULE-IDENTITY, enterprises, OBJECT-TYPE, NOTIFICATION-TYPE
+    		        FROM SNMPv2-SMI
+    DisplayString
+			FROM SNMPv2-TC
+    Utf8String
+			FROM SYSAPPL-MIB
+    CounterBasedGauge64
+			FROM HCNUM-TC
+;
+
+
+--
+-- seanodes
+--
+seanodes MODULE-IDENTITY
+    LAST-UPDATED "200804040000Z"               -- 4 avril 2008, midnight
+    ORGANIZATION "seanodes"
+    CONTACT-INFO "support@seanodes.com"
+    DESCRIPTION  "SEANODES MIB."
+
+    REVISION      "200804040000Z"              -- 4 avril 2008, midnight
+    DESCRIPTION
+            "."
+    ::= { enterprises 30730 }
+
+
+
+exaNotifications   OBJECT IDENTIFIER ::= { seanodes 0 }
+
+exaExanodes   OBJECT IDENTIFIER ::= { seanodes 1 }
+
+
+--
+-- uuid
+--
+exaUUID ::= TEXTUAL-CONVENTION
+    DISPLAY-HINT "8d:8d:8d:8d"
+    STATUS       current
+    DESCRIPTION
+        "Represents an uuid."
+    SYNTAX       OCTET STRING (SIZE (35))
+
+
+
+--
+-- disk groups
+--
+
+
+exaDiskGroupsTable  OBJECT-TYPE
+    SYNTAX      SEQUENCE OF exaDiskGroupEntry
+    MAX-ACCESS  not-accessible
+    STATUS      current
+    DESCRIPTION
+	"Table of disk groups"
+    ::= { exaExanodes 2 }
+
+exaDiskGroupEntry OBJECT-TYPE
+    SYNTAX     exaDiskGroupEntry
+    MAX-ACCESS not-accessible
+    STATUS     current
+    DESCRIPTION
+	"An entry in disk groups table."
+    INDEX      { exaDiskGroupUUID }
+    ::= { exaDiskGroupsTable 1 }
+
+
+exaDiskGroupEntry ::= SEQUENCE {
+    exaDiskGroupUUID      exaUUID,
+    exaDiskGroupName      OCTET STRING,
+    exaDiskGroupStatus    OCTET STRING
+    exaDiskGroupSize      INTEGER
+}
+
+exaDiskGroupUUID OBJECT-TYPE
+    SYNTAX      exaUUID
+    MAX-ACCESS  read-create
+    STATUS      current
+    DESCRIPTION
+	"disk group UUID"
+    DEFVAL { "" }
+    ::= { exaDiskGroupEntry 1 }
+
+exaDiskGroupName OBJECT-TYPE
+    SYNTAX      Utf8String
+    MAX-ACCESS  read-create
+    STATUS      current
+    DESCRIPTION
+	"disk group name (dgname)"
+    DEFVAL { "" }
+    ::= { exaDiskGroupEntry 2 }
+
+
+exaDiskGroupStatus OBJECT-TYPE
+    SYNTAX      INTEGER {
+                  stopped(1),
+                  ok(2),
+                  usingspare(3),
+                  degraded(4),
+                  offline(5),
+                  rebuilding(6)
+		}
+    MAX-ACCESS  read-create
+    STATUS      current
+    DESCRIPTION
+	"disk group status"
+    DEFVAL { "" }
+    ::= { exaDiskGroupEntry 3 }
+
+
+exaDiskGroupSize   OBJECT-TYPE
+    SYNTAX      CounterBasedGauge64
+    UNITS       "bytes"
+    MAX-ACCESS  read-create
+    STATUS      current
+    DESCRIPTION
+	"disk group size in bytes."
+    DEFVAL { "" }
+    ::= { exaDiskGroupEntry 4 }
+
+
+
+
+--
+-- disks
+--
+
+exaDisksTable  OBJECT-TYPE
+    SYNTAX      SEQUENCE OF exaDiskEntry
+    MAX-ACCESS  not-accessible
+    STATUS      current
+    DESCRIPTION
+	"Table of disks"
+    ::= { exaExanodes 3 }
+
+exaDiskEntry OBJECT-TYPE
+    SYNTAX     exaDiskEntry
+    MAX-ACCESS not-accessible
+    STATUS     current
+    DESCRIPTION
+	"An entry in disks table."
+    INDEX      { exaDiskUUID }
+    ::= { exaDisksTable 1 }
+
+
+exaDiskEntry ::= SEQUENCE {
+    diskUUID      exaUUID,
+    diskName      OCTET STRING,
+    diskStatus    INTEGER
+    diskSize      Integer32
+}
+
+exaDiskUUID OBJECT-TYPE
+    SYNTAX      exaUUID
+    MAX-ACCESS  read-create
+    STATUS      current
+    DESCRIPTION
+	"disk UUID"
+    DEFVAL { "" }
+    ::= { exaDiskEntry 1 }
+
+exaDiskName OBJECT-TYPE
+    SYNTAX      Utf8String
+    MAX-ACCESS  read-create
+    STATUS      current
+    DESCRIPTION
+	"disk name (nodename:diskname)"
+    DEFVAL { "" }
+    ::= { exaDiskEntry 2 }
+
+exaDiskStatus OBJECT-TYPE
+    SYNTAX      INTEGER {
+                  up(1),
+                  ok(2),
+                  down(3),
+                  broken(4),
+                  missing(5),
+                  updating(6),
+                  replicating(7),
+                  outdated(8),
+                  blank(9),
+                  alien(10)
+		}
+    MAX-ACCESS  read-create
+    STATUS      current
+    DESCRIPTION
+	"disk status"
+    DEFVAL { "" }
+    ::= { exaDiskEntry 3 }
+
+
+exaDiskSize   OBJECT-TYPE
+    SYNTAX      CounterBasedGauge64
+    UNITS       "bytes"
+    MAX-ACCESS  read-create
+    STATUS      current
+    DESCRIPTION
+	"disk size in bytes."
+    DEFVAL { "" }
+    ::= { exaDiskEntry 4 }
+
+
+--
+-- volumes
+--
+
+exaVolumesTable  OBJECT-TYPE
+    SYNTAX      SEQUENCE OF exaVolumeEntry
+    MAX-ACCESS  not-accessible
+    STATUS      current
+    DESCRIPTION
+	"Table of volumes"
+    ::= { exaExanodes 4 }
+
+exaVolumeEntry OBJECT-TYPE
+    SYNTAX     exaVolumeEntry
+    MAX-ACCESS not-accessible
+    STATUS     current
+    DESCRIPTION
+	"An entry in volumes table."
+    INDEX      { exaVolumeUUID }
+    ::= { exaVolumesTable 1 }
+
+
+exaVolumeEntry ::= SEQUENCE {
+    volumeUUID      exaUUID,
+    volumeName      OCTET STRING,
+    volumeStatus    INTEGER
+    volumeSize      Integer32
+}
+
+exaVolumeUUID OBJECT-TYPE
+    SYNTAX      exaUUID
+    MAX-ACCESS  read-create
+    STATUS      current
+    DESCRIPTION
+	"volume UUID"
+    DEFVAL { "" }
+    ::= { exaVolumeEntry 1 }
+
+exaVolumeName OBJECT-TYPE
+    SYNTAX      Utf8String
+    MAX-ACCESS  read-create
+    STATUS      current
+    DESCRIPTION
+	"volume name (dgname:volumename)"
+    DEFVAL { "" }
+    ::= { exaVolumeEntry 2 }
+
+exaVolumeStatus OBJECT-TYPE
+    SYNTAX      INTEGER {
+                  started(1),
+                  inuse(2),
+                  willstart(3),
+                  willstop(4),
+                  readonly(5),
+                  offline(6)
+		}
+    MAX-ACCESS  read-create
+    STATUS      current
+    DESCRIPTION
+	"volume status"
+    DEFVAL { "" }
+    ::= { exaVolumeEntry 3 }
+
+
+exaVolumeSize   OBJECT-TYPE
+    SYNTAX      CounterBasedGauge64
+    UNITS       "bytes"
+    MAX-ACCESS  read-create
+    STATUS      current
+    DESCRIPTION
+	"volume size in bytes."
+    DEFVAL { "" }
+    ::= { exaVolumeEntry 4 }
+
+
+--
+-- filesystems
+--
+
+exaFilesystemsTable  OBJECT-TYPE
+    SYNTAX      SEQUENCE OF exaFilesystemEntry
+    MAX-ACCESS  not-accessible
+    STATUS      current
+    DESCRIPTION
+	"Table of filesystems"
+    ::= { exaExanodes 5 }
+
+exaFilesystemEntry OBJECT-TYPE
+    SYNTAX     exaFilesystemEntry
+    MAX-ACCESS not-accessible
+    STATUS     current
+    DESCRIPTION
+	"An entry in filesystems table."
+    INDEX      { exaFilesystemUUID }
+    ::= { exaFilesystemsTable 1 }
+
+
+exaFilesystemEntry ::= SEQUENCE {
+    filesystemUUID      exaUUID,
+    filesystemName      OCTET STRING,
+    filesystemStatus    INTEGER
+    filesystemSize      Integer32
+}
+
+exaFilesystemUUID OBJECT-TYPE
+    SYNTAX      exaUUID
+    MAX-ACCESS  read-create
+    STATUS      current
+    DESCRIPTION
+	"filesystem UUID"
+    DEFVAL { "" }
+    ::= { exaFilesystemEntry 1 }
+
+
+exaFilesystemName OBJECT-TYPE
+    SYNTAX      Utf8String
+    MAX-ACCESS  read-create
+    STATUS      current
+    DESCRIPTION
+	"filesystem name (dgname:fsname)"
+    DEFVAL { "" }
+    ::= { exaFilesystemEntry 2 }
+
+
+exaFilesystemStatus OBJECT-TYPE
+    SYNTAX      INTEGER {
+                  started(1),
+                  inuse(2),
+                  willstart(3),
+                  willstop(4),
+                  readonly(5),
+                  offline(6)
+		}
+    MAX-ACCESS  read-create
+    STATUS      current
+    DESCRIPTION
+	"filesystem status"
+    DEFVAL { "" }
+    ::= { exaFilesystemEntry 3 }
+
+
+exaFilesystemSize   OBJECT-TYPE
+    SYNTAX      CounterBasedGauge64
+    UNITS       "bytes"
+    MAX-ACCESS  read-create
+    STATUS      current
+    DESCRIPTION
+	"filesystem size in bytes."
+    DEFVAL { "" }
+    ::= { exaFilesystemEntry 4 }
+
+
+
+
+--
+-- nodes
+--
+exaNodesTable  OBJECT-TYPE
+    SYNTAX      SEQUENCE OF exaNodeEntry
+    MAX-ACCESS  not-accessible
+    STATUS      current
+    DESCRIPTION
+	"Table of nodes"
+    ::= { seanodes 6 }
+
+exaNodeEntry OBJECT-TYPE
+    SYNTAX     exaNodeEntry
+    MAX-ACCESS not-accessible
+    STATUS     current
+    DESCRIPTION
+	"An entry in nodes table."
+    INDEX      { exaNodeUUID }
+    ::= { exaNodesTable 1 }
+
+
+exaNodeEntry ::= SEQUENCE {
+    exaNodeUUID      exaUUID,
+    exaNodeName      OCTET STRING,
+    exaNodeStatus    INTEGER
+}
+
+exaNodeUUID OBJECT-TYPE
+    SYNTAX      exaUUID
+    MAX-ACCESS  read-create
+    STATUS      current
+    DESCRIPTION
+	"node UUID (node number)"
+    DEFVAL { "" }
+    ::= { exaNodeEntry 1 }
+
+exaNodeName OBJECT-TYPE
+    SYNTAX      Utf8String
+    MAX-ACCESS  read-create
+    STATUS      current
+    DESCRIPTION
+	"node name"
+    DEFVAL { "" }
+    ::= { exaNodeEntry 2 }
+
+
+exaNodeStatus OBJECT-TYPE
+    SYNTAX      INTEGER {
+                  down(1),
+                  up(2)
+		}
+    MAX-ACCESS  read-create
+    STATUS      current
+    DESCRIPTION
+	"node status"
+    DEFVAL { "" }
+    ::= { exaNodeEntry 3 }
+
+
+
+--
+-- notifications
+--
+
+
+exaDiskGroupStatusNotification NOTIFICATION-TYPE
+    OBJECTS      { exaDiskGroupUUID, exaDiskGroupName, exaDiskGroupStatus }
+    MAX-ACCESS  read-write
+    STATUS       current
+    DESCRIPTION
+        ""
+::= { exaNotifications 1 }
+
+
+exaDiskStatusNotification NOTIFICATION-TYPE
+    OBJECTS      { exaDiskUUID, exaDiskName, exaDiskStatus }
+    MAX-ACCESS  read-write
+    STATUS       current
+    DESCRIPTION
+        ""
+::= { exaNotifications 2 }
+
+
+exaFilesystemStatusNotification NOTIFICATION-TYPE
+    OBJECTS      { exaFilesystemUUID, exaFilesystemName, exaFilesystemStatus }
+    MAX-ACCESS  read-write
+    STATUS       current
+    DESCRIPTION
+        ""
+::= { exaNotifications 3 }
+
+
+exaNodeStatusNotification NOTIFICATION-TYPE
+    OBJECTS      { exaNodeUUID, exaNodeName, exaNodeStatus }
+    MAX-ACCESS  read-write
+    STATUS       current
+    DESCRIPTION
+        ""
+::= { exaNotifications 4 }
+
+
+
+
+
+
+END

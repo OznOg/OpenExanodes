@@ -1,0 +1,16 @@
+#!/bin/sh
+cd /root/scimapdev_controleur_v1.5/smd_scripts/device_mem
+
+./exporte_mem sam3 15000
+#./exporte_mem sam2 50000 
+./exporte_mem sam4 25000
+
+insmod /root/scimapdev_controleur_v1.5/smd_bdd/scimapdev.o
+insmod /root/virtualiseur_v1.2/virtualiseur/virtualiseur.o
+/root/scimapdev_controleur_v1.5/smd_commandd/smd_commandd
+
+./importe sam4
+#./importe sam2
+./importe sam3
+
+

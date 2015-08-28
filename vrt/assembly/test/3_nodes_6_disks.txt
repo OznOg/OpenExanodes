@@ -1,0 +1,7 @@
+# 3 nodes, 2 disks per node, disk sizes are 74 GB and 37 GB
+1	77594624
+1	38797312
+2	77594624
+2	38797312
+3	77594624
+3	38797312

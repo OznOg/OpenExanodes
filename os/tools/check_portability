@@ -1,0 +1,648 @@
+#!/usr/bin/perl
+#
+# Copyright 2002, 2009 Seanodes Ltd http://www.seanodes.com. All rights
+# reserved and protected by French, UK, U.S. and other countries' copyright laws.
+# This file is part of Exanodes project and is subject to the terms
+# and conditions defined in the LICENSE file which is present in the root
+# directory of the project.
+#
+
+# TODO:
+#
+#  - Remove compilation stage once exacc (the actual compiler wrapper)
+#    is committed.
+#
+#  - Demote portability errors to warnings?
+#
+#  - Add support for Doxygen's @def (which documents #define macros).
+#    Useful for os_mem.h, for instance.
+#
+#  - Possible to have a constant for the cache name, "OsCache"?  =>
+#    eval("${CACHE_NAME}::replacements")
+#
+#  - Add annotations at @file level? Which means either we use different
+#    doxygen macros (@os_file_replace and @os_fun_replace) or we parse the
+#    @file directive and when it's present it means @os_replace applies at
+#    file-level, not function-level.
+
+use strict;
+use warnings;
+
+use File::Basename;
+use Cwd;
+
+use Data::Dumper;
+
+my $self = basename($0);
+
+my $PORTABILITY_CHECK = $ENV{"PORTABILITY_CHECK"};
+my $PORTABILITY_DEBUG = $ENV{"PORTABILITY_DEBUG"};
+my $PORTABILITY_VERBOSE = $ENV{"PORTABILITY_VERBOSE"};
+
+sub warning(@) {
+    print STDERR "warning: @{_}\n";
+}
+
+sub error(@) {
+    print STDERR "error: @{_}\n";
+}
+
+sub debug(@) {
+    print "@{_}\n" if $PORTABILITY_DEBUG;
+}
+
+sub verbose(@) {
+    print "@{_}\n" if $PORTABILITY_DEBUG && $PORTABILITY_VERBOSE;
+}
+
+sub is_exa_source_dir($) {
+    my ($dir) = @_;
+    my $err = system("ls ${dir}/exanodes*.spec >/dev/null 2>&1");
+    return $err == 0 ? 1 : 0;
+}
+
+# Autoflush to get stdout/stderr properly interlaced.
+$| = 1;
+
+sub usage($) {
+    my $exit_status = shift;
+
+    print <<EOF;
+Portability checker for Exanodes.
+
+This tool checks source files for headers and functions forbidden for
+portability reasons, i.e. functions for which there are OS-independant
+replacements in Exanodes' os/ directory.
+
+Usage: ${self} <mode> [<args>]
+
+where <mode> is mandatory and one of:
+
+    -C, --compile <compiler> <compiler args>
+
+        Run as a compiler wrapper. Execute the compilation command
+        "<compiler> <compiler args>" after having run the portability
+        checks on the sources to be compiled (see option -c).
+
+    -c, --check <file>...
+
+        Check that the given files are portable. Report functions
+        and headers known not to be portable and suggest replacements.
+        (Re)generate the cache if it doesn't exist or is not up to date
+        (see option -g).
+
+    -g, --gen-cache
+
+        Generate the cache of function replacements. The cache
+        is called OsCache.pm and written in os/.
+
+    -h, --help
+
+        Display this usage help.
+
+Batch checking:
+
+    Here's a way to check all C source files at once:
+
+        find . -name '*.c' | xargs ${self} -c
+
+Control:
+
+    Exanodes' source directory is found by walking up the path of the current
+    working directory unless environment variable EXA_SCRDIR is set, in which
+    case it is used as the source directory.
+
+    To disable portability checks, set environment variable PORTABILITY_CHECK
+    to 0. May be useful when used as a compiler wrapper.
+
+EOF
+
+    exit $exit_status;
+}
+
+# If -h appears, print the usage help and exit.
+&usage(0) if grep { $_ eq "-h" || $_ eq "--help" } @ARGV;
+
+use constant MODE_GEN => 1;
+use constant MODE_CHECK => 2;
+use constant MODE_COMPILE => 3;
+
+my $mode;
+
+my $opt = shift @ARGV;
+
+if (!defined($opt)) {
+    &error("missing mode option");
+    exit 1;
+}
+
+if ($opt eq "-g" || $opt eq "--gen-cache") {
+    $mode = MODE_GEN;
+} elsif ($opt eq "-c" || $opt eq "--check") {
+    $mode = MODE_CHECK;
+} elsif ($opt eq "-C" || $opt eq "--compile") {
+    $mode = MODE_COMPILE;
+} else {
+    &error("unknown mode option: ${opt}");
+    exit 1;
+}
+
+my $top_srcdir = $ENV{EXA_SRCDIR};
+if (!defined($top_srcdir)) {
+    $top_srcdir = cwd();
+}
+# Move up the path until we find Exanodes'spec or we're at the fs root
+my $dir = $top_srcdir;
+&debug("moving up the path of ${dir}");
+while ($dir ne "/" && $dir ne "." && !&is_exa_source_dir($dir)) {
+    $dir = dirname($dir);
+}
+if (!&is_exa_source_dir($dir)) {
+    &error("${top_srcdir} not within an Exanodes source directory");
+    exit 1;
+}
+my $exa_dir = $dir;
+&debug("exa_dir = ${exa_dir}");
+
+# XXX Move this into a file in os/include/
+#     or add file-level replacement annotations in headers?
+my %forbidden_headers =
+    (
+     "pthread.h" => "os_pthread.h",
+     "semaphore.h" => "os_semaphore.h",
+     "windows.h" => "os_windows.h",
+     "winsock2.h" => "os_windows.h",
+     "WS2tcpip.h" => "os_windows.h",
+     "unistd.h" => "?"
+    );
+
+sub debug_replacements($) {
+    my ($replacements) = @_;
+
+    return if !$PORTABILITY_DEBUG || !$PORTABILITY_VERBOSE;
+
+    my @os_list = keys %$replacements;
+    if (@os_list) {
+        &verbose("    replaces:");
+        foreach my $os (@os_list) {
+            &verbose("        ${os}: ", join(", ", @{$replacements->{$os}}));
+        }
+    }
+}
+
+sub canonicalize_os($) {
+    my ($os) = @_;
+    # Force each word to be lower case, with the first letter uppercase
+    $os =~ s/(\w+)/\u\L$1/g;
+    return ($os eq "Linux" || $os eq "Windows") ? $os : undef;
+}
+
+# FIXME Return error when err == 1
+sub parse_dox($$@) {
+    my ($prefix, $current_line, $lines) = @_;
+
+    my $replacements = {};
+    my $err = 0;
+
+    do {
+        &verbose("DOX: ${current_line}");
+
+        # FIXME Check there are no duplicates (in the list of functions).
+        my ($os, $platform_funs) =
+            $current_line =~ /\@os_replace\{([a-zA-Z0-9_]+),\s*([a-zA-Z0-9_, ]+)\}/;
+        if (defined($os) && defined($platform_funs)) {
+            &verbose("os: ${os} platform_funs: ${platform_funs}");
+            my $c_os = &canonicalize_os($os);
+            if (!defined($c_os)) {
+                # FIXME Use &source_error()
+                &error("unknown platform '${os}'");
+                $err = 1;
+            }
+            else {
+                my @replaced_funs = split(/,\s*/, $platform_funs);
+                &verbose("replaced_funs: @{replaced_funs}");
+                my $os_repl = $replacements->{$c_os};
+                if (!defined($os_repl)) {
+                    $os_repl = [];
+                }
+                push(@$os_repl, @replaced_funs);
+                $replacements->{$c_os} = $os_repl;
+            }
+        }
+
+        goto done if $current_line =~ /\*\/$/;
+
+        $current_line = shift @$lines;
+        chomp($current_line) if defined($current_line);
+    } while (defined($current_line));
+
+  done:
+
+    &debug_replacements($replacements);
+
+    return $lines, $replacements;
+}
+
+sub parse_comment($$$) {
+    my ($prefix, $current_line, $lines) = @_;
+
+    do {
+        &verbose("COMMENT: ${current_line}");
+
+        goto done if $current_line =~ /\*\/$/;
+
+        $current_line = shift @$lines;
+        chomp($current_line) if defined($current_line);
+    } while (defined($current_line));
+
+  done:
+    return $lines;
+
+}
+
+sub parse_proto($$$$) {
+    my ($prefix, $fun, $current_line, $lines) = @_;
+
+    do {
+        &verbose("PROTO: ${current_line}");
+
+        goto done if $current_line =~ /;$/;
+
+        $current_line = shift @$lines;
+        chomp($current_line) if defined($current_line);
+    } while (defined($current_line));
+
+  done:
+    return $lines, "${prefix}_${fun}";
+}
+
+sub debug_os_funs(@) {
+    my (@os_funs) = @_;
+
+    return if !$PORTABILITY_DEBUG || !$PORTABILITY_VERBOSE;
+
+    foreach my $os_fun_info (@os_funs) {
+        &verbose("os_fun: $os_fun_info->{os_fun}");
+        &debug_replacements($os_fun_info->{replaces});
+    }
+}
+
+sub debug_platform_to_abstract_map($) {
+    my ($ptam) = @_;
+
+    return if !$PORTABILITY_DEBUG && !$PORTABILITY_VERBOSE;
+
+    foreach my $platform_fun (keys(%$ptam)) {
+        &verbose("'${platform_fun}' replaced by one of [@{$ptam->{$platform_fun}}]");
+    }
+}
+
+sub parse_header($$) {
+    my ($header, $reverse_hash) = @_;
+
+    my ($prefix) = $header =~ /\/([a-z]+)_[^\/]+$/;
+    # XXX Special case for non-os-prefixed headers
+    if (!defined($prefix)) {
+        $prefix = "os";
+    }
+
+    if (!open(HEADER, "< ${header}")) {
+        &error("failed opening ${header}");
+        return undef;
+    }
+    my @header_contents = <HEADER>;
+    close(HEADER);
+
+    my $lines = \@header_contents;
+    my $current_replacements = undef;
+    my @os_funs = ();
+
+    while (my $current_line = shift @$lines) {
+        chomp($current_line);
+
+        if ($current_line =~ /^\/\*\*$/) {
+            ($lines, $current_replacements) = &parse_dox($prefix, $current_line, $lines);
+            next;
+        }
+
+        if ($current_line =~ /^\/\*/) {
+            $lines = &parse_comment($prefix, $current_line, $lines);
+            next;
+        }
+
+        my ($fun) = $current_line =~ /${prefix}_([a-z_]+)\(/;
+        if (defined($fun)) {
+            my $os_fun;
+            ($lines, $os_fun) = &parse_proto($prefix, $fun, $current_line, $lines);
+            if (defined($current_replacements)) {
+                push(@os_funs, { os_fun => $os_fun,
+                                 replaces => $current_replacements });
+                $current_replacements = undef;
+            }
+            next;
+        }
+
+        &verbose("IGNORED: ${current_line}");
+    }
+
+    &debug_os_funs(@os_funs);
+
+    #
+    # Build the reverse function replacement hash:
+    #    platform_specific_fun -> [os_fun]
+    #
+    &verbose("building reverse hash (platform-specific -> abstract)");
+    foreach my $os_fun_info (@os_funs) {
+        &verbose("building reverse hash for $os_fun_info->{os_fun}");
+        foreach my $replacements ($os_fun_info->{replaces}) {
+            foreach my $platform (keys(%$replacements)) {
+                &verbose("\treplaces on ${platform}:", join(", ", @{$replacements->{$platform}}));
+                foreach my $platform_fun (@{$replacements->{$platform}}) {
+                    if (!defined($reverse_hash->{$platform_fun})) {
+                        @{$reverse_hash->{$platform_fun}} = ();
+                    }
+
+                    if (!grep { $_ eq $os_fun_info->{os_fun} } @{$reverse_hash->{$platform_fun}}) {
+                        push(@{$reverse_hash->{$platform_fun}}, $os_fun_info->{os_fun});
+                    }
+                }
+            }
+
+        }
+    }
+
+    &debug_platform_to_abstract_map($reverse_hash);
+}
+
+sub get_os_headers() {
+    my @os_headers = `ls ${exa_dir}/os/include/os_*.h 2>/dev/null`;
+    map(chomp, @os_headers);
+
+    # XXX Special case for non-os-prefixed headers
+    my @non_conformant_headers =
+        `ls ${exa_dir}/os/include/*.h | grep -v 'os_' 2>/dev/null`;
+    map(chomp, @non_conformant_headers);
+    foreach my $nch (@non_conformant_headers) {
+        &warning("non 'os_' prefixed header: ${nch}");
+    }
+    @os_headers = (@os_headers, @non_conformant_headers);
+
+    return @os_headers;
+}
+
+# Tell whether the cache is more recent than all os/ headers.
+# Warning, this function assumes the cache *does* exist.
+sub cache_is_up_to_date(@) {
+    my @os_headers = @_;
+
+    my $cache_mtime = (stat "${exa_dir}/os/OsCache.pm")[9];
+
+    foreach my $header (@os_headers) {
+        return 0 if (stat $header)[9] > $cache_mtime;
+    }
+
+    return 1;
+}
+
+# Unconditionally generate the cache.
+sub gen_cache(@) {
+    my @os_headers = @_;
+
+    my %replacements;
+    foreach my $header (@os_headers) {
+        &debug("parsing header ${header}...");
+        &parse_header($header, \%replacements);
+    }
+    if (!%replacements) {
+        &error("no portability annotations");
+	return 1;
+    }
+
+    &debug_platform_to_abstract_map(\%replacements);
+
+    if (!open(CACHE, "> ${exa_dir}/os/OsCache.pm")) {
+        &error("failed creating os cache");
+        return 1;
+    }
+
+    print CACHE "# Generated by ${self}, do not edit.\n";
+    print CACHE "\n";
+    print CACHE "package OsCache;\n";
+    print CACHE "\n";
+    print CACHE "require Exporter;\n";
+    print CACHE "\@ISA = qw(Exporter);\n";
+    print CACHE "\@EXPORT_OK = qw(replacements);\n";
+    print CACHE "\n";
+    print CACHE "# Mapping of platform-specific functions to their replacements.\n";
+    print CACHE Data::Dumper->Dump([\%replacements], [qw(replacements)]);
+    print CACHE "1;\n";
+
+    close(CACHE);
+
+    return 0;
+}
+
+# (Re)generate the cache only if necessary (iff a os/ header has changed)
+sub update_cache(@) {
+    my @os_headers = @_;
+
+    if (-f "${exa_dir}/os/OsCache.pm") {
+        if (&cache_is_up_to_date(@os_headers)) {
+            &debug("cache is up to date");
+            return 0;
+        }
+        &debug("cache is out-of-date, updating");
+    } else {
+        &debug("cache doesn't exist, generating");
+    }
+
+    return &gen_cache(@os_headers);
+}
+
+sub __uniquify(@) {
+    my (@list) = @_;
+
+    my @uniquified_list = ();
+    foreach my $elem (@list) {
+        if (!grep { $_ eq $elem } @uniquified_list) {
+            push(@uniquified_list, $elem);
+        }
+    }
+
+    return @uniquified_list;
+}
+
+sub check_files(@) {
+    my @source_list = @_;
+
+    return 0 if !@source_list;
+
+    if (defined($PORTABILITY_CHECK) && $PORTABILITY_CHECK == 0) {
+        print "portability check disabled, not checking\n";
+        return 0;
+    }
+
+    # Special case: the os/ subdir is where portable wrappers are defined,
+    # so it is normal that the wrapped, non-portable, forbidden functions
+    # appear there.
+    if (cwd() =~ /\/os(\/.*|)$/) {
+        print "within os/ dir, not checking portability\n";
+        return 0;
+    }
+
+    my @os_headers = &get_os_headers;
+    return 1 if &update_cache(@os_headers) != 0;
+
+    &debug("reading os cache...");
+    require "${exa_dir}/os/OsCache.pm";
+    if (!defined($OsCache::replacements)) {
+        &error("invalid os cache");
+        return 1;
+    }
+    # XXX Should use ref (on replacements) instead
+    my %replacements = %{$OsCache::replacements};
+
+    my $h_regex = "(" . join("|", keys(%forbidden_headers)) . ")";
+    # To avoid matching structure fields or variables (pointers and the
+    # like) and only match actual functions, a function name *must not* be
+    # preceded by '->' nor '.' and *must* be followed by '('.
+    my $f_regex = "(?<!->|.\\.)\\b(" . join("|", keys(%replacements)) . ")\\b\\(";
+
+    #
+    # Check that the files given on the commandline do not contain any of
+    # the forbidden headers and functions. Report a compiler-like error
+    # when a forbidden header or function is found.
+    #
+    my $err = 0;
+    foreach my $source (@source_list) {
+        my $lineno;
+
+        local *portability_error = sub {
+            print STDERR "${source}:${lineno}: error: @_\n";
+            $err = 1;
+        };
+
+        if ($source =~ /\/os\//) {
+            &debug("skipping ${source}: part of os lib");
+            next;
+        }
+
+        &debug("checking ${source}...");
+
+        # To avoid issuing portability warnings when forbidden function
+        # names appear in comments, work on the preprocessor's output:
+        # the preprocessor removes comments.
+        if (!open(SOURCE, "gcc -E ${source} 2>/dev/null |")) {
+            &error("failed opening ${source}");
+            $err = 1;
+            next;
+        }
+        my @lines = <SOURCE>;
+        close(SOURCE);
+
+        $lineno = 0;
+        my $in_src = 0;
+        foreach my $line (@lines) {
+            $lineno++;
+
+            my ($n, $src) = $line =~ /^# ([0-9]+) "(.+)"/;
+            if (defined($n) && defined($src)) {
+                if ($src eq $source) {
+                    $in_src = 1;
+                    $lineno = $n - 1;
+                } else {
+                    $in_src = 0;
+                }
+
+                next;
+            }
+
+            next if !$in_src;
+
+            my @h_found = ($line =~ /${h_regex}/g);
+            if (@h_found) {
+                @h_found = __uniquify(@h_found);
+                foreach my $h (@h_found) {
+                    my $replacement = $forbidden_headers{$h};
+                    &portability_error("header <${h}> is not portable,"
+                                       . " use \"os/include/${replacement}\" instead");
+                }
+                next;
+            }
+
+            # Trick: remove strings so as to avoid matching forbidden
+            # functions appearing in strings.
+            $line =~ s/"[^"]*"//;
+
+            my @f_found = ($line =~ /${f_regex}/g);
+            if (@f_found) {
+                @f_found = __uniquify(@f_found);
+                foreach my $f (@f_found) {
+                    my @replist = map { "$_()" } @{$replacements{$f}};
+                    my $repl = join(", ", @replist);
+                    if (scalar(@replist) > 1) {
+                        $repl = "one of ${repl}";
+                    }
+                    &portability_error("function ${f}() is not portable,"
+                                       . " use ${repl} instead");
+                }
+            }
+        }
+    }
+
+    return $err;
+}
+
+# FIXME This script being used as a compiler wrapper means that it must
+#       know about the os/ subtree: if a file contains os/ or the current
+#       directory is a subdir of os/, check_files() must not check that
+#       file.
+sub check_and_compile($@) {
+    my ($compiler, @args) = @_;
+
+    if (!$compiler) {
+        &error("no compiler given");
+        return 1;
+    }
+
+    &debug("compiler: ${compiler}");
+
+    # Extract the source files from the commandline
+    my @source_list = grep { $_ =~ /\.[ch]$/ || $_ =~ /\.cpp$/ } @args;
+
+    # Special case: ignore 'config.h' when preceded by '-include'.
+    #
+    # XXX Simplified implementation: just get rid of 'config.h'
+    # no matter what (this header is generated by configure so we
+    # shouldn't have a header with that name anyway).
+    @source_list = grep { $_ ne "config.h" } @source_list;
+
+    # Check portability and bail out if error.
+    #
+    # IMPORTANT We *must not* continue to the actual compilation in the
+    # case of error, as the compilation may succeed and thus the next make
+    # command won't even call us again on that file.
+    my $check_err = &check_files(@source_list);
+    return 1 if $check_err != 0;
+
+    my $compile_err = system("${compiler} @{args}");
+
+    # The compilation result *must* be returned
+    return $compile_err;
+}
+
+#
+# Main.
+#
+if ($mode == MODE_GEN) {
+    &debug("generating os cache...");
+    my @os_headers = &get_os_headers;
+    exit 1 if &gen_cache(@os_headers) != 0;
+} elsif ($mode == MODE_CHECK) {
+    &debug("checking files...");
+    exit 1 if &check_files(@ARGV) != 0;
+} elsif ($mode == MODE_COMPILE) {
+    # No message here: avoid polluting the compiler's output
+    my $err = &check_and_compile(@ARGV) != 0;
+    exit $err;
+}

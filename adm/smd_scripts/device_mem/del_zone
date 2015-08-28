@@ -1,0 +1,12 @@
+echo "del_smb_zone.pl zone$1"
+/root/scimapdev_controleur_v1.5/smd_scripts/device_mem/del_smb_zone.pl zone$1
+
+umount /mnt/storfactory/zone$1
+\rm -R /mnt/storfactory/zone$1
+
+if [ -f /proc/virtualiseur/zones_enregistrees ]
+then 
+echo "echo d $1 > /proc/virtualiseur/zones_enregistrees"
+echo "d $1" > /proc/virtualiseur/zones_enregistrees
+fi
+

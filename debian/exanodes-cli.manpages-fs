@@ -1,0 +1,7 @@
+debian/build/ui/cli/src/exa_fscheck.1
+debian/build/ui/cli/src/exa_fscreate.1
+debian/build/ui/cli/src/exa_fsdelete.1
+debian/build/ui/cli/src/exa_fsresize.1
+debian/build/ui/cli/src/exa_fsstart.1
+debian/build/ui/cli/src/exa_fsstop.1
+debian/build/ui/cli/src/exa_fstune.1

@@ -1,0 +1,4 @@
+usr/sbin/exatest_get_md5
+usr/sbin/exatest_mydd
+usr/sbin/exatest_blkvrfy
+usr/sbin/exatest_gentree

@@ -1,0 +1,3 @@
+rsh $1 killall smd_exportd
+rsh $1 killall smd_transfertd
+

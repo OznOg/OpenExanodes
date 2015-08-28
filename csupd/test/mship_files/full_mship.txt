@@ -1,0 +1,13 @@
+# Memberships seen by each node
+0: 11111
+1: 11111
+2: 11111
+3: 11111
+4: 11111
+# Calculated memberships expected on each node
+expected:
+0 => 11111
+1 => 11111
+2 => 11111
+3 => 11111
+4 => 11111

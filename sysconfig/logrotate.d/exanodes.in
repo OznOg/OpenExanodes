@@ -1,0 +1,10 @@
+@PKG_LOG_DIR@/exanodes.log {
+	daily
+        size=100M
+	compress
+	nomissingok
+	sharedscripts
+	postrotate
+		pkill -HUP exa_admind
+	endscript
+}

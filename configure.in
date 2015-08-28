@@ -1,0 +1,221 @@
+dnl Process this file with autoconf to produce a configure script.
+
+AC_INIT(vrt/virtualiseur/vrt_proc.c)
+AM_INIT_AUTOMAKE(driveFUSION, 1.0)
+AM_CONFIG_HEADER(config.h)
+AM_MAINTAINER_MODE
+AC_COPYRIGHT([Copyright 2002,2003 Storagency, All right reserved])
+
+AC_ISC_POSIX
+
+AC_SUBST(DRIVEFUSION_CFLAGS)
+AC_SUBST(DRIVEFUSION_LIBS)
+
+AM_PROG_CC_STDC
+
+AC_PROG_INTLTOOL
+
+AM_DISABLE_STATIC
+AC_LIBTOOL_DLOPEN
+AM_PROG_LIBTOOL
+
+AM_ICONV
+
+# Checks for programs.
+AC_PROG_CXX
+AC_PROG_CC
+AC_PROG_CPP
+AC_PROG_INSTALL
+AC_PROG_LN_S
+AC_PROG_MAKE_SET
+
+# Checks for libraries.
+# FIXME: Replace `main' with a function in `-lm':
+AC_CHECK_LIB([m], [sqrtf])
+# FIXME: Replace `main' with a function in `-lpthread':
+AC_CHECK_LIB([pthread], [pthread_create],
+              PTHREAD_LIBS="-lpthread",
+                 AC_MSG_ERROR([Couldn't find pthread library.]) )
+AC_SUBST(PTHREAD_LIBS)
+
+# Checks for header files.
+AC_HEADER_DIRENT
+AC_HEADER_STDC
+AC_CHECK_HEADERS([fcntl.h libintl.h locale.h malloc.h netdb.h netinet/in.h stdlib.h string.h strings.h sys/ioctl.h sys/socket.h sys/time.h syslog.h unistd.h])
+
+# Checks for typedefs, structures, and compiler characteristics.
+AC_HEADER_STDBOOL
+AC_C_CONST
+AC_C_INLINE
+AC_TYPE_OFF_T
+AC_TYPE_PID_T
+AC_TYPE_SIZE_T
+AC_CHECK_MEMBERS([struct stat.st_rdev])
+AC_HEADER_TIME
+AC_C_VOLATILE
+
+# Checks for library functions.
+AC_FUNC_FORK
+AC_PROG_GCC_TRADITIONAL
+AC_FUNC_MALLOC
+AC_FUNC_SELECT_ARGTYPES
+AC_TYPE_SIGNAL
+AC_FUNC_STAT
+AC_CHECK_FUNCS([floor gethostbyname gettimeofday memset mkdir mkfifo regcomp select socket strerror strstr])
+
+
+dnl Add the languages which your application supports here.
+ALL_LINGUAS=""
+AC_SUBST(ALL_LINGUAS)
+AC_DEFINE_UNQUOTED(ALL_LINGUAS, "${ALL_LINGUAS}", [Supported languages])
+
+GETTEXT_PACKAGE=drivefusion
+AC_SUBST(GETTEXT_PACKAGE)
+AM_GLIB_GNU_GETTEXT
+AC_DEFINE_UNQUOTED(GETTEXT_PACKAGE,"$GETTEXT_PACKAGE", [Gettext package name])
+
+dnl Set PACKAGE_LOCALE_DIR in config.h.
+AC_DEFINE_UNQUOTED(PACKAGE_LOCALE_DIR, "${prefix}/${DATADIRNAME}/locale", [Directory where DriveFUSION locale data will be strored])
+
+dnl Tests for the kernel directory
+KERNELDIR=/usr/src/linux
+AC_ARG_WITH(kerneldir,
+  AC_HELP_STRING(
+    [--with-kerneldir=path],
+    [Give the kernel source directory (ex: /usr/src/linux)]),
+  [KERNELDIR=$withval] )
+AC_SUBST(KERNELDIR)
+
+dnl Set KERNELDIR in config.h.
+dnl AC_DEFINE_UNQUOTED(KERNELDIR, "/usr/src/linux", [Linux kernel source directory])
+
+dnl Test for SMP
+dnl By default, dont build SMP until requested
+smp=no
+AC_ARG_WITH(smp,
+  AC_HELP_STRING(
+    [--with-smp=yes],
+    [Ask driveFUSION to be compiled for SMP (yes|no)]),
+  [smp=$withval] )
+
+AM_CONDITIONAL(CONFIG_SMP, test x$smp = xyes)
+
+if test x$smp = xno; then
+  AC_MSG_NOTICE([SMP compilation is disabled.])
+  SMP_CFLAGS=""
+else
+  AC_MSG_NOTICE([SMP compilation is enabled.])
+  SMP_CFLAGS="-D__SMP__ -DSMP"
+fi
+
+dnl Set the Kernel CFLAGS to compile Linux kernel module
+KERNEL_CFLAGS="-DDEBUG_MAQUETTE -D__KERNEL__ -DMODULE -I${KERNELDIR}/include -O -Wall ${SMP_CFLAGS}"
+AC_SUBST(KERNEL_CFLAGS)
+
+dnl Get the Linux version and the the module install directory
+linux_version=`uname -r`
+MODULE_INSTALLDIR="/lib/modules/$linux_version/misc"
+AC_SUBST(MODULE_INSTALLDIR)
+
+dnl Test Dolphin SCI Build
+SCIDIR=/usr/src/DIS_GPL_1_35_JUNE_13_2003
+build_sci_module=yes
+AC_ARG_WITH(scidir,
+  AC_HELP_STRING(
+    [--with-scidir=path],
+    [Give the Dolphin SCI source directory (ex: /usr/src/DIS_GPL_1_35_JUNE_13_2003)]),
+  [SCIDIR=$withval] )
+AC_SUBST(SCIDIR)
+
+if test x$SCIDIR = xno; then
+  build_sci_module=no
+else
+  dnl Set Dolphin SCI Includes and Libraries
+  sci_old_cppflags=${CPPFLAGS}
+  SCI_INCLUDE_LIST="-I${SCIDIR}/src/SISCI/src -I${SCIDIR}/src/SISCI/api -I${SCIDIR}/src/SISCI/cmd/include"
+  CPPFLAGS="${CPPFLAGS} ${SCI_INCLUDE_LIST}"
+  AC_CHECK_HEADER(sisci_api.h,
+                  SCI_CFLAGS="${SCI_INCLUDE_LIST}",
+                  [AC_MSG_WARN([Couldn't find Dolphin SCI includes, SCI module disabled.])
+                  build_sci_module=no])
+  CPPFLAGS=$sci_old_cppflags
+
+  sci_old_cppflags=${CPPFLAGS}
+  SCIIRM_INCLUDE_LIST="-I${SCIDIR}/src/IRM/drv/src -I${SCIDIR}/src/IRM/drv/src/LINUX"
+  CPPFLAGS="${CPPFLAGS} ${SCIIRM_INCLUDE_LIST}"
+  AC_CHECK_HEADER(genif.h,
+                  SCIIRM_CFLAGS="${SCIIRM_INCLUDE_LIST}",
+                  [AC_MSG_WARN([Couldn't find Dolphin SCI IRM includes, SCI module disabled.])
+                  build_sci_module=no])
+  CPPFLAGS=$sci_old_cppflags
+
+  if test x$build_sci_module = xyes; then
+    dnl Search for SCI's libs
+    sci_old_ldflags=${LDFLAGS}
+    LIBSCI="-L${SCIDIR}/src/SISCI/api/ -lsisci"
+    LDFLAGS="${LDFLAGS} ${LIBSCI}"
+    AC_CHECK_LIB(sisci, 
+                 _SISCI_PUBLIC_FUNC_MT_SCIOpen, 
+                 SCI_LIBS="${LIBSCI}",
+                 [ AC_MSG_WARN([Couldn't find Dolphin SCI library, SCI module disabled.])
+                   build_sci_module=no ],
+                 -lpthread)  
+    LDFLAGS=${sci_old_ldflags}
+  fi
+fi
+
+dnl Finally output the required SCI variables and automake defines.
+AM_CONDITIONAL(SCI_MODULE, test x$build_sci_module = xyes)
+AC_SUBST(SCI_CFLAGS)
+AC_SUBST(SCIIRM_CFLAGS)
+AC_SUBST(SCI_LIBS)
+
+dnl perl is required for tools
+AC_PATH_PROG(PERL, perl,no,[/bin:/usr/bin:/usr/local/bin])
+
+if test x$PERL = xno; then
+  AC_MSG_ERROR(Couldn't find perl, please install the perl package version 5 or above)
+fi
+
+
+dnl Autoconf output
+AC_OUTPUT([ drivefusion.spec
+Makefile
+Doxyfile
+adm/Makefile
+adm/new_scripts/Makefile
+adm/new_scripts/constantes.pm
+adm/smd_commandd/Makefile
+adm/smd_scripts/Makefile
+po/Makefile.in
+sciNBD/Makefile
+sciNBD/client/Makefile
+sciNBD/client/cmd_importe/Makefile
+sciNBD/client/client_module/Makefile
+sciNBD/serveur/Makefile
+sciNBD/serveur/cmd_exporte/Makefile
+sciNBD/serveur/exportd/Makefile
+sciNBD/serveur/include/Makefile
+sciNBD/serveur/serverd/Makefile
+tools/Makefile
+tools/checkdev/Makefile
+tools/paraseq/Makefile
+vrt/Makefile
+vrt/virtualiseur/Makefile
+vrt/vrtcommandes/Makefile
+])
+
+echo ""
+echo "***************************************************"
+echo ""
+echo configure complete,
+echo with options:
+echo    SMP compilation = $smp
+echo Dolphin SCI Module = $build_sci_module
+echo drivefusion will be installed in ${prefix}
+echo to compile and install in another directory
+echo type sh configure --prefix=/usr
+echo
+echo type \'make\' to compile drivefusion
+echo type \'make install\' to install it
+echo type \'make doxygen\' to update or generate the doxygen documentation in doxygen

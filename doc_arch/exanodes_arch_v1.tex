@@ -1,0 +1,122 @@
+\documentclass[a4paper,12pt,twoside]{report}
+
+\usepackage{seanodes_spec}
+%\usepackage{subfig}
+
+\graphicspath{{./images/}}
+
+\title{Exanodes' Architecture}
+\subtitle{High level overview}
+\author{Damien Collard}
+\activity{Core}
+\project{Architecture}
+
+\begin{document}
+
+\makesimpleheader
+
+\section{\label{sec:introduction}Introduction}
+
+This document presents a (very) high level overview of Exanodes'
+current architecture: its layers and processes, as well as the control
+and data paths.
+
+The current architecture is crossplatform: it is the same on both
+Linux and Windows, \ie logical entities and OS entities (processes)
+are exactly the same.
+
+To achieve portability, Exanodes does two things:
+\begin{compactitem}
+\item It uses a library called ``OS lib'', which abstracts OS-specific
+  details and present a common interface (for processes,
+  synchronization primitives, etc).
+\item It is built with CMake, which exists on both OSes.
+\end{compactitem}
+
+Note that the OS library doesn't appear in the architecture diagrams
+because it's just a {\em tool}, not an entity per se.
+
+\section{\label{sec:architecture}Architecture}
+
+An instance of the Exanodes software runs on each node whose storage
+is to be shared.
+
+Exanodes uses two paths (which may be routed through the same physical
+medium or different ones): the control path is used for internal
+cluster control and the data path is used to transfer the data to be
+stored/retrieved. The control and data paths are shown in
+\prettyref{fig:control_and_data_paths}.
+
+\begin{figure}[ht]
+  \centering
+  \includegraphics[width=0.6\textwidth]{exanodes_control_and_data_paths.eps}
+  \caption{\label{fig:control_and_data_paths}Control and data paths.}
+\end{figure}
+
+This figure shows two nodes. On each node, the layers comprising
+Exanodes, also called ``services'', are shown with their interactions.
+
+The layers are as follows:
+\begin{itemize}
+\item Csupd: the cluster supervision layer \cite{csupd, mship}. Each
+  instance of Csupd is a failure detector. The role of this layer is
+  to determine what are the nodes comprising a cluster at any point in
+  time.
+\item Admind: the administration layer. It receives user commands
+  \cite{cli_server} and directs all Exanodes operations. It takes
+  decisions based on Csupd's input \cite{evmgr, mship}.
+\item NBD: the network block device \cite{nbd}. This layer is in charge of
+  transmitting the (user) data.
+\item VRT: the virtualizer \cite{vrt}, whose role is to handle data
+  placement and offers different reliability levels (simple striping,
+  rainX).
+\item FS: the filesystem layer, which allows integration with
+  filesystems, either standard (Ext3) or distributed (GFS).
+\end{itemize}
+
+An Exanodes instance comprises several daemons, as shown in
+\prettyref{fig:daemons}. Most daemons have a single role, but some of
+them (for performance reasons) have several roles. For instance, the
+``client'' NBD daemon also contains the VRT because of their strong
+interactions on the data path.
+
+\begin{figure}[ht]
+  \centering
+  \includegraphics[width=0.2\textwidth]{exanodes_daemons.eps}
+  \caption{\label{fig:daemons}Daemons.}
+\end{figure}
+
+On each node, the Admind daemon contains a stack of service instances
+(a service instance is the intersection of a service/layer and a
+node). \prettyref{fig:services_and_executives} shows the service
+stack. In case of node or disk failure, Exanodes performs a recovery
+by walking the service stack. Each service conforms to the recovery
+framework and is responsible for the recovery of its own data and
+metadata.
+
+\begin{figure}[ht]
+  \centering
+  \includegraphics[width=0.6\textwidth]{exanodes_services_and_executives.eps}
+  \caption{\label{fig:services_and_executives}Services and executives.}
+\end{figure}
+
+\prettyref{fig:request_queues} shows a simplified view of the data
+request path from the target to the NBD \cite{request_path}. Note that
+a ``target'' here is either an actual iSCSI target (Windows, Linux) or block
+device (Linux).
+
+\begin{figure}[ht]
+  \centering
+  \includegraphics[width=0.6\textwidth]{request_queues_client_side.eps}
+  \caption{\label{fig:request_queues}Data path: request queues from
+    the target(s) to the NBD.}
+\end{figure}
+
+% FIXME Use figure 1(b) from http://builder/builds/pdf/activity/innovation/project/perf_study/measures_spec/measures_spec.pdf ?
+
+% FIXME Use figure 1 from http://builder/builds/pdf/activity/innovation/project/quota/stream_model/quota_stream_model.pdf ?
+
+\newpage
+\bibliography{exanodes_arch.bib}
+
+\end{document}
