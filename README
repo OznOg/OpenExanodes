@@ -2,9 +2,10 @@ Exanodes is a distributed storage system.
 
 see http://www.seanodes.com for details
 
+Documentation on software setup can be found at http://www.seanodes.com/support/product-documentation.html
+
 here is the list of build dependencies to be able to build the software
 
-seanodes-unittest (available on github)
 cmake
 rpm-build
 libxml2-devel
@@ -12,6 +13,7 @@ boost-devel
 openssl-devel
 net-snmp-devel
 selinux-policy-devel
+perl crc32 module
 headers for your kernel
 
 BUILD:

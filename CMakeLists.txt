@@ -452,22 +452,14 @@ endif (WITH_DOCS)
 # --- unit testing ---------------------------------------------------
 
 if (WITH_UT)
-    find_program(
-	UT_BUILD
-	ut_build
-	"C:/Program Files/Seanodes/unit_testing"
-	)
+    find_program(UT_BUILD ut_build "${CMAKE_SOURCE_DIR}/unit_testing/")
 
     if (NOT UT_BUILD)
 	message(FATAL_ERROR "Seanodes' unit testing library is not installed.")
     endif (NOT UT_BUILD)
 endif (WITH_UT)
 
-if (WIN32)
-    set(UT_HEADER_DIRECTORY "C:/Program Files/Seanodes/unit_testing")
-else (WIN32)
-    set(UT_HEADER_DIRECTORY "/usr/include")
-endif (WIN32)
+set(UT_HEADER_DIRECTORY "${CMAKE_SOURCE_DIR}/unit_testing")
 
 enable_testing()
 
