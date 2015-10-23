@@ -43,17 +43,27 @@ static const char *__gen_uid_str(void)
     return uid_str;
 }
 
-static int __check_logged(const char *uid_str, const char *ident)
+static void __check_logged(const char *uid_str, const char *ident)
 {
-    static char grep_fmt[] = "grep -q '%s: %s' /var/log/messages";
+#ifndef WIN32
+    static char grep_fmt[] = "journalctl | grep -q '%s: %s'";
     static char grep_cmd[256];
+    int ret, retry = 50;
 
     os_snprintf(grep_cmd, sizeof(grep_cmd), grep_fmt, ident, uid_str);
 
     /* syslog() is asynchronous so we must give syslogd some time to
      * write the event */
-    os_sleep(1);
-    return system(grep_cmd);
+
+    do {
+        os_millisleep(20);
+
+        ret = system(grep_cmd);
+    } while (ret != 0 && --retry != 0);
+
+    UT_ASSERT(WIFEXITED(ret));
+    UT_ASSERT_EQUAL(0, WEXITSTATUS(ret));
+#endif
 }
 
 ut_setup()
@@ -73,43 +83,25 @@ ut_cleanup()
 ut_test(log_after_open_is_ok)
 {
     const char *uid_str = __gen_uid_str();
-#ifndef WIN32
-    int ret;
-#endif
 
     os_openlog(UNIT_TEST_IDENT);
     os_syslog(OS_SYSLOG_INFO, "%s", uid_str);
     os_closelog();
 
-#ifndef WIN32
-    ret = __check_logged(uid_str, UNIT_TEST_IDENT);
-    UT_ASSERT(WIFEXITED(ret));
-    UT_ASSERT_EQUAL(0, WEXITSTATUS(ret));
-#endif
+    __check_logged(uid_str, UNIT_TEST_IDENT);
 }
 
 ut_test(log_without_open_logs_with_ident_unknown)
 {
     const char *uid_str = __gen_uid_str();
-#ifndef WIN32
-    int ret;
-#endif
 
     os_syslog(OS_SYSLOG_INFO, "%s", uid_str);
 
-#ifndef WIN32
-    ret = __check_logged(uid_str, "unknown");
-    UT_ASSERT(WIFEXITED(ret));
-    UT_ASSERT(WEXITSTATUS(ret) == 0);
-#endif
+    __check_logged(uid_str, "");
 }
 
 ut_test(open_then_reopen_with_diff_idents)
 {
-#ifndef WIN32
-    int ret;
-#endif
-
     char uid_str1[UID_STR_LEN + 1];
     char uid_str2[UID_STR_LEN + 1];
 
@@ -121,13 +113,7 @@ ut_test(open_then_reopen_with_diff_idents)
     strlcpy(uid_str2, __gen_uid_str(), sizeof(uid_str2));
     os_syslog(OS_SYSLOG_INFO, "%s", uid_str2);
 
-#ifndef WIN32
-    ret = __check_logged(uid_str1, UNIT_TEST_IDENT);
-    UT_ASSERT(WIFEXITED(ret));
-    UT_ASSERT_EQUAL(0, WEXITSTATUS(ret));
+    __check_logged(uid_str1, UNIT_TEST_IDENT);
 
-    ret = __check_logged(uid_str2, UNIT_TEST_IDENT_2);
-    UT_ASSERT(WIFEXITED(ret));
-    UT_ASSERT_EQUAL(0, WEXITSTATUS(ret));
-#endif
+    __check_logged(uid_str2, UNIT_TEST_IDENT_2);
 }
