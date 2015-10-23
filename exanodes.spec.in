@@ -117,9 +117,6 @@ BuildRoot: 		%{_tmppath}/%{tarball_name}-buildroot
 BuildRequires:		pkgconfig
 BuildRequires:		cmake >= 2.6
 BuildRequires:          perl-String-CRC32 >= 1.4
-%if %with ut
-BuildRequires:		seanodes-unittesting-devel >= 1.0
-%endif
 
 %description
 Exanodes virtualizes physical internal storage of cluster nodes

@@ -6,7 +6,6 @@ Documentation on software setup can be found at http://www.seanodes.com/support/
 
 here is the list of build dependencies to be able to build the software
 
-seanodes-unittest (available @ https://github.com/OznOg/Exanodes_unit_test)
 cmake
 rpm-build
 libxml2-devel
@@ -22,7 +21,6 @@ BUILD:
 mkdir build-exanodes && cd build-exanodes
 
 $ cmake /path/to/the/exanodes/git/checkout
-# if you don't want to install the unittest framework, you may still compile by calling cmake with -DWITH_UT=FALSE
 
 $ make dist
 

@@ -1,0 +1,677 @@
+#!/usr/bin/perl
+#
+# Copyright 2002, 2015 Seanodes Ltd http://www.seanodes.com. All rights
+# reserved and protected by French, UK, U.S. and other countries' copyright laws.
+# This file is part of Exanodes Unit test library and is subject to the terms
+# and conditions defined in the LICENSE file which is present in the root
+# directory of the project.
+#
+
+#
+# FIXME Pass suite data to setup, cleanup and test functions
+#       (at the moment NULL is passed).
+#
+# FIXME Doesn't detect "disabled" (commented out, #ifdef'd) UT_SECTIONs.
+#
+# TODO - Check that no two sections have the same name.
+#      - Check there is no empty section.
+#      - Report failures in setup/cleanup (currently silent).
+#
+
+use strict;
+use warnings;
+use File::Basename;
+use File::Spec;
+use File::Temp qw/tempfile/;
+use IO::File;
+
+my $self = basename($0);
+my $dir = dirname($0);
+
+my $PLATFORM = $^O;
+chomp($PLATFORM);
+
+my @TEMPLATE_PATHS;
+if ($PLATFORM eq "MSWin32") {
+    @TEMPLATE_PATHS = ("C:\\Program\ Files\\Seanodes\\unit_testing",
+                       "C:\\Program\ Files\\Seanodes\\unit_testing",
+	               "$dir/");
+} else {
+    @TEMPLATE_PATHS = ("/usr/local/share/unit_testing",
+                       "/usr/share/unit_testing",
+	               "$dir/");
+}
+
+# Autoflush to get stdout/stderr properly interlaced.
+$| = 1;
+
+#
+# Parse commandline.
+#
+# - Last argument is assumed to be the source of the unit test to build.
+#
+# - All other arguments are assumed to be the full compilation commandline
+#   (not including the unit test source).
+#
+if (scalar(@ARGV) < 2 || grep(/^--help$/, @ARGV)) {
+    print<<END_USAGE;
+Unit test program builder
+
+Usage: ${self} [--help] <command> -o <result> <source>
+
+    <command>  Compilation command to run, i.e. the compiler and
+               its options. From a Makefile this would be \$(COMPILE)
+               for C and \$(CXXCOMPILE) for C++.
+
+     <result>  Object file or source file (explanation below).
+
+     <source>  Source of the unit test (must be .c or .cpp)
+
+The parameters *must* appear in this order.
+
+Options:
+
+    -h, --help  Display this usage help.
+
+This script creates a unit test program from the given source.
+Its behavior depends on the nature of <result>:
+
+  * If <result> is .c or .cpp, the script generates the source
+    of the unit test program, leaving both the compilation and
+    the linking to the caller.
+
+  * Otherwise, the script assumes <result> is an object file and
+    uses the specified compilation command to create it, leaving
+    the linking to the caller.
+
+In case of a problem you think is due to ${self}, you may inspect the
+temporary source by setting environment variable UT_BUILD_KEEPTEMP=1.
+END_USAGE
+    exit 1;
+}
+
+my $ut_build_template;
+my $ut_source = pop @ARGV;
+my @full_compile_cmd = @ARGV;
+my $ut_target = undef;
+
+my @compile_cmd = ();
+my $drop = 0;
+foreach my $token (@full_compile_cmd) {
+    # Drop both '-o' and its argument
+    $drop = 2 if $token eq "-o";
+    if ($drop > 0) {
+        $ut_target = $token if $drop == 1;
+        $drop--;
+    } else {
+        push(@compile_cmd, $token);
+    }
+}
+
+# Ensure arguments with spaces are properly quoted
+my @quoted_compile_cmd = ();
+foreach my $token (@compile_cmd) {
+    $token = "\"${token}\"" if $token =~ / /;
+    push(@quoted_compile_cmd, $token);
+}
+@compile_cmd = @quoted_compile_cmd;
+
+my $linenum = 0;
+my $parse_errors = 0;
+my $compilation_errors = 0;
+
+sub error_parsing(@) {
+    print STDERR "${ut_source}:${linenum}: error: @_\n";
+    $parse_errors++;
+}
+
+# XXX would be better to return undef when error
+sub parse_tags($) {
+    my ($tag_str) = @_;
+
+    my @tags = split(/ +/, $tag_str);
+    my %attributes = ();
+
+    foreach my $tag (@tags) {
+        next if $tag eq "";
+
+        # All tags start with '__ut_'
+        my ($attr, $params) = $tag =~ /^(__ut_[a-z]+)(\(.*\))?$/;
+        if (!defined($attr)) {
+            &error_parsing("invalid attribute: '${tag}'");
+            next;
+        }
+
+        if (grep { "__ut_${_}" eq $attr } keys(%attributes)) {
+            &error_parsing("duplicate attribute: '${attr}'");
+        }
+
+        if ($attr eq "__ut_lengthy") {
+            $attributes{lengthy} = 1;
+        }
+        elsif ($attr eq "__ut_timeout") {
+            if (!defined($params) || $params eq "()") {
+                &error_parsing("missing timeout value");
+            } else {
+                my ($value, $unit) = $params =~ /^\(([0-9]+)(s|m)\)$/;
+                if (defined($value) && $value >= 0 && defined($unit)) {
+                    $value *= 60 if $unit eq "m";
+                    $attributes{timeout} = $value;
+                } else {
+                    &error_parsing("invalid timeout value");
+                }
+            }
+        }
+        elsif ($attr eq "__ut_signal") {
+            if (!defined($params) || $params eq "()") {
+                &error_parsing("missing expected signal");
+            } else {
+                my ($signal) = $params =~ /^\((.*)\)$/;
+                if (defined($signal) && $signal =~ /^[A-Z0-9]+$/) {
+                    # Special case: 'ASSERT' => SIGABRT
+                    if ($signal eq "ASSERT") {
+                        $signal = "SIGABRT";
+                    }
+                    $attributes{expected_sig} = $signal;
+                } else {
+                    &error_parsing("invalid signal '${signal}'");
+                }
+            }
+        }
+        else {
+            &error_parsing("unknown attribute: '${attr}'");
+        }
+    }
+
+    return %attributes;
+}
+
+sub filter_out_disabled_functions($$$) {
+    my ($source, $section_list, $ext) = @_;
+
+    # Write the source to a temporary file
+    my ($fh, $temp_file) = tempfile("_utcppXXXXXX", SUFFIX => $ext);
+    print $fh @$source;
+    undef $fh; # Close the file
+
+    # Transform the compilation command into a simple preprocessor pass
+    # (must keep all options, eg. include directories)
+    my @preprocess_cmd = (@compile_cmd, "-E");
+
+    # XXX Refactor this! (common with build_unit_test())
+    # Preprocess the source file
+    my $env = ($PLATFORM eq "linux" ? "LC_ALL=C " : "");
+    my $prepro = "${env} @{preprocess_cmd} ${temp_file}";
+
+    # XXX Should check for errors!
+    if (!open(PREPRO, "${prepro} 2>&1 |")) {
+        print STDERR "failed filtering out disabled functions\n";
+        unlink $temp_file;
+        return undef;
+    }
+    my @result = <PREPRO>;
+    close(PREPRO);
+
+    unlink $temp_file;
+
+    my @enabled_funs = ();
+    foreach my $line (@result) {
+        # Patterns below match setup, cleanup and test cases *after*
+        # replacements made by parsing and after preprocessing.
+
+        # The test case suffix can never be empty
+        my ($testcase) = $line =~ /ut_testcase__([a-zA-Z0-9_]+)/;
+        if (defined($testcase)) {
+            push(@enabled_funs, $testcase);
+            next;
+        }
+        # The setup suffix may be empty when there is no section
+        my ($section) = $line =~ /ut_setup__([a-zA-Z0-9_]*)/;
+        if (defined($section)) {
+            push(@enabled_funs, "ut_setup__${section}");
+            next;
+        }
+        # The cleanup suffix may be empty when there is no section
+        ($section) = $line =~ /ut_cleanup__([a-zA-Z0-9_]*)/;
+        if (defined($section)) {
+            push(@enabled_funs, "ut_cleanup__${section}");
+        }
+    }
+
+    # Remove disabled setups, cleanups and test cases from the sections
+    foreach my $section (@$section_list) {
+        if (defined($section->{setup_fun})
+            && !grep(/^$section->{setup_fun}$/, @enabled_funs)) {
+            $section->{setup_fun} = undef
+        }
+
+        if (defined($section->{cleanup_fun})
+            && !grep(/^$section->{cleanup_fun}$/, @enabled_funs)) {
+            $section->{cleanup_fun} = undef
+        }
+
+        my $filtered_test_cases = [];
+        foreach my $test_case (@{$section->{test_cases}}) {
+            if (!grep(/^$test_case->{fun}$/, @enabled_funs)) {
+                next;
+            }
+            push(@$filtered_test_cases, $test_case);
+        }
+        $section->{test_cases} = $filtered_test_cases;
+    }
+
+    return $section_list;
+}
+
+sub parse_ut_source($) {
+    my $source_name = shift;
+
+    # Read unit test source
+    if (!open(SOURCE, "< ${source_name}")) {
+        print STDERR "failed opening unit test '${source_name}'\n";
+        return (undef, undef);
+    }
+    my @source = <SOURCE>;
+    close(SOURCE);
+
+    #
+    # Build the list of sections and their setup, cleanup and test functions.
+    #
+    my @section_list = ();
+    my $current_section =
+        {
+         name => "",
+         setup_fun => undef,
+         setup_linenum => undef,
+         cleanup_fun => undef,
+	 test_cases => []
+        };
+
+    # Name of special function if within one (setup or cleanup)
+    my $special = undef;
+
+    $linenum = 0;
+    my $test_count = 0;
+
+    for (my $idx = 0; $idx < scalar(@source); $idx++) {
+        my $line = $source[$idx];
+        $linenum++;
+
+        my ($section) = $line =~ /^UT_SECTION\((.*)\)/;
+        if (defined($section)) {
+            if ($section eq "") {
+                &error_parsing("missing section name");
+                next;
+            }
+            if ($section !~ /^[a-zA-Z0-9_]+$/) {
+                &error_parsing("invalid section name");
+                next;
+            }
+            push(@section_list, $current_section);
+            $current_section =
+                {
+                 name => $section,
+                 setup_fun => undef,
+                 setup_linenum => undef,
+                 cleanup_fun => undef,
+                 test_cases => []
+                };
+        }
+
+        my ($setup_fun) = $line =~ /^ut_setup\(\)/;
+        if (defined($setup_fun)) {
+            $special = "setup";
+            if (defined($current_section->{setup_fun})) {
+                &error_parsing("duplicate setup in section '$current_section->{name}'");
+                next;
+            } else {
+	      $setup_fun = "ut_setup__" . $current_section->{name};
+	      $current_section->{setup_fun} = $setup_fun;
+	      $current_section->{setup_linenum} = $linenum;
+
+	      $source[$idx] = "static void ${setup_fun}(void)\n";
+            }
+        }
+
+        my ($cleanup_fun) = $line =~ /^ut_cleanup\(\)/;
+        if (defined($cleanup_fun)) {
+            $special = "cleanup";
+            if (defined($current_section->{cleanup_fun})) {
+                &error_parsing("duplicate cleanup in section '$current_section->{name}'");
+                next;
+            } else {
+	      $cleanup_fun = "ut_cleanup__" . $current_section->{name};
+	      $current_section->{cleanup_fun} = $cleanup_fun;
+
+	      $source[$idx] = "static void ${cleanup_fun}(void)\n";
+            }
+        }
+
+        if (defined($special)) {
+            if ($line =~ /^}$/) {
+                $special = undef;
+                next;
+            }
+            if ($line =~ /\bUT_SUCCESS\b/) {
+                &error_parsing("macro UT_SUCCESS not allowed in ${special}");
+                next;
+            }
+        }
+
+	my ($test_fn, $tags) = $line =~ /^ut_test\(([a-zA-Z0-9_]*)\)(\s+__ut_.*)?/;
+        if (defined($test_fn)) {
+            my %attributes = ();
+	    if (defined($tags)) {
+                %attributes = &parse_tags($tags);
+	    }
+            if ($test_fn eq "") {
+                &error_parsing("missing test case name");
+                next;
+            }
+            push(@{$current_section->{test_cases}}, { fun => $test_fn, %attributes });
+            $test_count++;
+        }
+    }
+
+    if (scalar(@{$current_section->{test_cases}}) > 0) {
+        push(@section_list, $current_section);
+    }
+
+    my $default_section = get_default_section(\@section_list);
+    if (&section_empty($default_section)) {
+      shift(@section_list);
+    }
+    elsif (scalar(@section_list) >= 2) {
+        &error_parsing("mix of anonymous and named sections is forbidden");
+    }
+
+    if ($test_count == 0) {
+        &error_parsing("invalid test suite: no unit test defined");
+    }
+
+    if ($parse_errors > 0) {
+        return (undef, undef);
+    } else {
+       return (\@source, \@section_list);
+   }
+}
+
+sub section_empty($) {
+    my $section = shift;
+
+    return 1 if !defined($section);
+    return 0 if (defined($section->{setup_fun})
+                 || defined($section->{cleanup_fun})
+                 || scalar(@{$section->{test_cases}}) > 0);
+    return 1;
+}
+
+sub get_default_section($) {
+    my $section_list = shift;
+
+    foreach my $section (@$section_list) {
+        return $section if ($section->{name} eq "");
+    }
+
+    return undef;
+}
+
+sub get_section_test_count($) {
+    my $section = shift;
+    return scalar(@{$section->{test_cases}});
+}
+
+sub keep_temp() {
+    return defined($ENV{UT_BUILD_KEEPTEMP}) && $ENV{UT_BUILD_KEEPTEMP} == 1;
+}
+
+sub generate_code($$$$$$) {
+    my ($ut_source_name, $language, $source, $section_list,
+        $ut_program_name) = @_;
+
+    my $line;
+
+    my $file = new IO::File "> ${ut_program_name}";
+    if (!defined($file)) {
+        print STDERR "failed creating program ${ut_program_name}\n";
+        return 0;
+    }
+
+    my $max_name_len = 0;
+    foreach my $section (@$section_list) {
+        foreach my $test_case (@{$section->{test_cases}}) {
+            my $len = length($test_case->{fun});
+            $max_name_len = $len if $len > $max_name_len;
+        }
+    }
+
+    my $test_count = 0;
+    foreach my $section (@$section_list) {
+        $test_count += &get_section_test_count($section);
+    }
+
+    # read template file in a variable
+    my $template = $ut_build_template;
+    if (!open(TPL, $template)) {
+        print STDERR "could not open template file ${template}\n";
+        return 0;
+    }
+    my @template_lines = <TPL>;
+    close(TPL);
+
+    foreach $line (@template_lines) {
+	print $file $line;
+    }
+
+    # Force the source name and line number reported by the compiler.
+    # Without this, the compiler would report in its error messages the
+    # name of the generated source instead of the original source and the
+    # line numbers would be off (because of all the code generated above).
+    print $file "
+# 1 \"${ut_source_name}\"
+@$source\n
+
+";
+
+    my $testindex = 0;
+    my $section_count = scalar(@$section_list);
+    print $file "
+static void ut_register_all(void)
+{
+  int s = 0;
+  int t = 0;
+  __ut_test_count = ${test_count};
+  __ut_section_count = ${section_count};
+  strcpy(__ut_test_report_str, \"%-${max_name_len}s : %s\");
+";
+    foreach my $section (@$section_list) {
+        my $section_name = $section->{name};
+        my $section_setup = $section->{setup_fun};
+        my $section_cleanup = $section->{cleanup_fun};
+        # FIXME use function get_section_test_count()
+        my $section_nb_tests = scalar(@{$section->{test_cases}});
+
+        print $file "
+  t = 0;
+  sections[s].name = \"$section_name\";
+";
+        if (defined($section->{setup_fun})) {
+          print $file "
+sections[s].setup = &$section_setup;
+";
+        } else {
+          print $file "
+sections[s].setup = NULL;
+";
+        }
+
+        if (defined($section->{cleanup_fun})) {
+          print $file "
+sections[s].cleanup = &$section_cleanup;
+";
+        } else {
+          print $file "
+sections[s].cleanup = NULL;
+";
+        }
+        if (defined($section->{setup_fun}) &&
+            !defined($section->{cleanup_fun})) {
+            print "${ut_source_name}:$section->{setup_linenum}: warning: section '$section->{name}' has setup but no cleanup\n";
+            $compilation_errors++;
+        }
+
+        # FIXME Generate code to deallocate what's been allocated!
+        print $file "
+  sections[s].nb_tests = $section_nb_tests;
+  sections[s].tests = (test_t *)malloc(sizeof(test_t) * $section_nb_tests);
+";
+        foreach my $test_case (@{$section->{test_cases}}) {
+            my $test_name = $test_case->{fun};
+            my $lengthy = $test_case->{lengthy} ? "true" : "false";
+            my $timeout = $test_case->{timeout} || 0;
+            my $expected_sig = $test_case->{expected_sig} || 0;
+            print $file "
+  sections[s].tests[t].index = $testindex;
+  sections[s].tests[t].name = \"$test_name\";
+  sections[s].tests[t].run = &ut_testcase__$test_name;
+  sections[s].tests[t].lengthy = ${lengthy};
+  sections[s].tests[t].timeout = ${timeout};
+  sections[s].tests[t].expected_signal = ${expected_sig};
+  ++t;
+";
+            ++$testindex;
+        }
+        print $file "
+  ++s;
+";
+    }
+        print $file "
+}
+";
+
+    # Unregistration of all tests. Meant to be registered with atexit() so
+    # that we do free everything in all "normal" (exit) cases.
+    print $file "
+static void ut_unregister_all(void)
+{
+  int s;
+  for (s = 0; s < ${section_count}; s++)
+      free(sections[s].tests);
+}\n";
+
+    if ($compilation_errors > 0) {
+        $file->close;
+        unlink($ut_program_name) unless &keep_temp;
+        return 0;
+    }
+
+    $file->close;
+
+    return 1;
+}
+
+#
+# Build the unit test program from the given unit test source
+# and with the specified options.
+#
+# - If the target is a source file (.c or .cpp), generates just the
+#   program source.
+#
+# - If the target is *not* a source file, generates the executable
+#   (as it assumes the target is an object file, .o or .obj).
+#
+sub build_unit_test($$@) {
+    my ($ut_source_name, $ut_target, @compile_cmd) = @_;
+
+    my ($ut_base_name, $path, $source_ext) =
+        File::Basename::fileparse($ut_source_name, qr/\.[^.]*/);
+
+    my $language = undef;
+    if ($source_ext eq ".c") {
+        $language = "C";
+    } elsif ($source_ext eq ".cpp") {
+        $language = "C++";
+    }
+
+    if (!defined($language)) {
+        print STDERR "unit test '${ut_source_name}' is neither C nor C++\n";
+        exit 1;
+    }
+
+    my $ut_program_name;
+    if ($ut_target =~ /\.c$/ || $ut_target =~ /\.cpp$/) {
+        $ut_program_name = "${ut_target}";
+    } else {
+        # XXX Use tempfile()
+        $ut_program_name = "tmp__${ut_base_name}${source_ext}";
+    }
+    my ($program_ext) = $ut_program_name =~ /(\.[^.]+)$/;
+    if ($program_ext ne $source_ext) {
+        print STDERR "can't generate ${program_ext} from ${source_ext}\n";
+        return 1;
+    }
+
+    # Generate the unit test program
+    my ($source2, $section_list) = &parse_ut_source($ut_source_name);
+    if (!defined($source2) || !defined($section_list)) {
+        exit 1;
+    }
+    $section_list = &filter_out_disabled_functions($source2, $section_list, $source_ext);
+    if (!defined($section_list)) {
+        exit 1;
+    }
+    if (!&generate_code($ut_source_name, $language, $source2, $section_list,
+                        $ut_program_name)) {
+        exit 1;
+    }
+
+    # Don't attempt to compile if what is requested is a source file
+    if ($ut_target =~ /\.c$/ || $ut_target =~ /\.cpp$/) {
+        return 0;
+    }
+
+    my $env = ($PLATFORM eq "linux" ? "LC_ALL=C " : "");
+    my $compile = "${env} @{compile_cmd} -o ${ut_target} -c ${ut_program_name}";
+
+    if (!open(COMPILATION, "${compile} 2>&1 |")) {
+        print STDERR "failed compiling unit test '${ut_source_name}'\n";
+        exit 1;
+    }
+    my @compilation_messages = <COMPILATION>;
+    close(COMPILATION);
+
+    # No need to keep the source of the generated program
+    unlink($ut_program_name) unless &keep_temp;
+
+    for my $msg (@compilation_messages) {
+        print $msg;
+        # \b (word boundary) necessary to avoid catching -Werror for example
+        $compilation_errors++ if $msg =~ /\b[Ee]rror|[Ww]arning\b/;
+    }
+
+    return $compilation_errors == 0 ? 0 : 1;
+}
+
+$ut_build_template = $ENV{"UT_BUILD_TEMPLATE"};
+if (defined($ut_build_template)) {
+    if (!-e $ut_build_template) {
+        print STDERR "specified template '${ut_build_template}' does not exist\n";
+        exit 1;
+    }
+} else {
+    my $template_name = "ut_build_template.c";
+    foreach my $template_path (@TEMPLATE_PATHS) {
+        my $template = File::Spec->catfile($template_path, $template_name);
+        if (-e $template) {
+            $ut_build_template = $template;
+            last;
+        }
+    }
+    if (!defined($ut_build_template)) {
+        print STDERR "cannot find '${template_name}' in @{TEMPLATE_PATHS}\n";
+        exit 1;
+    }
+}
+
+my $result = &build_unit_test($ut_source, $ut_target, @compile_cmd);
+exit $result;
