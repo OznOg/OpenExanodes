@@ -72,7 +72,7 @@ ut_test(command_missing_license)
         };
     int argc = sizeof(argv)/sizeof(char*);
 
-    test_command_parsing_fail<exa_clcreate>(argc, argv);
+    test_command_parsing_ok<exa_clcreate>(argc, argv);
 }
 
 ut_test(command_missing_disks)
