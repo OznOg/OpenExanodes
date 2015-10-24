@@ -9,6 +9,7 @@
 #ifndef __NBD_TCP_H_
 #define __NBD_TCP_H_
 
+#include "nbd/common/nbd_common.h"
 #include "common/include/exa_nodeset.h"
 
 int init_tcp(nbd_tcp_t *nbd_tcp, const char *hostname, const char *net_type,

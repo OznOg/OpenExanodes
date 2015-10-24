@@ -43,30 +43,26 @@
  *   the plugin must do fake receive and don't break the connection, it must
  *   contiunue to work.
  */
-#include <stdio.h>
-#include <stdlib.h>
-#include <sys/types.h>
-#include <string.h>
-#include <errno.h>
+#include "nbd/common/nbd_common.h"
+#include "nbd/common/nbd_tcp.h"
 
-#include "common/include/exa_error.h"
+#include "log/include/log.h"
+
 #include "common/include/exa_constants.h"
-#include "os/include/os_mem.h"
+#include "common/include/exa_error.h"
 #include "common/include/exa_select.h"
 #include "common/include/exa_socket.h"
 #include "common/include/threadonize.h"
-#include "log/include/log.h"
-#include "nbd/common/nbd_common.h"
-#include "nbd/common/nbd_tcp.h"
-#include "rdev/include/exa_rdev.h"
-#include "os/include/os_thread.h"
-#include "os/include/os_time.h"
-#include "os/include/os_network.h"
+
+#include "os/include/os_compiler.h"
 #include "os/include/os_error.h"
 #include "os/include/os_file.h"
-#include "os/include/os_compiler.h"
+#include "os/include/os_mem.h"
+#include "os/include/os_network.h"
 #include "os/include/os_semaphore.h"
 #include "os/include/os_string.h"
+#include "os/include/os_thread.h"
+#include "os/include/os_time.h"
 
 #define MIN_THREAD_STACK_SIZE_OF_THIS_PLUGIN (4096*14)
 
