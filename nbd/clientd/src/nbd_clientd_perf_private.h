@@ -21,6 +21,11 @@ struct ndev_perf
     exaperf_sensor_t *clientd_dur[2];
 };
 
+typedef struct {
+    bool     read;        /**< is IO a read operation ? */
+    uint64_t submit_date; /**< Date of the request reception in clientd */
+} perf_data_t;
+
 #ifdef WITH_PERF
 
 int __clientd_perf_init(void);
@@ -28,16 +33,16 @@ void __clientd_perf_cleanup(void);
 
 void __clientd_perf_dev_init(struct ndev_perf *perf_info, const exa_uuid_t *uuid);
 
-void __clientd_perf_make_request(const nbd_io_desc_t *io);
-void __clientd_perf_end_request(struct ndev_perf *perf_infos, const nbd_io_desc_t *io);
+void __clientd_perf_make_request(perf_data_t *io_perf, bool read);
+void __clientd_perf_end_request(struct ndev_perf *dev_perf, const perf_data_t *io_perf);
 
 #define clientd_perf_init()     __clientd_perf_init()
 #define clientd_perf_cleanup()  __clientd_perf_cleanup()
 
 #define clientd_perf_dev_init(perf_info, uuid)  __clientd_perf_dev_init(perf_info, uuid)
 
-#define clientd_perf_make_request(io)  __clientd_perf_make_request(io)
-#define clientd_perf_end_request(infos, header)   __clientd_perf_end_request(infos, header)
+#define clientd_perf_make_request(io, read)  __clientd_perf_make_request(io, read)
+#define clientd_perf_end_request(dev_perf, io_perf)   __clientd_perf_end_request(dev_perf, io_perf)
 
 #else /* WITH_PERF */
 
@@ -46,8 +51,8 @@ void __clientd_perf_end_request(struct ndev_perf *perf_infos, const nbd_io_desc_
 
 #define clientd_perf_dev_init(perf_info, uuid)
 
-#define clientd_perf_make_request(io)
-#define clientd_perf_end_request(infos, header)
+#define clientd_perf_make_request(io, read)
+#define clientd_perf_end_request(dev_perf, io_perf)
 
 #endif  /* WITH_PERF */
 

@@ -51,6 +51,9 @@ struct bd_kerneluser_queue
     blockdevice_io_t *bio;
     ndev_t *ndev;
     nbd_io_desc_t io;
+#ifdef WITH_PERF
+    perf_data_t perfs;
+#endif
 };
 
 /* User structure pointer get by kernel mmap This structure must be read only */
@@ -124,7 +127,7 @@ void exa_bd_end_request(const nbd_io_desc_t *io)
     EXA_ASSERT(bdq->io.req_num == io->req_num);
 
     nbd_stat_request_done(&bdq->ndev->stats, io);
-    clientd_perf_end_request(&bdq->ndev->perfs, io);
+    clientd_perf_end_request(&bdq->ndev->perfs, &bdq->perfs);
 
     nbd_list_post(&request_root_list.free, bdq, -1);
 
@@ -373,7 +376,7 @@ static void exa_bdmake_request(ndev_t *ndev, blockdevice_io_t *bio)
 
     nbd_stat_request_begin(&ndev->stats, &bdq->io);
 
-    clientd_perf_make_request(&bdq->io);
+    clientd_perf_make_request(&bdq->perfs, bdq->bio->type == BLOCKDEVICE_IO_READ);
 
     header_sending(bdq->ndev->holder_id, &bdq->io);
 }

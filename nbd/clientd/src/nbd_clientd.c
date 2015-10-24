@@ -237,7 +237,7 @@ static int cleanup_clientd(void)
 
     err = stop_threads();
 
-    clientd_perf_cleanup();
+    exa_perf_instance_static_clean();
 
     return err;
 }

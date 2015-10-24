@@ -30,11 +30,6 @@ typedef struct {
     bool bypass_lock;     /**< tells if the IO can bypass rebuilding lock */
     bool flush_cache;     /**< tells if the IO needs a disk cache synchronization (barrier) */
     void *buf;
-#ifdef WITH_PERF
-    uint64_t submit_date;           /**< Date of the request reception in clientd        */
-    uint64_t header_submit_date;    /**< Date of the header reception in serverd         */
-    uint64_t data_submit_date;      /**< Date of the data reception in serverd           */
-#endif
 } __attribute__((__packed__)) nbd_io_desc_t;
 
 #define NBD_HEADER_NET_SIZE (sizeof(nbd_io_desc_t) - sizeof(void *))

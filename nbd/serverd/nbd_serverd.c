@@ -53,8 +53,6 @@ server_t nbd_server;
 /* callback function from plugin to release the buffer */
 static void tcp_server_end_sending(const nbd_io_desc_t *io, int error)
 {
-    serverd_perf_end_request(io);
-
     if (io->sector_nb > 0 && io->buf != NULL)
         nbd_list_post(&nbd_server.ti_queue.free, io->buf, -1);
 }
@@ -74,6 +72,8 @@ static void nbd_server_send(exa_nodeid_t to, const nbd_io_desc_t *io)
 void nbd_server_end_io(header_t *req)
 {
     nbd_server_send(req->from, &req->io);
+
+    serverd_perf_end_request(&req->serv_perf);
 
     nbd_list_post(&nbd_server.list_root.free, req, -1);
 }
@@ -97,7 +97,11 @@ static void nbd_recv_processing(exa_nodeid_t from, const nbd_io_desc_t *io, int 
         EXA_ASSERT(io->buf != NULL);
 
         req_header->io.result = 0;
-        serverd_perf_make_request(&req_header->io);
+        /* FIXME Knowing that operation is a read or write seems really useless
+         * for perfs here... this should be done by rdev perfs... */
+        serverd_perf_make_request(&req_header->serv_perf,
+                                  io->request_type == NBD_REQ_TYPE_READ,
+                                  io->sector, io->sector_nb);
         nbd_list_post(&nbd_server.devices[io->disk_id]->disk_queue, req_header, -1);
     }
     else
@@ -109,6 +113,7 @@ static void nbd_recv_processing(exa_nodeid_t from, const nbd_io_desc_t *io, int 
         err_io = *io;
         err_io.result = -EIO;
         nbd_server_send(from, &err_io);
+        /* FIXME no perf measurment is done in the error path. */
     }
     os_thread_mutex_unlock(&nbd_server.mutex_edevs);
 }

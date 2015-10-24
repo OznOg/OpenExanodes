@@ -15,6 +15,7 @@
 
 #ifdef WITH_PERF
 #include "exaperf/include/exaperf.h"
+#include "nbd/serverd/nbd_serverd_perf.h"
 #endif
 
 #include "common/include/uuid.h"
@@ -76,6 +77,9 @@ typedef struct
             uint32_t sector_nb;
         } lock;
     };
+#ifdef WITH_PERF
+    serv_perf_t serv_perf;
+#endif
 } header_t;
 
 struct server

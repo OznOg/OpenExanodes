@@ -79,66 +79,46 @@ void __serverd_perf_sensor_init(void)
     data_dur = exaperf_duration_init(eh, "NBD_SERVER_DATA_DUR_WRITE", true);
 }
 
-void __serverd_perf_make_request(const nbd_io_desc_t *io)
+void __serverd_perf_make_request(serv_perf_t *serv_perf, bool read,
+                                 uint64_t sector, uint64_t sector_nb)
 {
     uint64_t lba_in_kbytes;
     uint64_t now_ms;
     double inter_arrival;
     double dist;
-    int rw = -1;
+    int rw = read ? __READ : __WRITE;
 
-    EXA_ASSERT(NBD_REQ_TYPE_IS_VALID(io->request_type));
-    switch (io->request_type)
-    {
-    case NBD_REQ_TYPE_READ:
-        rw = __READ;
-        break;
-    case NBD_REQ_TYPE_WRITE:
-        rw = __WRITE;
-        break;
-    }
+    serv_perf->read = read;
 
     now_ms = os_gettimeofday_msec();
 
-    lba_in_kbytes = io->sector / 2;
+    lba_in_kbytes = sector / 2;
     /* add the lba in MB in the repartition */
     exaperf_repart_add_value(lba_repart[rw], lba_in_kbytes / 1024);
 
-    ((nbd_io_desc_t *)io)->header_submit_date = now_ms;
+    serv_perf->header_submit_date = now_ms;
 
     inter_arrival = (double)now_ms - last_req_time[rw];
-    dist = (double)io->sector - next_sector[rw];
+    dist = (double)sector - next_sector[rw];
 
     exaperf_repart_add_value(inter_arrival_repart[rw], inter_arrival);
     exaperf_repart_add_value(distance_repart[rw], dist);
-    exaperf_repart_add_value(req_size_repart[rw],
-            (io->sector_nb/2.));
-    next_sector[rw] = io->sector + io->sector_nb;
+    exaperf_repart_add_value(req_size_repart[rw], (sector_nb/2.));
+    next_sector[rw] = sector + sector_nb;
     last_req_time[rw] = now_ms;
 }
 
-void __serverd_perf_end_request(const nbd_io_desc_t *io)
+void __serverd_perf_end_request(const serv_perf_t *serv_perf)
 {
     double now = os_gettimeofday_msec();
-    int rw = -1;
-
-    EXA_ASSERT(NBD_REQ_TYPE_IS_VALID(io->request_type));
-    switch (io->request_type)
-    {
-    case NBD_REQ_TYPE_READ:
-        rw = __READ;
-        break;
-    case NBD_REQ_TYPE_WRITE:
-        rw = __WRITE;
-        break;
-    }
+    int rw = serv_perf->read ? __READ : __WRITE;
 
     exaperf_duration_record(header_dur[rw],
-			    (double)now - io->header_submit_date);
+			    (double)now - serv_perf->header_submit_date);
 
     if (rw == __WRITE)
 	exaperf_duration_record(data_dur,
-				(double)now - io->data_submit_date);
+				(double)now - serv_perf->data_submit_date);
 }
 
 
