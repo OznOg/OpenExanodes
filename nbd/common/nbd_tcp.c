@@ -518,7 +518,6 @@ static void receive_thread(void *p)
   nbd_tcp_t *nbd_tcp = p;
   tcp_plugin_t *tcp = nbd_tcp->tcp;
   struct pending_request pending_requests[EXA_MAX_NODES_NUMBER];
-  nbd_io_desc_t *temp_io_desc;
   int i;
   int ret;
   int fd_act;
@@ -541,11 +540,10 @@ static void receive_thread(void *p)
 	  fd_act = tcp->peers[i].sock;
 	  if (fd_act < 0)
 	  {
-              temp_io_desc = pending_requests[i].io_desc;
+              nbd_io_desc_t *temp_io_desc = pending_requests[i].io_desc;
               if (temp_io_desc != NULL)
               {
-		  nbd_list_post(&recv_list.free,
-				temp_io_desc, -1);
+		  nbd_list_post(&recv_list.free, temp_io_desc, -1);
                   request_reset(&pending_requests[i]);
               }
 	      continue;
@@ -588,14 +586,11 @@ static void receive_thread(void *p)
                       ret = DATA_TRANSFER_COMPLETE;
               }
 
-              temp_io_desc = request->io_desc;
-              request_reset(request);
-
               if (ret == DATA_TRANSFER_ERROR)
               {
-                  nbd_list_post(&recv_list.free,
-                                temp_io_desc, -1);
+                  nbd_list_post(&recv_list.free, request->io_desc, -1);
 
+                  request_reset(request);
                   /* FIXME this should be an exalog_error but is debug for now
                    * because when stopping clientd, serverd close its socket
                    * by this place... TODO could be nice to indicate to serverd
@@ -609,10 +604,9 @@ static void receive_thread(void *p)
                   continue;
               }
 
-              /* the netplugin must set this id at reception */
-              nbd_tcp->end_receiving(i, temp_io_desc, 0);
-              temp_io_desc->buf = NULL;
-              nbd_list_post(&recv_list.free, temp_io_desc, -1);
+              nbd_tcp->end_receiving(i, request->io_desc, 0);
+              nbd_list_post(&recv_list.free, request->io_desc, -1);
+              request_reset(request);
           }
       }
 
