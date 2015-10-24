@@ -48,9 +48,6 @@ static struct daemon_request_queue *client_requests_queue = NULL;
 /* Examsg mail box */
 static ExamsgHandle clientd_mh;
 
-static struct nbd_list recv_list;
-static struct nbd_root_list list_root;
-
 /* FIXME the was to stop clientd seems really crappy... this boolean seems
  * to be modified by every thread with the hope that something eventually
  * happen... */
@@ -160,14 +157,9 @@ static int init_clientd(const char *net_type, const char *hostname,
 	return -NBD_ERR_MOD_SESSION;
     }
 
-    /* init queue of receivable headers */
-    nbd_init_root(num_receive_headers, sizeof(header_t), &list_root);
-    nbd_init_list(&list_root, &recv_list);
-
     if (net_type == NULL)
         return -NBD_ERR_MOD_SESSION;
 
-    tcp.list = &recv_list;
     tcp.get_buffer = client_get_buffer;
 
     /* no need of end_sending because the buffer will be realesed when
@@ -176,7 +168,7 @@ static int init_clientd(const char *net_type, const char *hostname,
     tcp.end_sending = NULL;
     tcp.end_receiving = end_receiving;
 
-    retval = init_tcp(&tcp, hostname, net_type);
+    retval = init_tcp(&tcp, hostname, net_type, num_receive_headers);
     if (retval != EXA_SUCCESS)
     {
 	exalog_error("NBD clientd: failed initializing network '%s': %s (%d)",
@@ -242,7 +234,6 @@ static int cleanup_clientd(void)
     vrt_exit();
     lum_thread_stop();
 
-    nbd_close_root(&list_root);
     err = stop_threads();
 
     clientd_perf_cleanup();

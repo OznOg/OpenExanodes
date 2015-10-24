@@ -77,10 +77,6 @@ struct nbd_tcp
   void (*end_sending)(const nbd_io_desc_t *io, int error);
   void (*end_receiving)(const nbd_io_desc_t *io, int error);
 
-  /* Internal structure initialised before calling init_plugin and no
-   * more readwrite out of the plugin */
-  struct nbd_list *list;
-
   void *(*get_buffer)(const nbd_io_desc_t *io);
   /* function called by plugin to get the buffer of the plugin */
 

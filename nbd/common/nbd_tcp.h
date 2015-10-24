@@ -10,10 +10,10 @@
 #define __NBD_TCP_H_
 
 #include "common/include/exa_nodeset.h"
-#include "os/include/os_network.h"
 
-int init_tcp(struct nbd_tcp *nbd_tcp, const char *hostname,
-             const char *net_type);
+int init_tcp(nbd_tcp_t *nbd_tcp, const char *hostname, const char *net_type,
+             int num_receive_headers);
+
 void cleanup_tcp(struct nbd_tcp *nbd_tcp);
 
 int tcp_add_peer(exa_nodeid_t client_id, const char *net_id, struct nbd_tcp *tcp);

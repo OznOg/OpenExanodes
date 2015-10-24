@@ -79,6 +79,8 @@
 
 struct tcp_plugin
 {
+    struct nbd_root_list recv_list;
+
     struct {
         os_thread_t tid;
         bool        run;
@@ -395,6 +397,7 @@ static int request_recv(int fd, struct pending_request *request, nbd_tcp_t *nbd_
 static void request_processed(struct pending_request *pending_req,
                               int client_id, nbd_tcp_t *nbd_tcp, int error)
 {
+    tcp_plugin_t *tcp = nbd_tcp->tcp;
     header_t *header = pending_req->header;
 
     if (header == NULL)
@@ -407,7 +410,7 @@ static void request_processed(struct pending_request *pending_req,
 
     header->io.buf = NULL;
 
-    nbd_list_post(&nbd_tcp->list->root->free, header, -1);
+    nbd_list_post(&tcp->recv_list.free, header, -1);
 
     request_reset(pending_req);
 }
@@ -544,7 +547,7 @@ static void receive_thread(void *p)
               temp_header = pending_requests[i].header;
               if (temp_header != NULL)
               {
-		  nbd_list_post(&nbd_tcp->list->root->free,
+		  nbd_list_post(&tcp->recv_list.free,
 				temp_header, -1);
                   request_reset(&pending_requests[i]);
               }
@@ -568,7 +571,7 @@ static void receive_thread(void *p)
               struct pending_request *request = &pending_requests[i];
               if (request->header == NULL)
               {
-                  request->header = nbd_list_remove(&nbd_tcp->list->root->free,
+                  request->header = nbd_list_remove(&tcp->recv_list.free,
                                                     NULL, LISTNOWAIT);
 
                   if (request->header == NULL)
@@ -584,7 +587,7 @@ static void receive_thread(void *p)
 
               if (ret == DATA_TRANSFER_ERROR)
               {
-                  nbd_list_post(&nbd_tcp->list->root->free,
+                  nbd_list_post(&tcp->recv_list.free,
                                 temp_header, -1);
 
                   /* FIXME this should be an exalog_error but is debug for now
@@ -604,7 +607,7 @@ static void receive_thread(void *p)
               temp_header->io.client_id = i;
               nbd_tcp->end_receiving(&temp_header->io, 0);
               temp_header->io.buf = NULL;
-              nbd_list_post(&nbd_tcp->list->root->free, temp_header, -1);
+              nbd_list_post(&tcp->recv_list.free, temp_header, -1);
           }
       }
 
@@ -617,7 +620,7 @@ static void receive_thread(void *p)
 int tcp_send_data(struct nbd_tcp *nbd_tcp, const nbd_io_desc_t *io)
 {
     tcp_plugin_t *tcp = nbd_tcp->tcp;
-    header_t *data_header = nbd_list_remove(&nbd_tcp->list->root->free, NULL, LISTWAIT);
+    header_t *data_header = nbd_list_remove(&tcp->recv_list.free, NULL, LISTWAIT);
     EXA_ASSERT(data_header != NULL);
 
     data_header->type = NBD_HEADER_RH;
@@ -629,7 +632,7 @@ int tcp_send_data(struct nbd_tcp *nbd_tcp, const nbd_io_desc_t *io)
     {
         os_thread_rwlock_unlock(&tcp->peers_lock);
 
-        nbd_list_post(&nbd_tcp->list->root->free, data_header, -1);
+        nbd_list_post(&tcp->recv_list.free, data_header, -1);
         return -NBD_ERR_NO_CONNECTION;
     }
 
@@ -970,6 +973,8 @@ static void __cleanup_data(struct nbd_tcp *nbd_tcp)
 
     os_net_cleanup();
 
+    nbd_close_root(&tcp->recv_list);
+
     os_free(tcp);
     nbd_tcp->tcp = NULL;
 }
@@ -989,7 +994,8 @@ void cleanup_tcp(struct nbd_tcp *nbd_tcp)
  * @param nbd_tcp info on the new instance that we will fill
  * @return EXA_SUCCESS or error
  */
-int init_tcp(nbd_tcp_t *nbd_tcp, const char *hostname, const char *net_type)
+int init_tcp(nbd_tcp_t *nbd_tcp, const char *hostname, const char *net_type,
+             int num_receive_headers)
 {
   tcp_plugin_t *tcp;
   int err, i;
@@ -1011,13 +1017,16 @@ int init_tcp(nbd_tcp_t *nbd_tcp, const char *hostname, const char *net_type)
 
   os_thread_rwlock_init(&tcp->peers_lock);
 
+  /* init queue of receivable headers */
+  nbd_init_root(num_receive_headers, sizeof(header_t), &tcp->recv_list);
+
   for (i = 0; i < EXA_MAX_NODES_NUMBER; i++)
   {
       struct peer *peer = &tcp->peers[i];
       peer->sock       = -1;
       peer->node_id    = EXA_NODEID_NONE;
       peer->ip_addr[0] = '\0';
-      nbd_init_list(nbd_tcp->list->root, &peer->send_list);
+      nbd_init_list(&tcp->recv_list, &peer->send_list);
   }
   tcp->last_peer_idx = 0;
 

@@ -85,9 +85,6 @@ struct server
   os_thread_t rebuild_helper_id;
 
   struct nbd_root_list list_root;
-  /* queue of requests headers and data waiting to be processed by the
-   * server */
-  struct nbd_root_list tr_headers_queue;
 
   /* queue of buffers managed by TI to handle requests server side */
   struct nbd_root_list ti_queue;

@@ -144,10 +144,10 @@ static int init_tcp_server(const char *net_type)
     nbd_server.tcp->end_sending = tcp_server_end_sending;
     nbd_server.tcp->end_receiving = nbd_recv_processing;
     nbd_server.tcp->get_buffer = server_get_buffer;
-    nbd_server.tcp->list = &nbd_server.tr_headers_queue.free;
 
     /* we will not export our buffer */
-    err = init_tcp(nbd_server.tcp, nbd_server.node_name, net_type);
+    err = init_tcp(nbd_server.tcp, nbd_server.node_name, net_type,
+                   nbd_server.num_receive_headers);
 
     if (err == EXA_SUCCESS)
         err = tcp_start_listening(nbd_server.tcp);
@@ -182,8 +182,6 @@ static int init_serverd(char *net_type)
     /* First : initialising shared queue */
     nbd_init_root(nbd_server.num_receive_headers, sizeof(header_t),
 		  &nbd_server.list_root);
-    nbd_init_root(nbd_server.num_receive_headers, sizeof(header_t),
-                  &nbd_server.tr_headers_queue);
     nbd_init_root(nbd_server.num_receive_headers, /* as many buffer as headers. */
 		  nbd_server.bd_buffer_size, &nbd_server.ti_queue);
 
