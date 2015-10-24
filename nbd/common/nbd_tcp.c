@@ -79,7 +79,7 @@
 
 struct tcp_plugin
 {
-    struct nbd_root_list recv_list;
+    struct nbd_root_list send_list;
 
     /** address which is used by the lib to bind its sockets */
     struct in_addr data_addr;
@@ -118,11 +118,12 @@ struct tcp_plugin
 static int TCP_buffers;
 
 struct pending_request
-  {
+{
     nbd_io_desc_t *io_desc;
     char *buffer;
+    size_t buf_size;
     int nb_readwrite;
-  };
+};
 
 static void close_socket(int socket)
 {
@@ -413,7 +414,7 @@ static void request_processed(struct pending_request *pending_req,
 
     io_desc->buf = NULL;
 
-    nbd_list_post(&tcp->recv_list.free, io_desc, -1);
+    nbd_list_post(&tcp->send_list.free, io_desc, -1);
 
     request_reset(pending_req);
 }
@@ -523,6 +524,7 @@ static void send_thread(void *p)
  */
 static void receive_thread(void *p)
 {
+  struct nbd_root_list recv_list;
   nbd_tcp_t *nbd_tcp = p;
   tcp_plugin_t *tcp = nbd_tcp->tcp;
   struct pending_request pending_requests[EXA_MAX_NODES_NUMBER];
@@ -533,6 +535,8 @@ static void receive_thread(void *p)
   exa_select_handle_t *sh = exa_select_new_handle();
   /* FIXME: handle the case when we have more than 1024 open file (limit of fd_set) */
   fd_set fds;
+
+  nbd_init_root(EXA_MAX_NODES_NUMBER, sizeof(nbd_io_desc_t), &recv_list);
 
   for (i = 0; i < EXA_MAX_NODES_NUMBER; i++)
     request_reset(&pending_requests[i]);
@@ -550,7 +554,7 @@ static void receive_thread(void *p)
               temp_io_desc = pending_requests[i].io_desc;
               if (temp_io_desc != NULL)
               {
-		  nbd_list_post(&tcp->recv_list.free,
+		  nbd_list_post(&recv_list.free,
 				temp_io_desc, -1);
                   request_reset(&pending_requests[i]);
               }
@@ -574,7 +578,7 @@ static void receive_thread(void *p)
               struct pending_request *request = &pending_requests[i];
               if (request->io_desc == NULL)
               {
-                  request->io_desc = nbd_list_remove(&tcp->recv_list.free,
+                  request->io_desc = nbd_list_remove(&recv_list.free,
                                                     NULL, LISTNOWAIT);
 
                   if (request->io_desc == NULL)
@@ -590,7 +594,7 @@ static void receive_thread(void *p)
 
               if (ret == DATA_TRANSFER_ERROR)
               {
-                  nbd_list_post(&tcp->recv_list.free,
+                  nbd_list_post(&recv_list.free,
                                 temp_io_desc, -1);
 
                   /* FIXME this should be an exalog_error but is debug for now
@@ -610,12 +614,14 @@ static void receive_thread(void *p)
               temp_io_desc->client_id = i;
               nbd_tcp->end_receiving(temp_io_desc, 0);
               temp_io_desc->buf = NULL;
-              nbd_list_post(&tcp->recv_list.free, temp_io_desc, -1);
+              nbd_list_post(&recv_list.free, temp_io_desc, -1);
           }
       }
 
       os_thread_rwlock_unlock(&tcp->peers_lock);
   }
+
+  nbd_close_root(&recv_list);
 
   exa_select_delete_handle(sh);
 }
@@ -623,7 +629,7 @@ static void receive_thread(void *p)
 int tcp_send_data(struct nbd_tcp *nbd_tcp, const nbd_io_desc_t *io)
 {
     tcp_plugin_t *tcp = nbd_tcp->tcp;
-    nbd_io_desc_t *io_desc = nbd_list_remove(&tcp->recv_list.free, NULL, LISTWAIT);
+    nbd_io_desc_t *io_desc = nbd_list_remove(&tcp->send_list.free, NULL, LISTWAIT);
     EXA_ASSERT(io_desc != NULL);
 
     *io_desc = *io;
@@ -634,7 +640,7 @@ int tcp_send_data(struct nbd_tcp *nbd_tcp, const nbd_io_desc_t *io)
     {
         os_thread_rwlock_unlock(&tcp->peers_lock);
 
-        nbd_list_post(&tcp->recv_list.free, io_desc, -1);
+        nbd_list_post(&tcp->send_list.free, io_desc, -1);
         return -NBD_ERR_NO_CONNECTION;
     }
 
@@ -976,7 +982,7 @@ static void __cleanup_data(struct nbd_tcp *nbd_tcp)
 
     os_net_cleanup();
 
-    nbd_close_root(&tcp->recv_list);
+    nbd_close_root(&tcp->send_list);
 
     os_free(tcp);
     nbd_tcp->tcp = NULL;
@@ -1021,7 +1027,7 @@ int init_tcp(nbd_tcp_t *nbd_tcp, const char *hostname, const char *net_type,
   os_thread_rwlock_init(&tcp->peers_lock);
 
   /* init queue of receivable headers */
-  nbd_init_root(num_receive_headers, sizeof(nbd_io_desc_t), &tcp->recv_list);
+  nbd_init_root(num_receive_headers, sizeof(nbd_io_desc_t), &tcp->send_list);
 
   for (i = 0; i < EXA_MAX_NODES_NUMBER; i++)
   {
@@ -1029,7 +1035,7 @@ int init_tcp(nbd_tcp_t *nbd_tcp, const char *hostname, const char *net_type,
       peer->sock       = -1;
       peer->node_id    = EXA_NODEID_NONE;
       peer->ip_addr[0] = '\0';
-      nbd_init_list(&tcp->recv_list, &peer->send_list);
+      nbd_init_list(&tcp->send_list, &peer->send_list);
   }
   tcp->last_peer_idx = 0;
 
