@@ -115,6 +115,8 @@ struct tcp_plugin
 
         /* Internal structure initialised before calling init_plugin used to send data */
         struct nbd_list send_list;
+
+        send_desc_t *pending_send;
     } peers[EXA_MAX_NODES_NUMBER];
     int last_peer_idx; /*< keep record of the last peer idx that was
                            registered in order not to go through the whole
@@ -413,42 +415,31 @@ static void send_thread(void *p)
 {
   nbd_tcp_t *nbd_tcp = p;
   tcp_plugin_t *tcp = nbd_tcp->tcp;
-  send_desc_t *pending_send[EXA_MAX_NODES_NUMBER];
-  int i;
-  int ret;
-  fd_set fds;
   exa_select_handle_t *sh = exa_select_new_handle();
-  int fd_act;
-  bool active_sock;
-
-  for (i = 0; i < EXA_MAX_NODES_NUMBER; i++)
-      pending_send[i] = NULL;
 
   while (tcp->send_thread.run)
   {
+      int i, ret;
+      fd_set fds;
+      bool active_sock = false;
       FD_ZERO(&fds);
 
       /* if one node is added or deleted, this deletion or addition are
          effective after this */
       os_thread_rwlock_rdlock(&tcp->peers_lock);
-      active_sock = false;
       for (i = 0; i <= tcp->last_peer_idx; i++)
       {
-          send_desc_t *request = pending_send[i];
+          struct peer *peer = &tcp->peers[i];
 
-	  fd_act = tcp->peers[i].sock;
-	  if (fd_act < 0)
-	  {
-	      request_processed(request, i, nbd_tcp, -1);
+	  if (peer->sock < 0)
 	      continue;
-	  }
-          if (request == NULL)
-              request = nbd_list_remove(&tcp->peers[i].send_list,
-                                                NULL, LISTNOWAIT);
-          if (request != NULL)
+
+          if (peer->pending_send == NULL)
+              peer->pending_send = nbd_list_remove(&peer->send_list,
+                                                   NULL, LISTNOWAIT);
+          if (peer->pending_send != NULL)
           {
-              pending_send[i] = request;
-	      FD_SET(fd_act, &fds);
+	      FD_SET(peer->sock, &fds);
               active_sock = true;
           }
       }
@@ -466,30 +457,28 @@ static void send_thread(void *p)
       for (i = 0; i <= tcp->last_peer_idx; i++)
       {
           struct peer *peer = &tcp->peers[i];
-	  if (pending_send[i] != NULL
+	  if (peer->pending_send != NULL
               /* Also check the socket is still valid because there is a race
                * with remove_peer function, thus the socket may be -1 even
                * if it was valid in the first part of loop. see bug #4581 and
                * #4607 */
 	      && peer->sock >= 0 && FD_ISSET(peer->sock, &fds))
 	  {
-		  /* there is a pending send */
-		  send_desc_t *request = pending_send[i];
 		  /* send remaining data if any */
-		  ret = request_send(peer->sock, request);
+		  ret = request_send(peer->sock, peer->pending_send);
 		  switch(ret)
 		  {
 		  case DATA_TRANSFER_COMPLETE:
-                      request_processed(request, i, nbd_tcp, 0);
-                      pending_send[i] = NULL;
+                      request_processed(peer->pending_send, i, nbd_tcp, 0);
+                      peer->pending_send = NULL;
                       break;
 
 		  case DATA_TRANSFER_ERROR:
                       exalog_error("Failed to sending data to '%s' id=%d "
                                    "socket=%d", peer->ip_addr,
                                    peer->node_id, peer->sock);
-                      request_processed(request, i, nbd_tcp, -1);
-                      pending_send[i] = NULL;
+                      request_processed(peer->pending_send, i, nbd_tcp, -1);
+                      peer->pending_send = NULL;
                       close_socket(peer->sock);
                       peer->sock = -1;
                       break;
@@ -1037,9 +1026,10 @@ int init_tcp(nbd_tcp_t *nbd_tcp, const char *hostname, const char *net_type,
   for (i = 0; i < EXA_MAX_NODES_NUMBER; i++)
   {
       struct peer *peer = &tcp->peers[i];
-      peer->sock       = -1;
-      peer->node_id    = EXA_NODEID_NONE;
-      peer->ip_addr[0] = '\0';
+      peer->sock         = -1;
+      peer->node_id      = EXA_NODEID_NONE;
+      peer->ip_addr[0]   = '\0';
+      peer->pending_send = NULL;
       nbd_init_list(&tcp->send_list, &peer->send_list);
   }
   tcp->last_peer_idx = 0;
