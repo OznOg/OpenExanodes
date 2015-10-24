@@ -127,13 +127,13 @@ struct tcp_plugin
 
 static int TCP_buffers;
 
-struct pending_request
+typedef struct pending_recv
 {
     nbd_io_desc_t *io_desc;
     char *buffer;
     size_t buf_size;
     int nb_readwrite;
-};
+} pending_recv_t;
 
 static void close_socket(int socket)
 {
@@ -283,7 +283,7 @@ static void accept_thread(void *p)
   }
 }
 
-static void request_reset(struct pending_request *request)
+static void request_reset(pending_recv_t *request)
 {
   request->nb_readwrite = 0;
   request->io_desc = NULL;
@@ -345,7 +345,7 @@ static transfer_status_t request_send(int fd, send_desc_t *send_desc)
  *   DATA_TRANSFER_PENDING   if some remaining data to transfer
  *   DATA_TRANSFER_NEED_BUFFER payload data upcoming but no buffer yet.
  */
-static transfer_status_t request_recv(int fd, struct pending_request *request)
+static transfer_status_t request_recv(int fd, pending_recv_t *request)
 {
     int ret;
 
@@ -504,7 +504,7 @@ static void receive_thread(void *p)
   struct nbd_root_list recv_list;
   nbd_tcp_t *nbd_tcp = p;
   tcp_plugin_t *tcp = nbd_tcp->tcp;
-  struct pending_request pending_requests[EXA_MAX_NODES_NUMBER];
+  pending_recv_t pending_requests[EXA_MAX_NODES_NUMBER];
   exa_select_handle_t *sh = exa_select_new_handle();
   int i;
 
@@ -548,7 +548,7 @@ static void receive_thread(void *p)
           struct peer *peer = &tcp->peers[i];
 	  if (peer->sock >= 0 && FD_ISSET(peer->sock ,&fds))
           {
-              struct pending_request *request = &pending_requests[i];
+              pending_recv_t *request = &pending_requests[i];
               if (request->io_desc == NULL)
               {
                   request->io_desc = nbd_list_remove(&recv_list.free,
