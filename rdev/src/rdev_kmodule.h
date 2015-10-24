@@ -21,6 +21,10 @@
 
 typedef struct {
     void *nbd_private;
+    struct {
+        uint64_t data1;
+        bool data2;
+    } private_perf_data;
 } user_land_io_handle_t;
 
 struct exa_rdev_request_kernel

@@ -51,12 +51,6 @@ struct device
   /* used for lock/unlocking of zone */
   int locking_return;
   os_sem_t lock_sem_disk;
-
-#ifdef WITH_PERF
-    exaperf_sensor_t *rdev_dur[2];
-    exaperf_sensor_t *inter_arrival_repart[2];
-    uint64_t last_req_time[2];
-#endif
 };
 
 typedef struct device device_t;

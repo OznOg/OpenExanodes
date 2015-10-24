@@ -10,6 +10,8 @@
 #include "nbd/common/nbd_common.h"
 #include "nbd/serverd/nbd_serverd_perf.h"
 
+#include "common/include/exa_perf_instance.h" /* for 'exa_perf_instance_get' */
+
 #include "log/include/log.h"
 
 #include "os/include/os_error.h"
@@ -45,75 +47,10 @@ static exaperf_sensor_t *data_dur;
 static uint64_t last_req_time[2] = {0, 0};
 static uint64_t next_sector[2] = {0, 0};
 
-static exaperf_t *eh = NULL;
-
-exaperf_t *serverd_get_exaperf(void)
-{
-    return eh;
-}
-
-
-static void serverd_perf_print(const char *fmt, ...)
-{
-    va_list ap;
-    char log[EXALOG_MSG_MAX + 1];
-
-    va_start(ap, fmt);
-    os_vsnprintf(log, EXALOG_MSG_MAX + 1, fmt, ap);
-    va_end(ap);
-
-    exalog_info("%s", log);
-}
-
-
-int __serverd_perf_init(void)
-{
-    const char *perf_config;
-    exaperf_err_t err;
-
-    eh = exaperf_alloc();
-    if (eh == NULL)
-    {
-        exalog_error("Failed initializing exaperf");
-        return -ENOMEM;
-    }
-
-    perf_config = getenv("EXANODES_PERF_CONFIG");
-    if (perf_config == NULL)
-    {
-        exalog_debug("No perf config set");
-        return 0;
-    }
-
-    /* initialize the component */
-    err = exaperf_init(eh, perf_config, serverd_perf_print);
-    switch (err)
-    {
-    case EXAPERF_SUCCESS:
-        exalog_info("Loaded perf config '%s'", perf_config);
-        return EXA_SUCCESS;
-
-    case EXAPERF_CONF_FILE_OPEN_FAILED:
-        exalog_warning("Perf config '%s' not found, ignored", perf_config);
-        exaperf_free(eh);
-        eh = NULL;
-        return EXA_SUCCESS;
-
-    default:
-        /* FIXME Use error string instead of error code */
-        exalog_error("Failed loading perf config '%s' (%d)", perf_config, err);
-        return -EINVAL;
-    }
-}
-
-void __serverd_perf_cleanup(void)
-{
-    exaperf_free(eh);
-    eh = NULL;
-}
-
 void __serverd_perf_sensor_init(void)
 {
+    exaperf_t *eh = exa_perf_instance_get();
+
     EXA_ASSERT_VERBOSE(eh != NULL, "Exaperf handle is nil");
 
     req_size_repart[__READ] = exaperf_repart_init(eh, "NBD_SERVER_REQ_SIZE_READ",

@@ -34,7 +34,6 @@ typedef struct {
     uint64_t submit_date;           /**< Date of the request reception in clientd        */
     uint64_t header_submit_date;    /**< Date of the header reception in serverd         */
     uint64_t data_submit_date;      /**< Date of the data reception in serverd           */
-    uint64_t rdev_submit_date;      /**< Data of the reqest submition to rdev in serverd */
 #endif
 } __attribute__((__packed__)) nbd_io_desc_t;
 

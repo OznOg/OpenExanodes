@@ -22,10 +22,16 @@ if (NOT WIN32)
         ${CMAKE_SOURCE_DIR}/os/include/os_assert.h
         ${CMAKE_SOURCE_DIR}/os/include/os_inttypes.h)
 
+if (WITH_PERF)
+    set(RDEV_PERF_SOURCES rdev_perf.c)
+    set(LIBPERF exa_perf_instance exaperf)
+endif (WITH_PERF)
+
     add_library(rdev STATIC
         rdev_common.c
-	rdev_linux.c)
-    target_link_libraries(rdev exa_os)
+	rdev_linux.c
+        ${RDEV_PERF_SOURCES})
+    target_link_libraries(rdev exa_os ${LIBPERF})
 
 else (NOT WIN32)
 

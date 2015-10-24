@@ -16,7 +16,6 @@
 #include "nbd/common/nbd_common.h"
 #include "nbd/serverd/nbd_disk_thread.h"
 #include "nbd/serverd/nbd_serverd.h"
-#include "nbd/serverd/rdev_perf.h"
 #include "os/include/os_stdio.h"
 #include "rdev/include/exa_rdev.h"
 
@@ -207,8 +206,6 @@ static int exa_td_process_one_request(header_t **header,
       break;
   }
 
-  rdev_perf_make_request(disk_device, req_header);
-
   /* Be carefull the 'header' pointer can be modified */
   retval = exa_rdev_make_request_new(op, (void *)header,
                                      sector + RDEV_RESERVED_AREA_IN_SECTORS,
@@ -235,8 +232,6 @@ static int exa_td_process_one_request(header_t **header,
  */
 static void handle_completed_io(device_t *disk_device, header_t *req)
 {
-    rdev_perf_end_request(disk_device, req);
-
     EXA_ASSERT(NBD_REQ_TYPE_IS_VALID(req->io.request_type));
 
     if (req->io.result != 0)
@@ -382,8 +377,6 @@ void exa_td_main(void *p)
 
   memset(&disk_device->locked_zone, 0xEE, sizeof(disk_device->locked_zone));
   disk_device->nb_locked_zone = 0;
-
-  rdev_perf_init(disk_device);
 
 #define run (!disk_device->exit_thread)
   while (run)

@@ -30,12 +30,16 @@
 
 #include "rdev/include/exa_rdev.h"
 #include "rdev/src/rdev_kmodule.h"
+#include "rdev/src/rdev_perf.h"
 
 #define EXA_RDEV_MODULE_PATH "/dev/" EXA_RDEV_MODULE_NAME
 
 struct exa_rdev_handle
 {
     int fd;
+#ifdef WITH_PERF
+    rdev_perfs_t rdev_perfs;
+#endif
 };
 
 static rdev_static_op_t init_op = RDEV_STATIC_OP_INVALID;
@@ -142,6 +146,8 @@ exa_rdev_handle_t *exa_rdev_handle_alloc(const char *path)
 	return NULL;
     }
 
+    rdev_perf_init(&handle->rdev_perfs, path);
+
     return handle;
 }
 
@@ -185,9 +191,18 @@ int exa_rdev_make_request_new(rdev_op_t op, void **nbd_private,
    * can be destroyed when leaving this function */
   req.h.nbd_private = *nbd_private;
 
+  COMPILE_TIME_ASSERT(sizeof(rdev_req_perf_t) == sizeof(req.h.private_perf_data));
+
+  rdev_perf_make_request(&handle->rdev_perfs, op == RDEV_OP_READ,
+                         (rdev_req_perf_t *)&req.h.private_perf_data);
+
   err = __ioctl_nointr(handle->fd, EXA_RDEV_MAKE_REQUEST_NEW, &req);
 
   *nbd_private = req.h.nbd_private;
+
+  if (req.h.nbd_private != NULL)
+    rdev_perf_end_request(&handle->rdev_perfs,
+                          (rdev_req_perf_t *)&req.h.private_perf_data);
 
   return err;
 }
@@ -209,6 +224,10 @@ int exa_rdev_wait_one_request(void **nbd_private,
     err = __ioctl_nointr(handle->fd, EXA_RDEV_WAIT_ONE_REQUEST, &h);
 
     *nbd_private = h.nbd_private;
+
+    if (h.nbd_private != NULL)
+        rdev_perf_end_request(&handle->rdev_perfs,
+                              (rdev_req_perf_t *)&h.private_perf_data);
 
     return err;
 }

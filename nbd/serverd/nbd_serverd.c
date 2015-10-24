@@ -24,6 +24,7 @@
 #include "common/include/exa_conversion.h"
 #include "common/include/exa_error.h"
 #include "common/include/exa_names.h"
+#include "common/include/exa_perf_instance.h" /* for 'exa_perf_instance_get' */
 #include "os/include/strlcpy.h"
 #include "log/include/log.h"
 #include "nbd/serverd/nbd_disk_thread.h"
@@ -326,7 +327,6 @@ static void server_handle_events(void *p)
 
 	case NBDCMD_QUIT:
 	    /* message to close all threads and quit */
-            serverd_perf_cleanup();
 	    retval = EXA_SUCCESS;
 	    break;
 
@@ -470,7 +470,7 @@ int daemon_init(int argc, char *argv[])
     /* MUST be called BEFORE spawning threads */
     exalog_static_init();
 
-    retval = serverd_perf_init();
+    retval = exa_perf_instance_static_init();
     if (retval != EXA_SUCCESS)
     {
         exalog_error("Failed to initialize exaperf library: %s", exa_error_msg(retval));
@@ -560,6 +560,8 @@ int daemon_main(void)
     server_events_loop();
 
     clean_serverd();
+
+    exa_perf_instance_static_clean();
 
     exalog_static_clean();
 

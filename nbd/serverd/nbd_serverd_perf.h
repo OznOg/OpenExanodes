@@ -14,7 +14,6 @@
 #include "nbd/common/nbd_common.h"
 
 #ifdef WITH_PERF
-exaperf_t *serverd_get_exaperf(void);
 
 int  __serverd_perf_init(void);
 void __serverd_perf_cleanup(void);
