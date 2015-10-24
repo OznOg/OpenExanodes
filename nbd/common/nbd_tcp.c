@@ -72,6 +72,7 @@
 #define DATA_TRANSFER_COMPLETE  1
 #define DATA_TRANSFER_PENDING   0
 #define DATA_TRANSFER_ERROR    -1
+#define DATA_TRANSFER_NEED_BUFFER -3
 
 typedef struct {
     void *data1;
@@ -343,8 +344,9 @@ static int request_send(int fd, send_desc_t *send_desc)
  *   DATA_TRANSFER_COMPLETE  if successfully transferred all pending data
  *                           (header and buffer if any)
  *   DATA_TRANSFER_PENDING   if some remaining data to transfer
+ *   DATA_TRANSFER_NEED_BUFFER payload data upcoming but no buffer yet.
  */
-static int request_recv(int fd, struct pending_request *request, nbd_tcp_t *nbd_tcp)
+static int request_recv(int fd, struct pending_request *request)
 {
     int ret;
 
@@ -363,13 +365,12 @@ static int request_recv(int fd, struct pending_request *request, nbd_tcp_t *nbd_
         if (request->nb_readwrite < NBD_HEADER_NET_SIZE)
             return DATA_TRANSFER_PENDING;
 
-            /* no buffer associated, so we can put immediately the header */
+        /* no buffer associated, so we can put immediately the header */
         if (request->io_desc->sector_nb == 0)
             return DATA_TRANSFER_COMPLETE;
 
-        request->buffer = nbd_tcp->get_buffer(request->io_desc);
         if (request->buffer == NULL)
-            return DATA_TRANSFER_COMPLETE;
+            return DATA_TRANSFER_NEED_BUFFER;
 
         return DATA_TRANSFER_PENDING;
     }
@@ -574,9 +575,18 @@ static void receive_thread(void *p)
                       continue;
               }
 
-              ret = request_recv(peer->sock, request, nbd_tcp);
+              ret = request_recv(peer->sock, request);
               if (ret == DATA_TRANSFER_PENDING)
                   continue;
+
+              if (ret == DATA_TRANSFER_NEED_BUFFER)
+              {
+                  request->buffer = nbd_tcp->get_buffer(request->io_desc);
+                  if (request->buffer != NULL)
+                      continue;
+                  else
+                      ret = DATA_TRANSFER_COMPLETE;
+              }
 
               temp_io_desc = request->io_desc;
               request_reset(request);
