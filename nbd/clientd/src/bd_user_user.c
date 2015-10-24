@@ -307,7 +307,6 @@ static int prepare_req_header(struct bd_kerneluser_queue *bdq, int req_index)
     bdq->io.sector_nb = BYTES_TO_SECTORS(bdq->bio->size);
     bdq->io.bypass_lock = bdq->bio->bypass_lock;
     bdq->io.flush_cache = bdq->bio->flush_cache;
-    bdq->io.buf = NULL /* Dummy field not used in clientd */;
 
     /* get network device */
     bdq->io.disk_id = bdq->ndev->server_side_disk_uid;

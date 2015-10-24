@@ -29,7 +29,6 @@ typedef struct {
     int8_t result;
     bool bypass_lock;     /**< tells if the IO can bypass rebuilding lock */
     bool flush_cache;     /**< tells if the IO needs a disk cache synchronization (barrier) */
-    void *buf;
 } __attribute__((__packed__)) nbd_io_desc_t;
 
 #define NBD_HEADER_NET_SIZE (sizeof(nbd_io_desc_t))

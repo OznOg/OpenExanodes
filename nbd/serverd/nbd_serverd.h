@@ -66,7 +66,10 @@ typedef struct
     exa_nodeid_t from;
 
     union {
-        nbd_io_desc_t io;
+        struct {
+            nbd_io_desc_t desc;
+            void *buf;
+        } io;
 
         struct {
             enum {

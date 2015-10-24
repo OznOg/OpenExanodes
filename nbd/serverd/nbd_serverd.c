@@ -67,20 +67,20 @@ static void tcp_server_end_sending(void *_io, void *_buf, void *ctx, int error)
 static void nbd_server_send(exa_nodeid_t to, header_t *req)
 {
     /* Send data only if request was a read AND was successful */
-    bool send_data = req->io.request_type == NBD_REQ_TYPE_READ
-                     && req->io.result == 0;
+    bool send_data = req->io.desc.request_type == NBD_REQ_TYPE_READ
+                     && req->io.desc.result == 0;
 
     EXA_ASSERT(req->type == NBD_HEADER_RH);
 
     if (!send_data)
     {
         nbd_list_post(&nbd_server.ti_queue.free, req->io.buf, -1);
-        req->io.buf       = NULL;
-        req->io.sector_nb = 0;
+        req->io.buf            = NULL;
+        req->io.desc.sector_nb = 0;
     }
 
-    tcp_send_data(nbd_server.tcp, to, &req->io, sizeof(req->io),
-                  req->io.buf, SECTORS_TO_BYTES(req->io.sector_nb),
+    tcp_send_data(nbd_server.tcp, to, &req->io.desc, sizeof(req->io.desc),
+                  req->io.buf, SECTORS_TO_BYTES(req->io.desc.sector_nb),
                   req);
 }
 
@@ -104,7 +104,7 @@ static bool nbd_recv_processing(exa_nodeid_t from, const nbd_io_desc_t *io, void
 
         req_header->from = from;
 
-        req_header->io = *io;
+        req_header->io.desc = *io;
         req_header->type = NBD_HEADER_RH;
 
         /* FIXME Knowing that operation is a read or write seems really useless
@@ -125,7 +125,7 @@ static bool nbd_recv_processing(exa_nodeid_t from, const nbd_io_desc_t *io, void
             req_header->io.buf = *data;
             EXA_ASSERT(req_header->io.buf != NULL);
 
-            req_header->io.result = -EINPROGRESS;
+            req_header->io.desc.result = -EINPROGRESS;
             nbd_list_post(&nbd_server.devices[io->disk_id]->disk_queue, req_header, -1);
         }
         else
@@ -133,7 +133,7 @@ static bool nbd_recv_processing(exa_nodeid_t from, const nbd_io_desc_t *io, void
             /* the disk no more exist, so we send an error to the sender
              * this send is needed by the sender and by the plugin (ibverbs) to
              * clear some allocated resources */
-            req_header->io.result = -EIO;
+            req_header->io.desc.result = -EIO;
             nbd_server_send(from, req_header);
         }
         os_thread_mutex_unlock(&nbd_server.mutex_edevs);

@@ -150,8 +150,8 @@ static bool td_is_locked(device_t *disk_device, header_t *header)
     for (i = 0; i < disk_device->nb_locked_zone; i++)
     {
         const struct locked_zone *locked_zone = &disk_device->locked_zone[i];
-        if (header->io.sector < locked_zone->sector + locked_zone->sector_count
-            && header->io.sector + header->io.sector_nb > locked_zone->sector)
+        if (header->io.desc.sector < locked_zone->sector + locked_zone->sector_count
+            && header->io.desc.sector + header->io.desc.sector_nb > locked_zone->sector)
             return true;
     }
 
@@ -185,21 +185,21 @@ static int exa_td_process_one_request(header_t **header,
   rdev_op_t op = (rdev_op_t)-1;
 
   /* submit this new request to exa_rdev and so to the disk driver */
-  sector_nb = req_header->io.sector_nb;
+  sector_nb = req_header->io.desc.sector_nb;
 
   buffer = req_header->io.buf;
 
-  sector = req_header->io.sector;
+  sector = req_header->io.desc.sector;
 
-  EXA_ASSERT(NBD_REQ_TYPE_IS_VALID(req_header->io.request_type));
-  switch (req_header->io.request_type)
+  EXA_ASSERT(NBD_REQ_TYPE_IS_VALID(req_header->io.desc.request_type));
+  switch (req_header->io.desc.request_type)
   {
   case NBD_REQ_TYPE_READ:
-      EXA_ASSERT(!req_header->io.flush_cache);
+      EXA_ASSERT(!req_header->io.desc.flush_cache);
       op = RDEV_OP_READ;
       break;
   case NBD_REQ_TYPE_WRITE:
-      if (req_header->io.flush_cache)
+      if (req_header->io.desc.flush_cache)
           op = RDEV_OP_WRITE_BARRIER;
       else
           op = RDEV_OP_WRITE;
@@ -215,7 +215,7 @@ static int exa_td_process_one_request(header_t **header,
     return RDEV_REQUEST_NOT_ENOUGH_FREE_REQ;
 
   if (*header != NULL)
-      (*header)->io.result = retval == RDEV_REQUEST_END_OK ? 0 : -EIO;
+      (*header)->io.desc.result = retval == RDEV_REQUEST_END_OK ? 0 : -EIO;
 
   if (retval < 0)
     return RDEV_REQUEST_END_ERROR;
@@ -232,13 +232,13 @@ static int exa_td_process_one_request(header_t **header,
  */
 static void handle_completed_io(device_t *disk_device, header_t *req)
 {
-    EXA_ASSERT(NBD_REQ_TYPE_IS_VALID(req->io.request_type));
+    EXA_ASSERT(NBD_REQ_TYPE_IS_VALID(req->io.desc.request_type));
 
-    if (req->io.result != 0)
+    if (req->io.desc.result != 0)
         exalog_trace("error %d: #%"PRIu64". %s (%d) %d sector at sector %"PRId64,
-                     req->io.result, req->io.req_num,
-                     (req->io.request_type == NBD_REQ_TYPE_READ) ? "READ" : "WRITE",
-                     req->io.request_type, req->io.sector_nb, req->io.sector);
+                     req->io.desc.result, req->io.desc.req_num,
+                     (req->io.desc.request_type == NBD_REQ_TYPE_READ) ? "READ" : "WRITE",
+                     req->io.desc.request_type, req->io.desc.sector_nb, req->io.desc.sector);
 
     nbd_server_end_io(req);
 }
@@ -282,7 +282,7 @@ static int wait_and_complete_one_io(device_t *disk_device)
     if (!means_finished(err))
         return err;
 
-    req->io.result = err == RDEV_REQUEST_END_OK ? 0 : -EIO;
+    req->io.desc.result = err == RDEV_REQUEST_END_OK ? 0 : -EIO;
 
     handle_completed_io(disk_device, req);
 
@@ -333,25 +333,25 @@ static int submit_req(device_t *disk_device, header_t **_req)
       return RDEV_REQUEST_NONE_ENDED;
   }
 
-  if (req->io.sector_nb == 0) /* Is a flush */
+  if (req->io.desc.sector_nb == 0) /* Is a flush */
   {
-      EXA_ASSERT(req->io.request_type == NBD_REQ_TYPE_WRITE);
+      EXA_ASSERT(req->io.desc.request_type == NBD_REQ_TYPE_WRITE);
       __wait_for_all_completion(disk_device);
       /* Once the flush is called, we wait for all pending IO to
        * finish. Upon return we have the guaranty that every
        * pending operation on disk is finished and drive is
        * flushed. */
       exa_rdev_flush(disk_device->handle);
-      req->io.result = 0;
+      req->io.desc.result = 0;
       return RDEV_REQUEST_END_OK;
   }
 
-  if (!req->io.bypass_lock && td_is_locked(disk_device, req))
+  if (!req->io.desc.bypass_lock && td_is_locked(disk_device, req))
   {
       /* Being here means that the IO cannot be done because of locks, thus
        * we send back a EAGAIN to caller to tell that the IO must be
        * re-submitted later. */
-      req->io.result = -EAGAIN;
+      req->io.desc.result = -EAGAIN;
       return RDEV_REQUEST_END_OK;
   }
 
