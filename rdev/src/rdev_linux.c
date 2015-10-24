@@ -176,15 +176,18 @@ int exa_rdev_make_request_new(rdev_op_t op, void **nbd_private,
   if (handle == NULL)
     return -1;
 
-  req.sector_nb   = sector_nb;
-  req.buffer      = buffer;
-  req.sector      = sector;
-  req.op          = op;
-  req.nbd_private = *nbd_private;
+  req.sector_nb     = sector_nb;
+  req.buffer        = buffer;
+  req.sector        = sector;
+  req.op            = op;
+
+  /* Careful: h is kept by value in kernel space, that's why the req
+   * can be destroyed when leaving this function */
+  req.h.nbd_private = *nbd_private;
 
   err = __ioctl_nointr(handle->fd, EXA_RDEV_MAKE_REQUEST_NEW, &req);
 
-  *nbd_private = req.nbd_private;
+  *nbd_private = req.h.nbd_private;
 
   return err;
 }
@@ -192,6 +195,9 @@ int exa_rdev_make_request_new(rdev_op_t op, void **nbd_private,
 int exa_rdev_wait_one_request(void **nbd_private,
                               exa_rdev_handle_t *handle)
 {
+    user_land_io_handle_t h;
+    int err;
+
     if (handle == NULL)
 	return -RDEV_ERR_NOT_OPEN;
 
@@ -200,7 +206,11 @@ int exa_rdev_wait_one_request(void **nbd_private,
 
     *nbd_private = NULL;
 
-    return __ioctl_nointr(handle->fd, EXA_RDEV_WAIT_ONE_REQUEST, nbd_private);
+    err = __ioctl_nointr(handle->fd, EXA_RDEV_WAIT_ONE_REQUEST, &h);
+
+    *nbd_private = h.nbd_private;
+
+    return err;
 }
 
 int exa_rdev_get_last_error(const exa_rdev_handle_t *handle)

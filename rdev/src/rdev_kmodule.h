@@ -19,6 +19,10 @@
 
 #include "rdev/include/exa_rdev.h"
 
+typedef struct {
+    void *nbd_private;
+} user_land_io_handle_t;
+
 struct exa_rdev_request_kernel
 {
     rdev_op_t op;
@@ -26,9 +30,8 @@ struct exa_rdev_request_kernel
     long sector_nb;
     void *buffer;
     /** Contains information belonging to the upper component
-     *  !!! it MUST NOT be used or modified by the module !!!
-     */
-    void *nbd_private;
+     *  It MUST NOT be used or modified by the module */
+    user_land_io_handle_t h;
 }  __attribute__((__packed__)) ;
 
 struct exa_rdev_major_minor
