@@ -505,12 +505,8 @@ static void receive_thread(void *p)
   nbd_tcp_t *nbd_tcp = p;
   tcp_plugin_t *tcp = nbd_tcp->tcp;
   struct pending_request pending_requests[EXA_MAX_NODES_NUMBER];
-  int i;
-  int ret;
-  int fd_act;
   exa_select_handle_t *sh = exa_select_new_handle();
-  /* FIXME: handle the case when we have more than 1024 open file (limit of fd_set) */
-  fd_set fds;
+  int i;
 
   nbd_init_root(EXA_MAX_NODES_NUMBER, sizeof(nbd_io_desc_t), &recv_list);
 
@@ -519,12 +515,14 @@ static void receive_thread(void *p)
 
   while (tcp->receive_thread.run)
   {
+      int ret;
+      fd_set fds;
       FD_ZERO(&fds);
-      /* if one node is added or deleted, this deletion or addition are effective after this */
+
       os_thread_rwlock_rdlock(&tcp->peers_lock);
       for (i = 0; i <= tcp->last_peer_idx; i++)
       {
-	  fd_act = tcp->peers[i].sock;
+          int fd_act = tcp->peers[i].sock;
 	  if (fd_act < 0)
 	  {
               nbd_io_desc_t *temp_io_desc = pending_requests[i].io_desc;
