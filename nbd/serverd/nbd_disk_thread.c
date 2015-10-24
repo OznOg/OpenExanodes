@@ -221,10 +221,7 @@ static int exa_td_process_one_request(header_t **header,
     return RDEV_REQUEST_END_ERROR;
 
   if (*header != NULL)
-  {
-      rdev_perf_end_request(disk_device, *header);
       (*header)->io.result = retval == RDEV_REQUEST_END_OK ? 0 : -EIO;
-  }
 
   return retval;
 }
