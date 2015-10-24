@@ -10,17 +10,9 @@
 
 #include "nbd/serverd/nbd_serverd.h"
 
-#define TD_START_NOTHING	0
-#define TD_START_WAITING_REQ	1
-#define TD_START_PROCESSING	3
+int exa_disk_lock_zone(device_t *dev, long first_sector, long size_in_sector);
+int exa_disk_unlock_zone(device_t *dev, long first_sector, long size_in_sector);
 
-
-extern int exa_disk_lock_zone(device_t *dev, long first_sector,
-			      long size_in_sector);
-extern int exa_disk_unlock_zone(device_t *dev, long first_sector,
-			      long size_in_sector);
-
-extern void exa_td_main(void *p);
-
+void exa_td_main(void *p);
 
 #endif /* _NBD_SERVERD_NBD_DISK_THREAD_H */
