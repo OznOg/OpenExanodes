@@ -46,5 +46,5 @@ ut_test(command_no_nodes)
         };
     int argc = sizeof(argv)/sizeof(char*);
 
-    test_command_parsing_fail<exa_vlstart>(argc, argv);
+    test_command_parsing_ok<exa_vlstart>(argc, argv);
 }

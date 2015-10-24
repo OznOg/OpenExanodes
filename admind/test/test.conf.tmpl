@@ -33,9 +33,9 @@
 <disk uuid="2D64378F:70360AA5:13D573B4:0D4C6DD0" vrt_uuid="33333333:0C4B2AF2:68F3C8CC:631FAE45"/>
 </physical>
 <logical>
-<volume name="vol"  accessmode="SHARED" goal_stopped="00000000000000000000000000000006" goal_started="00000000000000000000000000000001" goal_readonly="00000000000000000000000000000000" transaction="COMMITTED" readahead="8192" uuid="C2C3875B:73F14C5C:86125580:01EA99AC">
+<volume name="vol"  accessmode="SHARED" goal_stopped="00000000000000000000000000000006" goal_started="00000000000000000000000000000001" goal_readonly="00000000000000000000000000000000" transaction="COMMITTED" readahead="8192" uuid="C2C3875B:73F14C5C:86125580:01EA99AC" size="12345">
 </volume>
-<volume name="fs" uuid="B283965F:5EDD47A9:8C319F56:BC370A04" accessmode="PRIVATE" goal_stopped="00000000000000000000000000000003" goal_started="00000000000000000000000000000004" goal_readonly="00000000000000000000000000000000" readahead="16384" transaction="COMMITTED">
+<volume name="fs" uuid="B283965F:5EDD47A9:8C319F56:BC370A04" accessmode="PRIVATE" goal_stopped="00000000000000000000000000000003" goal_started="00000000000000000000000000000004" goal_readonly="00000000000000000000000000000000" readahead="16384" transaction="COMMITTED" size="1234500">
 <fs size="1048576" type="ext3" mountpoint="/mnt/test" transaction="COMMITTED" sfs_uuid="" sfs_nb_logs="0" mount_option=""/>
 </volume>
 </logical>
@@ -47,7 +47,7 @@
 <disk uuid="2D64378F:70360AA5:13D573B4:0D4C6DC9" vrt_uuid="66666666:0C4B2AF2:68F3C8CC:631FAE45"/>
 </physical>
 <logical>
-<volume name="vol" uuid="752FB80D:181110F3:151D40D3:0552FC55" accessmode="SHARED" goal_stopped="00000000000000000000000000000005" goal_started="00000000000000000000000000000002" goal_readonly="00000000000000000000000000000000" readahead="0" transaction="COMMITTED">
+<volume name="vol" uuid="752FB80D:181110F3:151D40D3:0552FC55" accessmode="SHARED" goal_stopped="00000000000000000000000000000005" goal_started="00000000000000000000000000000002" goal_readonly="00000000000000000000000000000000" readahead="0" transaction="COMMITTED" size="1234567890">
 </volume>
 </logical>
 </diskgroup>

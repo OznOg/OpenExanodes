@@ -96,13 +96,16 @@ static char *generate_xml_license(const char *uuid, const char *licensee,
 }
 
 #define DATA "<?xml version=\"1.0\" ?>\r\n"\
-"<!-- This license expires on 2011-05-27 -->\r\n"\
-"<license uuid=\"4D0456BD:29944A33:95736693:6C4BC253\"\r\n"\
-"    licensee=\"Sebastien\"\r\n"\
-"    expiry=\"1306454400\"\r\n"\
+"<!-- This license expires on 2076-09-05 -->\r\n"\
+"<license uuid=\"FD4D084B:CBBC4E5D:A19A4DE6:0DE84F5A\"\r\n"\
+"    type=\"full\"\r\n"\
+"    licensee=\"github\"\r\n"\
+"    expiry=\"3366489600\"\r\n"\
 "    product=\"exanodes-hpc\"\r\n"\
-"    version=\"3.0\"\r\n"\
-"    nodes=\"1024\"/>\r\n"\
+"    version=\"5.0\"\r\n"\
+"    nodes=\"400\"\r\n"\
+"    ha=\"yes\"\r\n"\
+"    maxsize=\"0\"/>\r\n"\
 
 /* The data is "incorrect" wrt to the signature in the FOOTER below */
 #define INCORRECT_DATA "<?xml version=\"1.0\" ?>\r\n"\
@@ -115,11 +118,11 @@ static char *generate_xml_license(const char *uuid, const char *licensee,
 "    nodes=\"1024\"/>\r\n"\
 
 #define HEADER "MIME-Version: 1.0\n"\
-"Content-Type: multipart/signed; protocol=\"application/x-pkcs7-signature\"; micalg=sha1; boundary=\"----94006836B2324AECDE28A3ACD1B8E6FA\"\n"\
+"Content-Type: multipart/signed; protocol=\"application/x-pkcs7-signature\"; micalg=\"sha1\"; boundary=\"----39AE5A3F57D0CEEADD3BAAEF65383438\"\n"\
 "\n"\
 "This is an S/MIME signed message\n"\
 "\n"\
-"------94006836B2324AECDE28A3ACD1B8E6FA\n"\
+"------39AE5A3F57D0CEEADD3BAAEF65383438\n"\
 
 #define INCORRECT_HEADER "MIME-Version: 1.0\n"\
 "Content-Type: multipart/signed; protocol=\"application/x-pkcs7-signature\"; micalg=sha1; boundary=\"----94006836B2324AxxxxxxxxxxxxxxxxxxxxxxxxECDE28A3ACD1B8E6FA\"\n"\
@@ -129,35 +132,36 @@ static char *generate_xml_license(const char *uuid, const char *licensee,
 "------94006836B2324AECDE28A3ACD1B8E6FA\n"\
 
 #define FOOTER "\n"\
-"------94006836B2324AECDE28A3ACD1B8E6FA\n"\
+"------39AE5A3F57D0CEEADD3BAAEF65383438\n"\
 "Content-Type: application/x-pkcs7-signature; name=\"smime.p7s\"\n"\
 "Content-Transfer-Encoding: base64\n"\
 "Content-Disposition: attachment; filename=\"smime.p7s\"\n"\
 "\n"\
-"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\n"\
+"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\n"\
+"ytiwqdlapHK9dZt0RJXGp5Dw41jDuQ==\n"\
 "\n"\
-"------94006836B2324AECDE28A3ACD1B8E6FA--\n"\
+"------39AE5A3F57D0CEEADD3BAAEF65383438--\n"\
 "\n"
 
 ut_test(license_uncypher_data_with_correct_data_returns_readable)
