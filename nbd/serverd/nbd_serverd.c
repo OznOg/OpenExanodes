@@ -58,7 +58,7 @@ static void tcp_server_end_sending(const nbd_io_desc_t *io, int error)
         nbd_list_post(&nbd_server.ti_queue.free, io->buf, -1);
 }
 
-void nbd_server_send(exa_nodeid_t to, const nbd_io_desc_t *io)
+static void nbd_server_send(exa_nodeid_t to, const nbd_io_desc_t *io)
 {
     if (io->request_type == NBD_REQ_TYPE_WRITE)
     {
@@ -70,9 +70,11 @@ void nbd_server_send(exa_nodeid_t to, const nbd_io_desc_t *io)
     /* when returning from here, caller may destroy io */
 }
 
-void nbd_server_end_io(header_t *req_header)
+void nbd_server_end_io(header_t *req)
 {
-     nbd_list_post(&nbd_server.list_root.free, req_header, -1);
+    nbd_server_send(req->from, &req->io);
+
+    nbd_list_post(&nbd_server.list_root.free, req, -1);
 }
 
 static void nbd_recv_processing(exa_nodeid_t from, const nbd_io_desc_t *io, int error)

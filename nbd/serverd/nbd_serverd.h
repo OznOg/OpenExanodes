@@ -133,8 +133,6 @@ typedef struct server server_t;
 
 extern server_t nbd_server;
 
-void nbd_server_send(exa_nodeid_t to, const nbd_io_desc_t *io);
-
 void nbd_server_end_io(header_t *req_header);
 
 #endif /* _NBD_SERVERD_NBD_SERVERD_H */
