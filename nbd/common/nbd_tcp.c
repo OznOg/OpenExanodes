@@ -623,7 +623,7 @@ static void receive_thread(void *p)
   exa_select_delete_handle(sh);
 }
 
-int tcp_send_data(struct nbd_tcp *nbd_tcp, exa_nodeid_t to, const nbd_io_desc_t *io)
+void tcp_send_data(struct nbd_tcp *nbd_tcp, exa_nodeid_t to, const nbd_io_desc_t *io)
 {
     tcp_plugin_t *tcp = nbd_tcp->tcp;
     nbd_io_desc_t *io_desc = nbd_list_remove(&tcp->send_list.free, NULL, LISTWAIT);
@@ -637,8 +637,11 @@ int tcp_send_data(struct nbd_tcp *nbd_tcp, exa_nodeid_t to, const nbd_io_desc_t 
     {
         os_thread_rwlock_unlock(&tcp->peers_lock);
 
+        if (nbd_tcp->end_sending)
+            nbd_tcp->end_sending(io_desc, -NBD_ERR_NO_CONNECTION);
+
         nbd_list_post(&tcp->send_list.free, io_desc, -1);
-        return -NBD_ERR_NO_CONNECTION;
+        return;
     }
 
     nbd_list_post(&tcp->peers[to].send_list, io_desc, -1);
@@ -646,8 +649,6 @@ int tcp_send_data(struct nbd_tcp *nbd_tcp, exa_nodeid_t to, const nbd_io_desc_t 
     os_sem_post(&tcp->send_thread.semaphore);
 
     os_thread_rwlock_unlock(&tcp->peers_lock);
-
-    return 1;
 }
 
 static int client_connect_to_server(struct in_addr *inaddr,

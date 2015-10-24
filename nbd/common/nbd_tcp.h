@@ -26,7 +26,6 @@ int tcp_start_listening(nbd_tcp_t *nbd_tcp);
 
 void tcp_stop_listening(nbd_tcp_t *nbd_tcp);
 
-int tcp_send_data(struct nbd_tcp *nbd_tcp, exa_nodeid_t to, const nbd_io_desc_t *io);
-
+void tcp_send_data(struct nbd_tcp *nbd_tcp, exa_nodeid_t to, const nbd_io_desc_t *io);
 
 #endif

@@ -66,11 +66,7 @@ void nbd_server_send(exa_nodeid_t to, const nbd_io_desc_t *io)
         ((nbd_io_desc_t *)io)->sector_nb = 0;
     }
 
-    if (tcp_send_data(nbd_server.tcp, to, io) < 0)
-    {
-        /* there are one associated buffer, so we must release it */
-        nbd_list_post(&nbd_server.ti_queue.free, io->buf, -1);
-    }
+    tcp_send_data(nbd_server.tcp, to, io);
     /* when returning from here, caller may destroy io */
 }
 
