@@ -386,7 +386,6 @@ static void handle_daemon_req_msg(const nbd_request_t *req, ExamsgID from)
     case NBDCMD_DEVICE_SUSPEND:
     case NBDCMD_DEVICE_RESUME:
     case NBDCMD_DEVICE_IMPORT:
-    case NBDCMD_DEVICE_ADD:
     case NBDCMD_DEVICE_REMOVE:
     case NBDCMD_SESSION_OPEN:
     case NBDCMD_SESSION_CLOSE:

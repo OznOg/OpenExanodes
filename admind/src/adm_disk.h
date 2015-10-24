@@ -39,7 +39,6 @@ struct adm_disk
   exa_uuid_t group_uuid; /* zeroed when the disk isn't in a group */
 
   int broken;
-  int managed_by_clientd;
   int imported;
   int suspended;
   int up_in_vrt;

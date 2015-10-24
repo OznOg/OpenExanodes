@@ -292,8 +292,8 @@ static void client_handle_events(void *p)
 
 	case NBDCMD_DEVICE_IMPORT:
 	    exalog_debug("DEVICE_IMPORT message received");
-	    err = exa_bdminor_bind_dev(&req.device_uuid, req.device_sectors,
-                                       req.device_nb);
+	    err = client_import_device(&req.device_uuid, req.node_id,
+                                       req.device_sectors, req.device_nb);
 	    break;
 
 	case NBDCMD_DEVICE_SUSPEND:
@@ -309,12 +309,6 @@ static void client_handle_events(void *p)
 	case NBDCMD_DEVICE_RESUME:
 	    exalog_debug("DEVICE_RESUME message received ");
 	    err = client_resume_device(&req.device_uuid);
-	    break;
-
-	case NBDCMD_DEVICE_ADD:
-	    exalog_debug("DEVICE_ADD message received");
-            /* FIXME node_name of req is unused. */
-	    err = client_add_device(&req.device_uuid, req.node_id);
 	    break;
 
 	case NBDCMD_DEVICE_REMOVE:
@@ -358,7 +352,6 @@ static void handle_daemon_req_msg(const nbd_request_t *req, ExamsgID from)
     case NBDCMD_DEVICE_SUSPEND:
     case NBDCMD_DEVICE_DOWN:
     case NBDCMD_DEVICE_RESUME:
-    case NBDCMD_DEVICE_ADD:
     case NBDCMD_DEVICE_REMOVE:
 	daemon_request_queue_add_request(client_requests_queue,
 					 req, sizeof(*req), from);

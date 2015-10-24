@@ -389,7 +389,8 @@ static void exa_bdmake_request(ndev_t *ndev, blockdevice_io_t *bio)
 /*
  * Create a new ndev device.
  * The ndev is created suspended and down */
-int client_add_device(const exa_uuid_t *uuid, exa_nodeid_t node_id)
+int client_import_device(const exa_uuid_t *uuid, exa_nodeid_t node_id,
+                         uint64_t size_in_sector, int device_nb)
 {
     ndev_t *ndev;
     int err, idx;
@@ -408,35 +409,56 @@ int client_add_device(const exa_uuid_t *uuid, exa_nodeid_t node_id)
 
     ndev = &device[idx];
 
+    /* FIXME  Spurious locking: what is actually being changed is ndev, not
+     * session itself. Using this lock here would mean that it should be used
+     * in make_request... which is not done */
     os_thread_rwlock_wrlock(&change_state);
 
     err = nbd_blockdevice_open(&ndev->blockdevice,
                                BLOCKDEVICE_ACCESS_RW,
                                BYTES_TO_SECTORS(bd_buffer_size),
                                exa_bdmake_request, ndev);
-    if (err == 0)
+    if (err != 0)
     {
-        ndev->free = false;
+        os_thread_rwlock_unlock(&change_state);
 
-        ndev->up = false;
-        ndev->suspended = true;
-        os_snprintf(ndev->name, sizeof(ndev->name), UUID_FMT, UUID_VAL(uuid));
-        uuid_copy(&ndev->uuid, uuid);
-        ndev->holder_id = node_id;
-
-        nbd_stat_init(&ndev->stats);
-        clientd_perf_dev_init(&ndev->perfs, uuid);
-    }
-    else
-    {
         exalog_error("Cannot add device " UUID_FMT ": %s(%d)",
                      UUID_VAL(uuid), exa_error_msg(err), err);
-        err = -EXA_ERR_CANT_GET_MINOR;
+        return -EXA_ERR_CANT_GET_MINOR;
     }
+
+    ndev->free = false;
+
+    ndev->up = false;
+    ndev->suspended = true;
+    os_snprintf(ndev->name, sizeof(ndev->name), UUID_FMT, UUID_VAL(uuid));
+    uuid_copy(&ndev->uuid, uuid);
+    ndev->holder_id = node_id;
+    ndev->server_side_disk_uid = device_nb;
+
+    nbd_stat_init(&ndev->stats);
+    clientd_perf_dev_init(&ndev->perfs, uuid);
+
+    err = blockdevice_set_sector_count(ndev->blockdevice, size_in_sector);
+    if (err != 0)
+    {
+        os_thread_rwlock_unlock(&change_state);
+
+        /*FIXME What is supposed to be done if this function fails ?
+         * Should we do some kind of roll back and free the ndev entry ? */
+
+        exalog_error("Cannot set the size %" PRIu64 "of device " UUID_FMT,
+                     size_in_sector, UUID_VAL(uuid));
+        return -NBD_ERR_SET_SIZE;
+    }
+
+    /* The device is fine, put it up */
+    ndev->up = true;
 
     os_thread_rwlock_unlock(&change_state);
 
-    return err;
+    /* set the device to UP in the module */
+    return EXA_SUCCESS;
 }
 
 int client_remove_device(const exa_uuid_t *uuid)
@@ -466,38 +488,5 @@ int client_remove_device(const exa_uuid_t *uuid)
     EXA_ASSERT(blockdevice_close(bdev) == 0);
 
     return 0;
-}
-
-int exa_bdminor_bind_dev(const exa_uuid_t *uuid, uint64_t size_in_sector,
-                         int device_nb)
-{
-    ndev_t *ndev = __get_ndev_from_uuid(uuid);
-    int err = 0;
-
-    if (ndev == NULL)
-        return -1;
-
-    ndev->server_side_disk_uid = device_nb;
-
-    /* FIXME  Spurious locking: what is actually being changed in ndev, not
-     * session itself. Using this lock here would mean that it should be used
-     * in make_request... which is not done */
-    os_thread_rwlock_wrlock(&change_state);
-
-    /* set the correct size of the block device */
-    if (ndev->blockdevice != NULL)
-        err = blockdevice_set_sector_count(ndev->blockdevice, size_in_sector);
-
-    os_thread_rwlock_unlock(&change_state);
-
-    if (err != 0)
-    {
-        exalog_error("Cannot set the size %" PRIu64 "of device " UUID_FMT,
-                     size_in_sector, UUID_VAL(uuid));
-        return -NBD_ERR_SET_SIZE;
-    }
-
-    /* set the device to UP in the module */
-    return exa_bdset_status(uuid, BDMINOR_UP);
 }
 
