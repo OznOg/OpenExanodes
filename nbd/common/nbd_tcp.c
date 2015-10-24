@@ -395,13 +395,11 @@ static int request_recv(int fd, struct pending_request *request)
     return DATA_TRANSFER_COMPLETE;
 }
 
-static void request_processed(send_desc_t *send_desc,
-                              int client_id, nbd_tcp_t *nbd_tcp, int error)
+static void request_processed(send_desc_t *send_desc, nbd_tcp_t *nbd_tcp, int error)
 {
     tcp_plugin_t *tcp = nbd_tcp->tcp;
 
-    if (send_desc == NULL)
-        return;
+    EXA_ASSERT(send_desc != NULL);
 
     if (nbd_tcp->end_sending)
         nbd_tcp->end_sending(send_desc->data1, send_desc->data2,
@@ -469,7 +467,7 @@ static void send_thread(void *p)
 		  switch(ret)
 		  {
 		  case DATA_TRANSFER_COMPLETE:
-                      request_processed(peer->pending_send, i, nbd_tcp, 0);
+                      request_processed(peer->pending_send, nbd_tcp, 0);
                       peer->pending_send = NULL;
                       break;
 
@@ -477,7 +475,7 @@ static void send_thread(void *p)
                       exalog_error("Failed to sending data to '%s' id=%d "
                                    "socket=%d", peer->ip_addr,
                                    peer->node_id, peer->sock);
-                      request_processed(peer->pending_send, i, nbd_tcp, -1);
+                      request_processed(peer->pending_send, nbd_tcp, -1);
                       peer->pending_send = NULL;
                       close_socket(peer->sock);
                       peer->sock = -1;
@@ -795,7 +793,7 @@ int tcp_add_peer(exa_nodeid_t nid, const char *ip_addr, struct nbd_tcp *nbd_tcp)
 int tcp_remove_peer(uint64_t peer_id, struct nbd_tcp *nbd_tcp)
 {
   int sock;
-  nbd_io_desc_t *header;
+  send_desc_t *header;
   tcp_plugin_t *tcp = nbd_tcp->tcp;
   struct peer *peer = &tcp->peers[peer_id];
 
@@ -818,12 +816,13 @@ int tcp_remove_peer(uint64_t peer_id, struct nbd_tcp *nbd_tcp)
   sock = peer->sock;
   peer->sock = -1;
 
+  if (peer->pending_send != NULL)
+      request_processed(peer->pending_send, nbd_tcp, -1);
+  peer->pending_send = NULL;
+
   /* remove waiting requests to be sent from the nbd_tcp list */
-  /* FIXME This SHOULD NOT be done here...
-   * The plugin should not drop nbd_io_desc_t when the connection is found broken
-   * but should just return IO error to caller in the send_thread itself. */
   while ((header = nbd_list_remove(&peer->send_list, NULL, LISTNOWAIT)) != NULL)
-      nbd_list_post(&peer->send_list.root->free, header, -1);
+      request_processed(header, nbd_tcp, -1);
 
   os_thread_rwlock_unlock(&tcp->peers_lock);
 
@@ -837,7 +836,7 @@ int tcp_remove_peer(uint64_t peer_id, struct nbd_tcp *nbd_tcp)
   os_closesocket(sock);
 
   os_thread_rwlock_unlock(&tcp->peers_lock);
-  /* this remove will have some result in more than 3-6 seconds due to the select timeout */
+
   return EXA_SUCCESS;
 }
 
