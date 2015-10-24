@@ -298,7 +298,7 @@ static void request_reset(struct pending_request *request)
  *                           (header and buffer if any)
  *   DATA_TRANSFER_PENDING   if some remaining data to transfer
  */
-static int request_send(int fd, send_desc_t *send_desc, nbd_tcp_t *nbd_tcp)
+static int request_send(int fd, send_desc_t *send_desc)
 {
     int ret;
 
@@ -475,7 +475,7 @@ static void send_thread(void *p)
 		  /* there is a pending send */
 		  send_desc_t *request = pending_send[i];
 		  /* send remaining data if any */
-		  ret = request_send(peer->sock, request, nbd_tcp);
+		  ret = request_send(peer->sock, request);
 		  switch(ret)
 		  {
 		  case DATA_TRANSFER_COMPLETE:
