@@ -126,7 +126,7 @@ void exa_bd_end_request(const nbd_io_desc_t *io)
 
     EXA_ASSERT(bdq->io.req_num == io->req_num);
 
-    nbd_stat_request_done(&bdq->ndev->stats, io);
+    nbd_stat_request_done(&bdq->ndev->stats, &bdq->io);
     clientd_perf_end_request(&bdq->ndev->perfs, &bdq->perfs);
 
     nbd_list_post(&request_root_list.free, bdq, -1);
