@@ -13,17 +13,6 @@
 
 #include "common/include/exa_nbd_list.h"
 
-struct client
-{
-    /* send receive structure */
-    struct nbd_list recv_list;
-    struct nbd_root_list list_root;
-};
-
-typedef struct client client_t;
-
-extern client_t nbd_client;
-
-void header_sending(header_t *header);
+void header_sending(const nbd_io_desc_t *io);
 
 #endif /* NBD_CLIENTD_PRIVATE_H */

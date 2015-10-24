@@ -50,7 +50,7 @@ struct bd_kerneluser_queue
 {
     blockdevice_io_t *bio;
     ndev_t *ndev;
-    int req_num;
+    nbd_io_desc_t io;
 };
 
 /* User structure pointer get by kernel mmap This structure must be read only */
@@ -121,7 +121,7 @@ void exa_bd_end_request(header_t *header)
 
     EXA_ASSERT(bdq != NULL);
 
-    EXA_ASSERT(bdq->req_num == header->io.req_num);
+    EXA_ASSERT(bdq->io.req_num == header->io.req_num);
 
     nbd_stat_request_done(&bdq->ndev->stats, header);
     clientd_perf_end_request(&bdq->ndev->perfs, header);
@@ -140,7 +140,7 @@ void *exa_bdget_buffer(int num) /* reentrant */
 
     bdq = nbd_get_elt_by_num(num % 1000 , &request_root_list);
     EXA_ASSERT(bdq != NULL);
-    EXA_ASSERT(bdq->req_num == num);
+    EXA_ASSERT(bdq->io.req_num == num);
 
     /* FIXME : buffer addresse was no always valid we can have more than
      * 1 scatter/gather buffer (legacy comment -> parse error) */
@@ -278,34 +278,32 @@ void bd_get_stats(struct nbd_stats_reply *reply, const exa_uuid_t *uuid, bool re
     nbd_get_stats(&ndev->stats, reply, reset);
 }
 
-static int prepare_req_header(struct bd_kerneluser_queue *bdq, int req_index,
-                              struct header *req_header)
+static int prepare_req_header(struct bd_kerneluser_queue *bdq, int req_index)
 {
-    req_header->io.req_num = req_index;
-    bdq->req_num = req_header->io.req_num;
+    bdq->io.req_num = req_index;
+    bdq->io.req_num = bdq->io.req_num;
 
     EXA_ASSERT(BLOCKDEVICE_IO_TYPE_IS_VALID(bdq->bio->type));
     switch (bdq->bio->type)
     {
         case BLOCKDEVICE_IO_WRITE:
-            req_header->io.request_type = NBD_REQ_TYPE_WRITE;
+            bdq->io.request_type = NBD_REQ_TYPE_WRITE;
             break;
         case BLOCKDEVICE_IO_READ:
-            req_header->io.request_type = NBD_REQ_TYPE_READ;
+            bdq->io.request_type = NBD_REQ_TYPE_READ;
             break;
     }
 
-    req_header->type = NBD_HEADER_RH;
-    req_header->io.sector = bdq->bio->start_sector;
-    req_header->io.sector_nb = BYTES_TO_SECTORS(bdq->bio->size);
-    req_header->io.bypass_lock = bdq->bio->bypass_lock;
-    req_header->io.flush_cache = bdq->bio->flush_cache;
-    req_header->io.buf = NULL /* Dummy field not used in clientd */;
+    bdq->io.sector = bdq->bio->start_sector;
+    bdq->io.sector_nb = BYTES_TO_SECTORS(bdq->bio->size);
+    bdq->io.bypass_lock = bdq->bio->bypass_lock;
+    bdq->io.flush_cache = bdq->bio->flush_cache;
+    bdq->io.buf = NULL /* Dummy field not used in clientd */;
 
     /* get network device */
-    req_header->io.disk_id = bdq->ndev->server_side_disk_uid;
+    bdq->io.disk_id = bdq->ndev->server_side_disk_uid;
 
-    req_header->io.client_id = bdq->ndev->holder_id;
+    bdq->io.client_id = bdq->ndev->holder_id;
 
     /* FIXME
      * All this tagging and numbering stuff is brain dead: when send thread
@@ -321,7 +319,6 @@ static int prepare_req_header(struct bd_kerneluser_queue *bdq, int req_index,
 static void exa_bdmake_request(ndev_t *ndev, blockdevice_io_t *bio)
 {
     int req_index;
-    header_t *req_header;
     struct bd_kerneluser_queue *bdq;
 
     /* FIXME: Does (bio->size == 0) still means the request is a barrier ?
@@ -371,19 +368,18 @@ static void exa_bdmake_request(ndev_t *ndev, blockdevice_io_t *bio)
     if (!bd_barrier_enable)
         bio->flush_cache = false;
 
-    req_header = nbd_list_remove(&nbd_client.recv_list.root->free, NULL, LISTWAIT);
-    EXA_ASSERT(req_header != NULL);
-
-    prepare_req_header(bdq, req_index, req_header);
+    prepare_req_header(bdq, req_index);
 
     /*FIXME I still don't know what this is supposed to lock here... */
     os_thread_rwlock_unlock(&change_state);
 
+#if 0
     nbd_stat_request_begin(&ndev->stats, req_header);
 
     clientd_perf_make_request(req_header);
+#endif
 
-    header_sending(req_header);
+    header_sending(&bdq->io);
 }
 
 /*
