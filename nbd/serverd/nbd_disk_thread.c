@@ -214,11 +214,11 @@ static int exa_td_process_one_request(header_t **header,
   if (retval == RDEV_REQUEST_NOT_ENOUGH_FREE_REQ)
     return RDEV_REQUEST_NOT_ENOUGH_FREE_REQ;
 
-  if (retval < 0)
-    return RDEV_REQUEST_END_ERROR;
-
   if (*header != NULL)
       (*header)->io.result = retval == RDEV_REQUEST_END_OK ? 0 : -EIO;
+
+  if (retval < 0)
+    return RDEV_REQUEST_END_ERROR;
 
   return retval;
 }

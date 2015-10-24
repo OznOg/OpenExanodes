@@ -120,17 +120,16 @@ void header_sending(exa_nodeid_t to, nbd_io_desc_t *io)
                   NULL);
 }
 
-static void end_receiving(exa_nodeid_t from, const nbd_io_desc_t *io, int error)
+static bool end_receiving(exa_nodeid_t from, const nbd_io_desc_t *io, void **data)
 {
+    if (io->request_type == NBD_REQ_TYPE_READ && *data == NULL)
+    {
+        *data = exa_bdget_buffer(io->req_num);
+        return true;
+    }
+
     exa_bd_end_request(io);
-}
-
-static void *client_get_buffer(const nbd_io_desc_t *io)
-{
-    if (io->request_type == NBD_REQ_TYPE_WRITE)
-        return NULL;
-
-    return exa_bdget_buffer(io->req_num);
+    return false;
 }
 
 #ifndef WIN32
@@ -170,13 +169,11 @@ static int init_clientd(const char *net_type, const char *hostname,
     if (net_type == NULL)
         return -NBD_ERR_MOD_SESSION;
 
-    tcp.get_buffer = client_get_buffer;
-
     /* no need of end_sending because the buffer will be realesed when
      * we get the next message from server 'IOD", and so after the
      * successfull sending of this messages */
     tcp.end_sending = NULL;
-    tcp.end_receiving = end_receiving;
+    tcp.keep_receiving = end_receiving;
 
     retval = init_tcp(&tcp, hostname, net_type, num_receive_headers);
     if (retval != EXA_SUCCESS)

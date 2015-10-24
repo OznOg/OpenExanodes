@@ -42,10 +42,7 @@ struct nbd_tcp
    * plugin */
 
   void (*end_sending)(void *data1, void *data2, void *ctx, int error);
-  void (*end_receiving)(exa_nodeid_t from, const nbd_io_desc_t *io, int error);
-
-  void *(*get_buffer)(const nbd_io_desc_t *io);
-  /* function called by plugin to get the buffer of the plugin */
+  bool (*keep_receiving)(exa_nodeid_t from, const nbd_io_desc_t *io, void **data);
 
   /* Internal structure of the plugin */
   tcp_plugin_t *tcp;

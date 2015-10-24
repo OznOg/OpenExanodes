@@ -72,8 +72,7 @@
 typedef enum {
     DATA_TRANSFER_COMPLETE    = 1,
     DATA_TRANSFER_PENDING     = 0,
-    DATA_TRANSFER_ERROR       = -1,
-    DATA_TRANSFER_NEED_BUFFER = -3
+    DATA_TRANSFER_ERROR       = -1
 } transfer_status_t;
 
 typedef struct {
@@ -365,11 +364,11 @@ static transfer_status_t request_recv(int fd, pending_recv_t *request)
         if (request->nb_readwrite < NBD_HEADER_NET_SIZE)
             return DATA_TRANSFER_PENDING;
 
-        return DATA_TRANSFER_NEED_BUFFER;
+        return DATA_TRANSFER_COMPLETE;
     }
 
     do {
-        ret = os_recv(fd, request->buffer,
+        ret = os_recv(fd, request->buffer + request->nb_readwrite - NBD_HEADER_NET_SIZE,
                       NBD_HEADER_NET_SIZE + (request->io_desc.sector_nb << 9)
                       - request->nb_readwrite, 0);
     } while (ret == -EINTR);
@@ -378,7 +377,6 @@ static transfer_status_t request_recv(int fd, pending_recv_t *request)
         return DATA_TRANSFER_ERROR;
 
     request->nb_readwrite += ret;
-    request->buffer += ret;
 
     if (request->nb_readwrite < NBD_HEADER_NET_SIZE + (request->io_desc.sector_nb << 9))
         return DATA_TRANSFER_PENDING;
@@ -473,10 +471,6 @@ static void send_thread(void *p)
 
 		  case DATA_TRANSFER_PENDING:
                       break;
-
-                  case DATA_TRANSFER_NEED_BUFFER:
-                      EXA_ASSERT(false);
-                      break;
 		  }
           }
       }
@@ -534,20 +528,9 @@ static void receive_thread(void *p)
               case DATA_TRANSFER_PENDING:
                   break;
 
-              case DATA_TRANSFER_NEED_BUFFER:
-                  request->buffer = nbd_tcp->get_buffer(&request->io_desc);
-                  if (request->buffer != NULL)
-                      break;
-                  else
-                      /* Careful: fallthru here.*/;
-
-                  /* FIXME continue receiving is a side effect of the fact that
-                   * the get_buffer function give a buffer. There should be an
-                   * explicit way to know if transfer is over or not */
-
               case DATA_TRANSFER_COMPLETE:
-                  nbd_tcp->end_receiving(i, &request->io_desc, 0);
-                  request_reset(request);
+                  if (!nbd_tcp->keep_receiving(i, &request->io_desc, (void **)&request->buffer))
+                      request_reset(request);
                   break;
 
               case DATA_TRANSFER_ERROR:
