@@ -286,6 +286,10 @@ vrt_rdev_up(struct vrt_realdev *rdev)
     if (rdev_is_ok(rdev))
 	return EXA_SUCCESS;
 
+    err = vrt_rdev_open(rdev);
+    if (err != EXA_SUCCESS)
+        return err;
+
     rdev->up = TRUE;
 
     size = __get_block_aligned_bdev_size(rdev->blockdevice);

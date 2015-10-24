@@ -230,6 +230,9 @@ static int exa_bdset_status(const exa_uuid_t *uuid, bdminor_state_t state)
 
         ndev->suspended = false;
 
+        if (ndev->up)
+            break;
+
         /* FIXME when a header_t is sent to serverd, the associated bdq
          * remains valid, but there is no more structure pointing to bdq.
          * Thus, when an serverd answers, the bdq is found thanks to
@@ -248,6 +251,9 @@ static int exa_bdset_status(const exa_uuid_t *uuid, bdminor_state_t state)
             blockdevice_end_io(bdq->bio, -EIO);
             nbd_list_post(&request_root_list.free, bdq, -1);
         }
+        /* Removal cannot be done before otherwise the pending IOs cannot be
+         * cancelled. */
+        client_remove_device(uuid);
 	break;
     }
 
@@ -452,7 +458,6 @@ int client_import_device(const exa_uuid_t *uuid, exa_nodeid_t node_id,
 
     os_thread_rwlock_unlock(&change_state);
 
-    /* set the device to UP in the module */
     return EXA_SUCCESS;
 }
 
@@ -467,10 +472,6 @@ int client_remove_device(const exa_uuid_t *uuid)
                      UUID_FMT, UUID_VAL(uuid));
         return -CMD_EXP_ERR_UNKNOWN_DEVICE;
     }
-
-    exa_bdset_status(uuid, BDMINOR_SUSPEND);
-    exa_bdset_status(uuid, BDMINOR_DOWN);
-    exa_bdset_status(uuid, BDMINOR_RESUME);
 
     bdev = ndev->blockdevice;
     ndev->blockdevice = NULL;
