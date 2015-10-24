@@ -556,20 +556,29 @@ static void receive_thread(void *p)
               }
 
               ret = request_recv(peer->sock, request);
-              if (ret == DATA_TRANSFER_PENDING)
-                  continue;
-
-              if (ret == DATA_TRANSFER_NEED_BUFFER)
+              switch (ret)
               {
+              case DATA_TRANSFER_PENDING:
+                  break;
+
+              case DATA_TRANSFER_NEED_BUFFER:
                   request->buffer = nbd_tcp->get_buffer(request->io_desc);
                   if (request->buffer != NULL)
-                      continue;
+                      break;
                   else
-                      ret = DATA_TRANSFER_COMPLETE;
-              }
+                      /* Careful: fallthru here.*/;
 
-              if (ret == DATA_TRANSFER_ERROR)
-              {
+                  /* FIXME continue receiving is a side effect of the fact that
+                   * the get_buffer function give a buffer. There should be an
+                   * explicit way to know if transfer is over or not */
+
+              case DATA_TRANSFER_COMPLETE:
+                  nbd_tcp->end_receiving(i, request->io_desc, 0);
+                  nbd_list_post(&recv_list.free, request->io_desc, -1);
+                  request_reset(request);
+                  break;
+
+              case DATA_TRANSFER_ERROR:
                   nbd_list_post(&recv_list.free, request->io_desc, -1);
 
                   request_reset(request);
@@ -583,12 +592,8 @@ static void receive_thread(void *p)
                                peer->node_id, peer->sock);
                   close_socket(peer->sock);
                   peer->sock = -1;
-                  continue;
+                  break;
               }
-
-              nbd_tcp->end_receiving(i, request->io_desc, 0);
-              nbd_list_post(&recv_list.free, request->io_desc, -1);
-              request_reset(request);
           }
       }
 
