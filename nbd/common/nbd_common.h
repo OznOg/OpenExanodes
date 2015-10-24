@@ -12,8 +12,6 @@
 #include "common/include/exa_error.h"
 #include "common/include/exa_nbd_list.h"
 
-#include "os/include/os_network.h"
-
 #define DEFAULT_BD_BUFFER_SIZE 131072
 typedef struct {
     enum {
