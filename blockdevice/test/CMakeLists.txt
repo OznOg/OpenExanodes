@@ -20,12 +20,14 @@ add_unit_test(ut_sys_blockdevice
 target_link_libraries(ut_sys_blockdevice
     blockdevice)
 
-add_unit_test(ut_blockdevice_stream
-    ../src/blockdevice_stream.c)
+if (WITH_UT_ROOT)
+    add_unit_test(ut_blockdevice_stream
+        ../src/blockdevice_stream.c)
 
-target_link_libraries(ut_blockdevice_stream
-    blockdevice
-    sys_blockdevice
-    vrt_stream
-    blockdevice_stream)
+    target_link_libraries(ut_blockdevice_stream
+        blockdevice
+        sys_blockdevice
+        vrt_stream
+        blockdevice_stream)
+endif()
 
