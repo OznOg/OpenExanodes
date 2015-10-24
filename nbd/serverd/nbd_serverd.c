@@ -50,7 +50,7 @@ static int max_receivable_headers = 300;
 server_t nbd_server;
 
 /* callback function from plugin to release the buffer */
-static void tcp_server_end_sending(void *_io, void *_buf, void *ctx, int error)
+static void tcp_server_end_sending(void *ctx, int error)
 {
     header_t *req = ctx;
 

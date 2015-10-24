@@ -364,13 +364,14 @@ static transfer_status_t request_recv(int fd, pending_recv_t *request)
         if (request->nb_readwrite < NBD_HEADER_NET_SIZE)
             return DATA_TRANSFER_PENDING;
 
+        /* now header was completely received, we can get the buffer size from it */
+	request->buf_size = request->io_desc.sector_nb << 9;
         return DATA_TRANSFER_COMPLETE;
     }
 
     do {
         ret = os_recv(fd, request->buffer + request->nb_readwrite - NBD_HEADER_NET_SIZE,
-                      NBD_HEADER_NET_SIZE + (request->io_desc.sector_nb << 9)
-                      - request->nb_readwrite, 0);
+                      NBD_HEADER_NET_SIZE + request->buf_size - request->nb_readwrite, 0);
     } while (ret == -EINTR);
 
     if (ret <= 0) /* 0 means peer disconnected */
@@ -378,7 +379,7 @@ static transfer_status_t request_recv(int fd, pending_recv_t *request)
 
     request->nb_readwrite += ret;
 
-    if (request->nb_readwrite < NBD_HEADER_NET_SIZE + (request->io_desc.sector_nb << 9))
+    if (request->nb_readwrite < NBD_HEADER_NET_SIZE + request->buf_size)
         return DATA_TRANSFER_PENDING;
 
     return DATA_TRANSFER_COMPLETE;
@@ -391,8 +392,7 @@ static void request_processed(send_desc_t *send_desc, nbd_tcp_t *nbd_tcp, int er
     EXA_ASSERT(send_desc != NULL);
 
     if (nbd_tcp->end_sending)
-        nbd_tcp->end_sending(send_desc->data1, send_desc->data2,
-                             send_desc->ctx, error);
+        nbd_tcp->end_sending(send_desc->ctx, error);
 
     nbd_list_post(&tcp->send_list.free, send_desc, -1);
 }
@@ -582,8 +582,7 @@ void tcp_send_data(struct nbd_tcp *nbd_tcp, exa_nodeid_t to,
         os_thread_rwlock_unlock(&tcp->peers_lock);
 
         if (nbd_tcp->end_sending)
-            nbd_tcp->end_sending(send_desc->data1, send_desc->data2,
-                                 send_desc->ctx, -NBD_ERR_NO_CONNECTION);
+            nbd_tcp->end_sending(send_desc->ctx, -NBD_ERR_NO_CONNECTION);
 
         nbd_list_post(&tcp->send_list.free, send_desc, -1);
         return;

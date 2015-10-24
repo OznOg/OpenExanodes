@@ -40,7 +40,7 @@ struct nbd_tcp
   /* this function can be used to used buffer internally allocated by
    * plugin */
 
-  void (*end_sending)(void *data1, void *data2, void *ctx, int error);
+  void (*end_sending)(void *ctx, int error);
   bool (*keep_receiving)(exa_nodeid_t from, const nbd_io_desc_t *io, void **data);
 
   /* Internal structure of the plugin */
