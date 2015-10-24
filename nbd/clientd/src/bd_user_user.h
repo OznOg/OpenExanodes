@@ -25,7 +25,7 @@ typedef struct __ndev ndev_t;
 bool exa_bdinit(int buffer_size, int max_queue, bool barrier_enable);
 void exa_bdend(void);
 
-void exa_bd_end_request(header_t *header);
+void exa_bd_end_request(const nbd_io_desc_t *io);
 
 void *exa_bdget_buffer(int num);
 

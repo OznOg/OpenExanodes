@@ -116,24 +116,14 @@ void header_sending(const nbd_io_desc_t *io)
     tcp_send_data(&tcp, io);
 }
 
-static void end_receiving(header_t *req_header, int error)
+static void end_receiving(const nbd_io_desc_t *io, int error)
 {
-    switch (req_header->type)
-    {
-        case NBD_HEADER_RH:
-            exa_bd_end_request(req_header);
-            break;
-
-        case NBD_HEADER_LOCK:
-            exalog_error("Unknown request header %d", req_header->type);
-            break;
-    }
-    nbd_list_post(&recv_list.root->free, req_header, -1);
+    exa_bd_end_request(io);
 }
 
-static void *client_get_buffer(struct header *data_header)
+static void *client_get_buffer(const nbd_io_desc_t *io)
 {
-    return exa_bdget_buffer(data_header->io.req_num);
+    return exa_bdget_buffer(io->req_num);
 }
 
 #ifndef WIN32

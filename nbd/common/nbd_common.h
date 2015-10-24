@@ -74,14 +74,14 @@ struct nbd_tcp
   /* this function can be used to used buffer internally allocated by
    * plugin */
 
-  void (*end_sending)(header_t *req_header, int error);
-  void (*end_receiving)(header_t *req_header, int error);
+  void (*end_sending)(const nbd_io_desc_t *io, int error);
+  void (*end_receiving)(const nbd_io_desc_t *io, int error);
 
   /* Internal structure initialised before calling init_plugin and no
    * more readwrite out of the plugin */
   struct nbd_list *list;
 
-  void *(*get_buffer)(struct header *data_header);
+  void *(*get_buffer)(const nbd_io_desc_t *io);
   /* function called by plugin to get the buffer of the plugin */
 
   /* Internal structure of the plugin */

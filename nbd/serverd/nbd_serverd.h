@@ -87,7 +87,7 @@ struct server
   struct nbd_root_list list_root;
   /* queue of requests headers and data waiting to be processed by the
    * server */
-  struct nbd_list tr_headers_queue;
+  struct nbd_root_list tr_headers_queue;
 
   /* queue of buffers managed by TI to handle requests server side */
   struct nbd_root_list ti_queue;
@@ -116,5 +116,7 @@ extern server_t nbd_server;
 extern void datanet_checking(int client_id, int action);
 
 void nbd_server_send(const nbd_io_desc_t *io);
+
+void nbd_server_end_io(header_t *req_header);
 
 #endif /* _NBD_SERVERD_NBD_SERVERD_H */

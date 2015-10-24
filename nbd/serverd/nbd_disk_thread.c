@@ -249,6 +249,7 @@ static void handle_completed_io(device_t *disk_device, header_t *req)
                      req->io.request_type, req->io.sector_nb, req->io.sector);
 
     nbd_server_send(&req->io);
+    nbd_server_end_io(req);
 }
 
 /**

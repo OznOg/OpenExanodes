@@ -313,7 +313,7 @@ static int request_send(int fd, struct pending_request *request, nbd_tcp_t *nbd_
         /* Buffer MUST exist as the caller requested to send buffer's data...
          * Having buffer == NULL would mean we want to send data, but caller does
          * not know which... */
-        request->buffer = nbd_tcp->get_buffer(request->header);
+        request->buffer = nbd_tcp->get_buffer(&request->header->io);
         EXA_ASSERT(request->buffer != NULL);
 
         return DATA_TRANSFER_PENDING;
@@ -368,7 +368,7 @@ static int request_recv(int fd, struct pending_request *request, nbd_tcp_t *nbd_
             return DATA_TRANSFER_COMPLETE;
 
         /* There MUST be a free buffer at this point or something went wrong */
-        request->buffer = nbd_tcp->get_buffer(request->header);
+        request->buffer = nbd_tcp->get_buffer(&request->header->io);
         EXA_ASSERT(request->buffer != NULL);
 
         return DATA_TRANSFER_PENDING;
@@ -403,7 +403,9 @@ static void request_processed(struct pending_request *pending_req,
     header->io.client_id = client_id;
 
     if (nbd_tcp->end_sending)
-        nbd_tcp->end_sending(header, error);
+        nbd_tcp->end_sending(&header->io, error);
+
+    header->io.buf = NULL;
 
     nbd_list_post(&nbd_tcp->list->root->free, header, -1);
 
@@ -600,7 +602,9 @@ static void receive_thread(void *p)
 
               /* the netplugin must set this id at reception */
               temp_header->io.client_id = i;
-              nbd_tcp->end_receiving(temp_header, 0);
+              nbd_tcp->end_receiving(&temp_header->io, 0);
+              temp_header->io.buf = NULL;
+              nbd_list_post(&nbd_tcp->list->root->free, temp_header, -1);
           }
       }
 
@@ -619,23 +623,23 @@ int tcp_send_data(struct nbd_tcp *nbd_tcp, const nbd_io_desc_t *io)
     data_header->type = NBD_HEADER_RH;
     data_header->io = *io;
 
-  os_thread_rwlock_rdlock(&tcp->peers_lock);
-  /* we send no more data to a removed connection */
-  if (tcp->peers[data_header->io.client_id].sock < 0)
-  {
-      os_thread_rwlock_unlock(&tcp->peers_lock);
+    os_thread_rwlock_rdlock(&tcp->peers_lock);
+    /* we send no more data to a removed connection */
+    if (tcp->peers[data_header->io.client_id].sock < 0)
+    {
+        os_thread_rwlock_unlock(&tcp->peers_lock);
 
-      nbd_list_post(&nbd_tcp->list->root->free, data_header, -1);
-      return -NBD_ERR_NO_CONNECTION;
-  }
+        nbd_list_post(&nbd_tcp->list->root->free, data_header, -1);
+        return -NBD_ERR_NO_CONNECTION;
+    }
 
-  nbd_list_post(&tcp->peers[data_header->io.client_id].send_list, data_header, -1);
+    nbd_list_post(&tcp->peers[data_header->io.client_id].send_list, data_header, -1);
 
-  os_sem_post(&tcp->send_thread.semaphore);
+    os_sem_post(&tcp->send_thread.semaphore);
 
-  os_thread_rwlock_unlock(&tcp->peers_lock);
+    os_thread_rwlock_unlock(&tcp->peers_lock);
 
-  return 1;
+    return 1;
 }
 
 static int client_connect_to_server(struct in_addr *inaddr,

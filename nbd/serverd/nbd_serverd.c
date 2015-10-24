@@ -50,87 +50,85 @@ static int max_receivable_headers = 300;
 server_t nbd_server;
 
 /* callback function from plugin to release the buffer */
-static void tcp_server_end_sending(header_t *req_header, int error)
+static void tcp_server_end_sending(const nbd_io_desc_t *io, int error)
 {
-    EXA_ASSERT(req_header->type == NBD_HEADER_RH);
+//    serverd_perf_end_request(req_header);
 
-    serverd_perf_end_request(req_header);
-
-    if (req_header->io.sector_nb > 0 && req_header->io.buf != NULL)
-        nbd_list_post(&nbd_server.ti_queue.free, req_header->io.buf, -1);
+    if (io->sector_nb > 0 && io->buf != NULL)
+        nbd_list_post(&nbd_server.ti_queue.free, io->buf, -1);
 }
 
 void nbd_server_send(const nbd_io_desc_t *io)
 {
+    if (io->request_type == NBD_REQ_TYPE_WRITE)
+    {
+        tcp_server_end_sending(io, 0);
+        ((nbd_io_desc_t *)io)->sector_nb = 0;
+    }
+
     if (tcp_send_data(nbd_server.tcp, io) < 0)
     {
         /* there are one associated buffer, so we must release it */
         nbd_list_post(&nbd_server.ti_queue.free, io->buf, -1);
     }
+    /* when returning from here, caller may destroy io */
 }
 
-static void nbd_recv_processing(header_t *req_header, int error)
+void nbd_server_end_io(header_t *req_header)
 {
-    switch (req_header->type)
+     nbd_list_post(&nbd_server.list_root.free, req_header, -1);
+}
+
+static void nbd_recv_processing(const nbd_io_desc_t *io, int error)
+{
+    /* put directly the header on the appropriate disk queue (the first
+     * approach was to put this header on the control blocs queue for
+     * the TI thread) */
+    os_thread_mutex_lock(&nbd_server.mutex_edevs);
+    if (nbd_server.devices[io->disk_id] != NULL)
     {
-    case NBD_HEADER_RH:
-        if (req_header->io.request_type == NBD_REQ_TYPE_READ)
-        {
-            req_header->io.buf = nbd_list_remove(&nbd_server.ti_queue.free,
-                                              NULL, LISTNOWAIT);
+        header_t *req_header = nbd_list_remove(&nbd_server.list_root.free, NULL, LISTNOWAIT);
 
-            EXA_ASSERT(req_header->io.buf != NULL);
-        }
+        EXA_ASSERT(req_header != NULL); /* As many header as receive buff */
 
-        /* put directly the header on the appropriate disk queue (the first
-         * approach was to put this header on the control blocs queue for
-         * the TI thread) */
-        os_thread_mutex_lock(&nbd_server.mutex_edevs);
-        if (nbd_server.devices[req_header->io.disk_id] != NULL)
-        {
-            req_header->io.result = 0;
-            serverd_perf_make_request(req_header);
-            nbd_list_post(&nbd_server.devices[req_header->io.disk_id]->disk_queue, req_header, -1);
-        }
-        else
-        {
-            /* the disk no more exist, so we send an error to the sender
-             * this send is needed by the sender and by the plugin (ibverbs) to
-             * clear some allocated resources */
-            req_header->io.result = -EIO;
-            nbd_server_send(&req_header->io);
-        }
-        os_thread_mutex_unlock(&nbd_server.mutex_edevs);
-        break;
+        req_header->io = *io;
 
-    case NBD_HEADER_LOCK:
-    default:
-	exalog_error("Inconsistent protocol header type: %d", req_header->type);
-	nbd_list_post (&nbd_server.tr_headers_queue.root->free,req_header, -1);
-        break;
+        EXA_ASSERT(io->buf != NULL);
+
+        req_header->io.result = 0;
+        serverd_perf_make_request(req_header);
+        nbd_list_post(&nbd_server.devices[io->disk_id]->disk_queue, req_header, -1);
     }
+    else
+    {
+        nbd_io_desc_t err_io;
+        /* the disk no more exist, so we send an error to the sender
+         * this send is needed by the sender and by the plugin (ibverbs) to
+         * clear some allocated resources */
+        err_io = *io;
+        err_io.result = -EIO;
+        nbd_server_send(&err_io);
+    }
+    os_thread_mutex_unlock(&nbd_server.mutex_edevs);
 }
 
 static void server_handle_events(void *p);
 
-static void *server_get_buffer(struct header *header)
+static void *server_get_buffer(const nbd_io_desc_t *io)
 {
-    /* End IO buffers are set right before reading on disk */
-    EXA_ASSERT(header->type == NBD_HEADER_RH);
+    if (io->buf != NULL)
+        return io->buf;
 
-    if (header->io.buf != NULL)
-        return header->io.buf;
+    EXA_ASSERT(io->sector_nb <= BYTES_TO_SECTORS(nbd_server.bd_buffer_size));
 
-    EXA_ASSERT(header->io.sector_nb <= BYTES_TO_SECTORS(nbd_server.bd_buffer_size));
-
-    header->io.buf = nbd_list_remove(&nbd_server.ti_queue.free,
-                                  NULL, LISTNOWAIT);
+    /* FIXME this is a really hugly const cast... */
+    ((nbd_io_desc_t *)io)->buf = nbd_list_remove(&nbd_server.ti_queue.free, NULL, LISTNOWAIT);
 
     /* There MUST be a buffer available as we allocated as many header as
      * buffers. */
-    EXA_ASSERT(header->io.buf != NULL);
+    EXA_ASSERT(io->buf != NULL);
 
-    return header->io.buf;
+    return io->buf;
 }
 
 /* Function to load a server plugin and do all needed stuff */
@@ -146,7 +144,7 @@ static int init_tcp_server(const char *net_type)
     nbd_server.tcp->end_sending = tcp_server_end_sending;
     nbd_server.tcp->end_receiving = nbd_recv_processing;
     nbd_server.tcp->get_buffer = server_get_buffer;
-    nbd_server.tcp->list = &nbd_server.tr_headers_queue;
+    nbd_server.tcp->list = &nbd_server.tr_headers_queue.free;
 
     /* we will not export our buffer */
     err = init_tcp(nbd_server.tcp, nbd_server.node_name, net_type);
@@ -184,7 +182,8 @@ static int init_serverd(char *net_type)
     /* First : initialising shared queue */
     nbd_init_root(nbd_server.num_receive_headers, sizeof(header_t),
 		  &nbd_server.list_root);
-    nbd_init_list(&nbd_server.list_root, &nbd_server.tr_headers_queue);
+    nbd_init_root(nbd_server.num_receive_headers, sizeof(header_t),
+                  &nbd_server.tr_headers_queue);
     nbd_init_root(nbd_server.num_receive_headers, /* as many buffer as headers. */
 		  nbd_server.bd_buffer_size, &nbd_server.ti_queue);
 

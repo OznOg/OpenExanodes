@@ -114,21 +114,23 @@ void exa_bdend(void)
     nbd_close_root(&request_root_list);
 }
 
-void exa_bd_end_request(header_t *header)
+void exa_bd_end_request(const nbd_io_desc_t *io)
 {
-    struct bd_kerneluser_queue *bdq = nbd_get_elt_by_num(header->io.req_num, &request_root_list);
+    struct bd_kerneluser_queue *bdq = nbd_get_elt_by_num(io->req_num, &request_root_list);
     blockdevice_io_t *bio = bdq->bio;
 
     EXA_ASSERT(bdq != NULL);
 
-    EXA_ASSERT(bdq->io.req_num == header->io.req_num);
+    EXA_ASSERT(bdq->io.req_num == io->req_num);
 
+#if 0
     nbd_stat_request_done(&bdq->ndev->stats, header);
     clientd_perf_end_request(&bdq->ndev->perfs, header);
+#endif
 
     nbd_list_post(&request_root_list.free, bdq, -1);
 
-    blockdevice_end_io(bio, header->io.result);
+    blockdevice_end_io(bio, io->result);
 }
 
 void *exa_bdget_buffer(int num) /* reentrant */
