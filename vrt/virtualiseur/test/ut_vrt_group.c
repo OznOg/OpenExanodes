@@ -228,7 +228,7 @@ ut_test(deserialize_failures)
     vrt_group_free(group);
 }
 
-ut_test(serialize_deserialize_rainX_group_is_identity)
+ut_test(serialize_deserialize_rain1_group_is_identity)
 {
     exa_uuid_t uuid, vol1_uuid, vol2_uuid;
     vrt_group_t *group, *group2;
@@ -250,7 +250,7 @@ ut_test(serialize_deserialize_rainX_group_is_identity)
 				      1024,
                                       32768,
                                       0,
-				      2, /* spares */
+				      0, /* spares */
                                       msg);
     UT_ASSERT_EQUAL(0, ret);
 
