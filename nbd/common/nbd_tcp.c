@@ -610,15 +610,22 @@ static void receive_thread(void *p)
   exa_select_delete_handle(sh);
 }
 
-int tcp_send_data(struct header *data_header, struct nbd_tcp *nbd_tcp)
+int tcp_send_data(struct nbd_tcp *nbd_tcp, const nbd_io_desc_t *io)
 {
-  tcp_plugin_t *tcp = nbd_tcp->tcp;
+    tcp_plugin_t *tcp = nbd_tcp->tcp;
+    header_t *data_header = nbd_list_remove(&nbd_tcp->list->root->free, NULL, LISTWAIT);
+    EXA_ASSERT(data_header != NULL);
+
+    data_header->type = NBD_HEADER_RH;
+    data_header->io = *io;
 
   os_thread_rwlock_rdlock(&tcp->peers_lock);
   /* we send no more data to a removed connection */
   if (tcp->peers[data_header->io.client_id].sock < 0)
   {
       os_thread_rwlock_unlock(&tcp->peers_lock);
+
+      nbd_list_post(&nbd_tcp->list->root->free, data_header, -1);
       return -NBD_ERR_NO_CONNECTION;
   }
 

@@ -60,14 +60,12 @@ static void tcp_server_end_sending(header_t *req_header, int error)
         nbd_list_post(&nbd_server.ti_queue.free, req_header->io.buf, -1);
 }
 
-void nbd_server_send(header_t *req_header)
+void nbd_server_send(const nbd_io_desc_t *io)
 {
-    if (tcp_send_data(req_header, nbd_server.tcp) < 0)
+    if (tcp_send_data(nbd_server.tcp, io) < 0)
     {
         /* there are one associated buffer, so we must release it */
-        nbd_list_post(&nbd_server.ti_queue.free, req_header->io.buf, -1);
-
-        nbd_list_post(&nbd_server.tr_headers_queue.root->free, req_header, -1);
+        nbd_list_post(&nbd_server.ti_queue.free, io->buf, -1);
     }
 }
 
@@ -100,7 +98,7 @@ static void nbd_recv_processing(header_t *req_header, int error)
              * this send is needed by the sender and by the plugin (ibverbs) to
              * clear some allocated resources */
             req_header->io.result = -EIO;
-            nbd_server_send(req_header);
+            nbd_server_send(&req_header->io);
         }
         os_thread_mutex_unlock(&nbd_server.mutex_edevs);
         break;

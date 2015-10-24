@@ -26,7 +26,7 @@ int tcp_start_listening(nbd_tcp_t *nbd_tcp);
 
 void tcp_stop_listening(nbd_tcp_t *nbd_tcp);
 
-int tcp_send_data(struct header *data_header, struct nbd_tcp *tcp);
+int tcp_send_data(struct nbd_tcp *nbd_tcp, const nbd_io_desc_t *io);
 
 
 #endif

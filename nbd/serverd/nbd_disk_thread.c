@@ -248,7 +248,7 @@ static void handle_completed_io(device_t *disk_device, header_t *req)
                      (req->io.request_type == NBD_REQ_TYPE_READ) ? "READ" : "WRITE",
                      req->io.request_type, req->io.sector_nb, req->io.sector);
 
-    nbd_server_send(req);
+    nbd_server_send(&req->io);
 }
 
 /**

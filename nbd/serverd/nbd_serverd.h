@@ -115,6 +115,6 @@ extern server_t nbd_server;
 
 extern void datanet_checking(int client_id, int action);
 
-void nbd_server_send(header_t *req_header);
+void nbd_server_send(const nbd_io_desc_t *io);
 
 #endif /* _NBD_SERVERD_NBD_SERVERD_H */
