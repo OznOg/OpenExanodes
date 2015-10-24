@@ -61,6 +61,27 @@ struct device
 
 typedef struct device device_t;
 
+typedef struct
+{
+    enum {
+        NBD_HEADER_LOCK = 1135,
+        NBD_HEADER_RH
+    } type;
+
+    union {
+        nbd_io_desc_t io;
+
+        struct {
+            enum {
+                NBD_REQ_TYPE_LOCK = 822,
+                NBD_REQ_TYPE_UNLOCK
+            } op;
+            uint64_t sector;
+            uint32_t sector_nb;
+        } __attribute__((__packed__)) lock;
+    } __attribute__((__packed__));
+} __attribute__((__packed__)) header_t;
+
 struct server
 {
   volatile bool run;

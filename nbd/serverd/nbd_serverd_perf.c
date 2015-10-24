@@ -142,15 +142,16 @@ void __serverd_perf_sensor_init(void)
     data_dur = exaperf_duration_init(eh, "NBD_SERVER_DATA_DUR_WRITE", true);
 }
 
-void __serverd_perf_make_request(header_t *req_header)
+void __serverd_perf_make_request(const nbd_io_desc_t *io)
 {
+    uint64_t lba_in_kbytes;
     uint64_t now_ms;
     double inter_arrival;
     double dist;
     int rw = -1;
 
-    EXA_ASSERT(NBD_REQ_TYPE_IS_VALID(req_header->io.request_type));
-    switch (req_header->io.request_type)
+    EXA_ASSERT(NBD_REQ_TYPE_IS_VALID(io->request_type));
+    switch (io->request_type)
     {
     case NBD_REQ_TYPE_READ:
         rw = __READ;
@@ -162,34 +163,30 @@ void __serverd_perf_make_request(header_t *req_header)
 
     now_ms = os_gettimeofday_msec();
 
-    /* FIXME how is it supposed to be of an other type here ? */
-    if (req_header->type == NBD_HEADER_RH)
-    {
-	uint64_t lba_in_kbytes = req_header->io.sector / 2;
-	/* add the lba in MB in the repartition */
-	exaperf_repart_add_value(lba_repart[rw], lba_in_kbytes / 1024);
+    lba_in_kbytes = io->sector / 2;
+    /* add the lba in MB in the repartition */
+    exaperf_repart_add_value(lba_repart[rw], lba_in_kbytes / 1024);
 
-	req_header->io.header_submit_date = now_ms;
+    ((nbd_io_desc_t *)io)->header_submit_date = now_ms;
 
-	inter_arrival = (double)now_ms - last_req_time[rw];
-	dist = (double)req_header->io.sector - next_sector[rw];
+    inter_arrival = (double)now_ms - last_req_time[rw];
+    dist = (double)io->sector - next_sector[rw];
 
-	exaperf_repart_add_value(inter_arrival_repart[rw], inter_arrival);
-	exaperf_repart_add_value(distance_repart[rw], dist);
-	exaperf_repart_add_value(req_size_repart[rw],
-				 (req_header->io.sector_nb/2.));
-	next_sector[rw] = req_header->io.sector + req_header->io.sector_nb;
-	last_req_time[rw] = now_ms;
-    }
+    exaperf_repart_add_value(inter_arrival_repart[rw], inter_arrival);
+    exaperf_repart_add_value(distance_repart[rw], dist);
+    exaperf_repart_add_value(req_size_repart[rw],
+            (io->sector_nb/2.));
+    next_sector[rw] = io->sector + io->sector_nb;
+    last_req_time[rw] = now_ms;
 }
 
-void __serverd_perf_end_request(header_t *req_header)
+void __serverd_perf_end_request(const nbd_io_desc_t *io)
 {
     double now = os_gettimeofday_msec();
     int rw = -1;
 
-    EXA_ASSERT(NBD_REQ_TYPE_IS_VALID(req_header->io.request_type));
-    switch (req_header->io.request_type)
+    EXA_ASSERT(NBD_REQ_TYPE_IS_VALID(io->request_type));
+    switch (io->request_type)
     {
     case NBD_REQ_TYPE_READ:
         rw = __READ;
@@ -200,11 +197,11 @@ void __serverd_perf_end_request(header_t *req_header)
     }
 
     exaperf_duration_record(header_dur[rw],
-			    (double)now - req_header->io.header_submit_date);
+			    (double)now - io->header_submit_date);
 
     if (rw == __WRITE)
 	exaperf_duration_record(data_dur,
-				(double)now - req_header->io.data_submit_date);
+				(double)now - io->data_submit_date);
 }
 
 

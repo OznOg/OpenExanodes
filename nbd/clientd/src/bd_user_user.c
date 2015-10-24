@@ -123,10 +123,8 @@ void exa_bd_end_request(const nbd_io_desc_t *io)
 
     EXA_ASSERT(bdq->io.req_num == io->req_num);
 
-#if 0
-    nbd_stat_request_done(&bdq->ndev->stats, header);
-    clientd_perf_end_request(&bdq->ndev->perfs, header);
-#endif
+    nbd_stat_request_done(&bdq->ndev->stats, io);
+    clientd_perf_end_request(&bdq->ndev->perfs, io);
 
     nbd_list_post(&request_root_list.free, bdq, -1);
 
@@ -375,11 +373,9 @@ static void exa_bdmake_request(ndev_t *ndev, blockdevice_io_t *bio)
     /*FIXME I still don't know what this is supposed to lock here... */
     os_thread_rwlock_unlock(&change_state);
 
-#if 0
-    nbd_stat_request_begin(&ndev->stats, req_header);
+    nbd_stat_request_begin(&ndev->stats, &bdq->io);
 
-    clientd_perf_make_request(req_header);
-#endif
+    clientd_perf_make_request(&bdq->io);
 
     header_sending(&bdq->io);
 }

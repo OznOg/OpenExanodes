@@ -39,31 +39,7 @@ typedef struct {
 #endif
 } __attribute__((__packed__)) nbd_io_desc_t;
 
-/* struct header is exchanged between host, so it needs to be packed! */
-struct header
-{
-    enum {
-        NBD_HEADER_LOCK = 1135,
-        NBD_HEADER_RH
-    } type;
-
-    union {
-        nbd_io_desc_t io;
-
-        struct {
-            enum {
-                NBD_REQ_TYPE_LOCK = 822,
-                NBD_REQ_TYPE_UNLOCK
-            } op;
-            uint64_t sector;
-            uint32_t sector_nb;
-        } __attribute__((__packed__)) lock;
-    } __attribute__((__packed__));
-} __attribute__((__packed__));
-
-typedef struct header header_t;
-
-#define NBD_HEADER_NET_SIZE (sizeof(struct header) - sizeof(void *))
+#define NBD_HEADER_NET_SIZE (sizeof(nbd_io_desc_t) - sizeof(void *))
 
 typedef struct tcp_plugin tcp_plugin_t;
 

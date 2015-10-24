@@ -28,15 +28,15 @@ void __clientd_perf_cleanup(void);
 
 void __clientd_perf_dev_init(struct ndev_perf *perf_info, const exa_uuid_t *uuid);
 
-void __clientd_perf_make_request(header_t *req_header);
-void __clientd_perf_end_request(struct ndev_perf *perf_infos, header_t *req_header);
+void __clientd_perf_make_request(const nbd_io_desc_t *io);
+void __clientd_perf_end_request(struct ndev_perf *perf_infos, const nbd_io_desc_t *io);
 
 #define clientd_perf_init()     __clientd_perf_init()
 #define clientd_perf_cleanup()  __clientd_perf_cleanup()
 
 #define clientd_perf_dev_init(perf_info, uuid)  __clientd_perf_dev_init(perf_info, uuid)
 
-#define clientd_perf_make_request(req_header)  __clientd_perf_make_request(req_header)
+#define clientd_perf_make_request(io)  __clientd_perf_make_request(io)
 #define clientd_perf_end_request(infos, header)   __clientd_perf_end_request(infos, header)
 
 #else /* WITH_PERF */
@@ -46,7 +46,7 @@ void __clientd_perf_end_request(struct ndev_perf *perf_infos, header_t *req_head
 
 #define clientd_perf_dev_init(perf_info, uuid)
 
-#define clientd_perf_make_request(req_header)
+#define clientd_perf_make_request(io)
 #define clientd_perf_end_request(infos, header)
 
 #endif  /* WITH_PERF */

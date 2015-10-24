@@ -91,7 +91,7 @@ void nbd_stat_restart(struct device_stats *stats);
 void nbd_get_stats(struct device_stats *stats, struct nbd_stats_reply *reply,
                    bool reset);
 
-void nbd_stat_request_begin(struct device_stats *stats, struct header *req);
-void nbd_stat_request_done(struct device_stats *stats, struct header *req_header);
+void nbd_stat_request_begin(struct device_stats *stats, const nbd_io_desc_t *req);
+void nbd_stat_request_done(struct device_stats *stats, const nbd_io_desc_t *req_header);
 
 #endif /* _NBD_CLIENTD_NBD_STATS_H */

@@ -106,21 +106,21 @@ void __clientd_perf_dev_init(struct ndev_perf *perf_infos, const exa_uuid_t *uui
 					    ndev_uuid_str, true);
 }
 
-void __clientd_perf_make_request(header_t *req_header)
+void __clientd_perf_make_request(const nbd_io_desc_t *io)
 {
     if (eh == NULL)
         return;
 
-    req_header->io.submit_date = os_gettimeofday_msec();
+    ((nbd_io_desc_t *)io)->submit_date = os_gettimeofday_msec();
 }
 
-void __clientd_perf_end_request(struct ndev_perf *perf_infos, header_t *req_header)
+void __clientd_perf_end_request(struct ndev_perf *perf_infos, const nbd_io_desc_t *io)
 {
     double elapsed;
     int rw = -1;
 
-    EXA_ASSERT(NBD_REQ_TYPE_IS_VALID(req_header->io.request_type));
-    switch (req_header->io.request_type)
+    EXA_ASSERT(NBD_REQ_TYPE_IS_VALID(io->request_type));
+    switch (io->request_type)
     {
     case NBD_REQ_TYPE_READ:
         rw = __READ;
@@ -133,7 +133,7 @@ void __clientd_perf_end_request(struct ndev_perf *perf_infos, header_t *req_head
     if (eh == NULL)
         return;
 
-    elapsed = (double)(os_gettimeofday_msec() - req_header->io.submit_date);
+    elapsed = (double)(os_gettimeofday_msec() - io->submit_date);
     exaperf_duration_record(perf_infos->clientd_dur[rw], elapsed);
 }
 

@@ -52,7 +52,7 @@ server_t nbd_server;
 /* callback function from plugin to release the buffer */
 static void tcp_server_end_sending(const nbd_io_desc_t *io, int error)
 {
-//    serverd_perf_end_request(req_header);
+    serverd_perf_end_request(io);
 
     if (io->sector_nb > 0 && io->buf != NULL)
         nbd_list_post(&nbd_server.ti_queue.free, io->buf, -1);
@@ -96,7 +96,7 @@ static void nbd_recv_processing(const nbd_io_desc_t *io, int error)
         EXA_ASSERT(io->buf != NULL);
 
         req_header->io.result = 0;
-        serverd_perf_make_request(req_header);
+        serverd_perf_make_request(&req_header->io);
         nbd_list_post(&nbd_server.devices[io->disk_id]->disk_queue, req_header, -1);
     }
     else

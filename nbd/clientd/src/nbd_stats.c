@@ -100,47 +100,47 @@ static uint64_t distance(uint64_t offset1, uint64_t offset2)
  * the kernel, just before submitting it to the appropriate NBD
  * server.
  */
-void nbd_stat_request_begin(struct device_stats *stats, struct header *req)
+void nbd_stat_request_begin(struct device_stats *stats, const nbd_io_desc_t *io)
 {
   bool is_seq;
 
   os_thread_mutex_lock(&stats->begin_mutex);
 
-  is_seq = (req->io.sector == stats->begin.next_sector &&
-     req->io.request_type == stats->begin.prev_request_type)
+  is_seq = (io->sector == stats->begin.next_sector &&
+     io->request_type == stats->begin.prev_request_type)
     || stats->begin.prev_request_type == NBD_REQ_TYPE_INVALID;
 
-  EXA_ASSERT(NBD_REQ_TYPE_IS_VALID(req->io.request_type));
-  switch (req->io.request_type)
+  EXA_ASSERT(NBD_REQ_TYPE_IS_VALID(io->request_type));
+  switch (io->request_type)
     {
     case NBD_REQ_TYPE_READ:
-      stats->begin.info.nb_sect_read += req->io.sector_nb;
+      stats->begin.info.nb_sect_read += io->sector_nb;
       ++stats->begin.info.nb_req_read;
 
       if (!is_seq)
 	{
 	  stats->begin.info.nb_seek_dist_read +=
-	    distance(req->io.sector, stats->begin.next_sector);
+	    distance(io->sector, stats->begin.next_sector);
 	  ++stats->begin.info.nb_seeks_read;
 	}
 
       break;
 
     case NBD_REQ_TYPE_WRITE:
-      stats->begin.info.nb_sect_write += req->io.sector_nb;
+      stats->begin.info.nb_sect_write += io->sector_nb;
       ++stats->begin.info.nb_req_write;
 
       if (!is_seq)
 	{
 	  stats->begin.info.nb_seek_dist_write +=
-	    distance(req->io.sector, stats->begin.next_sector);
+	    distance(io->sector, stats->begin.next_sector);
 	  ++stats->begin.info.nb_seeks_write;
 	}
       break;
     }
 
-  stats->begin.prev_request_type = req->io.request_type;
-  stats->begin.next_sector = req->io.sector + req->io.sector_nb;
+  stats->begin.prev_request_type = io->request_type;
+  stats->begin.next_sector = io->sector + io->sector_nb;
 
   os_thread_mutex_unlock(&stats->begin_mutex);
 }
@@ -151,21 +151,21 @@ void nbd_stat_request_begin(struct device_stats *stats, struct header *req)
  * server to a request the NBD client issued, just before handing it
  * back to the kernel.
  */
-void nbd_stat_request_done(struct device_stats *stats, struct header *req)
+void nbd_stat_request_done(struct device_stats *stats, const nbd_io_desc_t *io)
 {
   os_thread_mutex_lock(&stats->done_mutex);
 
-  if (req->io.result >= 0)
+  if (io->result >= 0)
   {
-      EXA_ASSERT(NBD_REQ_TYPE_IS_VALID(req->io.request_type));
-      switch (req->io.request_type)
+      EXA_ASSERT(NBD_REQ_TYPE_IS_VALID(io->request_type));
+      switch (io->request_type)
       {
       case NBD_REQ_TYPE_READ:
-          stats->done.info.nb_sect_read += req->io.sector_nb;
+          stats->done.info.nb_sect_read += io->sector_nb;
           ++stats->done.info.nb_req_read;
           break;
       case NBD_REQ_TYPE_WRITE:
-          stats->done.info.nb_sect_write += req->io.sector_nb;
+          stats->done.info.nb_sect_write += io->sector_nb;
           ++stats->done.info.nb_req_write;
           break;
       }
@@ -173,7 +173,7 @@ void nbd_stat_request_done(struct device_stats *stats, struct header *req)
   else
   {
     /* The EAGAIN requests will be replayed. */
-    if (req->io.result != -EAGAIN)
+    if (io->result != -EAGAIN)
       ++stats->done.info.nb_req_err;
   }
 
