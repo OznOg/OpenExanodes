@@ -28,3 +28,7 @@ $ rpmbuild -ts exanode-XXX.tgz #packet created by the make dist
 
 install the rpmbuilds in the ~/rpmbuild directory
 
+If you want to see the whole compilation and unit test you may have a look to:
+
+https://travis-ci.org/OznOg/OpenExanodes/
+
