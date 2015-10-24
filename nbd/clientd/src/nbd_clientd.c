@@ -26,6 +26,7 @@
 #include "common/include/exa_conversion.h"
 #include "common/include/exa_constants.h"
 #include "common/include/exa_names.h"
+#include "common/include/exa_perf_instance.h"
 #include "common/include/daemon_api_server.h"
 #include "common/include/daemon_request_queue.h"
 #include "common/include/threadonize.h"
@@ -558,7 +559,7 @@ int daemon_init(int argc, char *argv[])
     exalog_as(EXAMSG_NBD_CLIENT_ID);
     exalog_debug("clientd daemonized");
 
-    if (clientd_perf_init() != 0)
+    if (exa_perf_instance_static_init() != 0)
         return -EINVAL; /* FIXME Use better error code */
 
     retval = init_clientd(net_type, node_name, barrier_enable,
@@ -605,7 +606,7 @@ error_lum_thread_create:
 
     vrt_exit();
 
-    clientd_perf_cleanup();
+    exa_perf_instance_static_clean();
     os_random_cleanup();
 
     return retval;
