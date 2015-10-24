@@ -81,6 +81,9 @@ struct tcp_plugin
 {
     struct nbd_root_list recv_list;
 
+    /** address which is used by the lib to bind its sockets */
+    struct in_addr data_addr;
+
     struct {
         os_thread_t tid;
         bool        run;
@@ -739,7 +742,7 @@ int tcp_connect_to_peer(nbd_tcp_t *nbd_tcp, exa_nodeid_t nid)
         return -NET_ERR_INVALID_HOST;
     }
 
-    sock = client_connect_to_server(&node_addr, &nbd_tcp->data_addr);
+    sock = client_connect_to_server(&node_addr, &tcp->data_addr);
     if (sock >= 0)
         peer->sock = sock;
     else
@@ -842,6 +845,7 @@ int tcp_remove_peer(uint64_t peer_id, struct nbd_tcp *nbd_tcp)
 
 int tcp_start_listening(nbd_tcp_t *nbd_tcp)
 {
+    tcp_plugin_t *tcp = nbd_tcp->tcp;
     struct sockaddr_in serv_addr;
     int err, sock;
 
@@ -855,7 +859,7 @@ int tcp_start_listening(nbd_tcp_t *nbd_tcp)
     /* bind a socket to SERVERD_DATA_PORT port and make it listen for incoming
      * connections */
     serv_addr.sin_family = AF_INET;
-    serv_addr.sin_addr.s_addr = nbd_tcp->data_addr.s_addr;
+    serv_addr.sin_addr.s_addr = tcp->data_addr.s_addr;
     serv_addr.sin_port = htons(SERVERD_DATA_PORT);
 
     err = internal_setsock_opt(sock, SOCK_LISTEN_FLAGS);
@@ -870,7 +874,7 @@ int tcp_start_listening(nbd_tcp_t *nbd_tcp)
     if (err < 0)
     {
         exalog_error("cannot bind socket on %s: %s(%d)",
-                     os_inet_ntoa(nbd_tcp->data_addr),
+                     os_inet_ntoa(tcp->data_addr),
                      exa_error_msg(err), err);
         close_socket(sock);
         return -EXA_ERR_CREATE_SOCKET;
@@ -1032,7 +1036,7 @@ int init_tcp(nbd_tcp_t *nbd_tcp, const char *hostname, const char *net_type,
 
   os_net_init();
 
-  err = os_host_addr(hostname, &nbd_tcp->data_addr);
+  err = os_host_addr(hostname, &tcp->data_addr);
   if (err != 0)
   {
       exalog_error("Cannot resolve %s: %s (%d)\n", hostname,

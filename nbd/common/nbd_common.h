@@ -82,8 +82,6 @@ struct nbd_tcp
 
   /* Internal structure of the plugin */
   tcp_plugin_t *tcp;
-
-  struct in_addr data_addr;
 };
 
 typedef struct nbd_tcp nbd_tcp_t;
