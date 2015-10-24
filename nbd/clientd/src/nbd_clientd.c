@@ -127,7 +127,8 @@ static void end_receiving(exa_nodeid_t from, const nbd_io_desc_t *io, int error)
 
 static void *client_get_buffer(const nbd_io_desc_t *io)
 {
-    EXA_ASSERT(io->request_type != NBD_REQ_TYPE_WRITE);
+    if (io->request_type == NBD_REQ_TYPE_WRITE)
+        return NULL;
 
     return exa_bdget_buffer(io->req_num);
 }

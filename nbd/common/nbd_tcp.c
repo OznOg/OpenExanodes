@@ -365,14 +365,7 @@ static transfer_status_t request_recv(int fd, pending_recv_t *request)
         if (request->nb_readwrite < NBD_HEADER_NET_SIZE)
             return DATA_TRANSFER_PENDING;
 
-        /* no buffer associated, so we can put immediately the header */
-        if (request->io_desc.sector_nb == 0)
-            return DATA_TRANSFER_COMPLETE;
-
-        if (request->buffer == NULL)
-            return DATA_TRANSFER_NEED_BUFFER;
-
-        return DATA_TRANSFER_PENDING;
+        return DATA_TRANSFER_NEED_BUFFER;
     }
 
     do {
