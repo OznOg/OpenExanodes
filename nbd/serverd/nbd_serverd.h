@@ -110,8 +110,6 @@ typedef struct server server_t;
 
 extern server_t nbd_server;
 
-extern void datanet_checking(int client_id, int action);
-
 void nbd_server_send(const nbd_io_desc_t *io);
 
 void nbd_server_end_io(header_t *req_header);
