@@ -52,13 +52,12 @@ server_t nbd_server;
 /* callback function from plugin to release the buffer */
 static void tcp_server_end_sending(header_t *req_header, int error)
 {
-    if (req_header->type == NBD_HEADER_END_IO)
-    {
-        serverd_perf_end_request(req_header);
+    EXA_ASSERT(req_header->type == NBD_HEADER_RH);
 
-        if (req_header->sector_nb > 0 && req_header->buf != NULL)
-            nbd_list_post(&nbd_server.ti_queue.free, req_header->buf, -1);
-    }
+    serverd_perf_end_request(req_header);
+
+    if (req_header->sector_nb > 0 && req_header->buf != NULL)
+        nbd_list_post(&nbd_server.ti_queue.free, req_header->buf, -1);
 }
 
 void nbd_server_send(header_t *req_header)
@@ -100,7 +99,6 @@ static void nbd_recv_processing(header_t *req_header, int error)
             /* the disk no more exist, so we send an error to the sender
              * this send is needed by the sender and by the plugin (ibverbs) to
              * clear some allocated resources */
-            req_header->type = NBD_HEADER_END_IO;
             req_header->result = -EIO;
             nbd_server_send(req_header);
         }
@@ -108,7 +106,6 @@ static void nbd_recv_processing(header_t *req_header, int error)
         break;
 
     case NBD_HEADER_LOCK:
-    case NBD_HEADER_END_IO:
     default:
 	exalog_error("Inconsistent protocol header type: %d", req_header->type);
 	nbd_list_post (&nbd_server.tr_headers_queue.root->free,req_header, -1);
@@ -121,7 +118,9 @@ static void server_handle_events(void *p);
 static void *server_get_buffer(struct header *header)
 {
     /* End IO buffers are set right before reading on disk */
-    if (header->type == NBD_HEADER_END_IO)
+    EXA_ASSERT(header->type == NBD_HEADER_RH);
+
+    if (header->buf != NULL)
         return header->buf;
 
     EXA_ASSERT(header->sector_nb <= BYTES_TO_SECTORS(nbd_server.bd_buffer_size));

@@ -37,8 +37,7 @@ struct header
 {
     enum {
         NBD_HEADER_LOCK = 1135,
-        NBD_HEADER_RH,
-        NBD_HEADER_END_IO
+        NBD_HEADER_RH
     } type;
   nbd_req_type_t request_type;
   uint64_t sector;

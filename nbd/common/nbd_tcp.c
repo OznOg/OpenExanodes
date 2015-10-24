@@ -307,10 +307,7 @@ static int request_send(int fd, struct pending_request *request, nbd_tcp_t *nbd_
             return DATA_TRANSFER_PENDING;
 
             /* no buffer associated, so we can put immediately the header */
-        if (!(((request->header->type == NBD_HEADER_RH
-                && request->header->request_type == NBD_REQ_TYPE_WRITE)
-            || (request->header->type == NBD_HEADER_END_IO
-                && request->header->request_type == NBD_REQ_TYPE_READ)) && request->header->sector_nb != 0))
+        if (request->header->sector_nb == 0)
             return DATA_TRANSFER_COMPLETE;
 
         /* Buffer MUST exist as the caller requested to send buffer's data...
@@ -367,10 +364,7 @@ static int request_recv(int fd, struct pending_request *request, nbd_tcp_t *nbd_
             return DATA_TRANSFER_PENDING;
 
             /* no buffer associated, so we can put immediately the header */
-        if (!(((request->header->type == NBD_HEADER_RH
-                && request->header->request_type == NBD_REQ_TYPE_WRITE)
-            || (request->header->type == NBD_HEADER_END_IO
-                && request->header->request_type == NBD_REQ_TYPE_READ)) && request->header->sector_nb != 0))
+        if (request->header->sector_nb == 0)
             return DATA_TRANSFER_COMPLETE;
 
         /* There MUST be a free buffer at this point or something went wrong */

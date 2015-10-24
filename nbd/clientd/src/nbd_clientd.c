@@ -120,12 +120,11 @@ static void end_receiving(header_t *req_header, int error)
 {
     switch (req_header->type)
     {
-        case NBD_HEADER_END_IO:
+        case NBD_HEADER_RH:
             exa_bd_end_request(req_header);
             break;
 
         case NBD_HEADER_LOCK:
-        case NBD_HEADER_RH:
             exalog_error("Unknown request header %d", req_header->type);
             break;
     }

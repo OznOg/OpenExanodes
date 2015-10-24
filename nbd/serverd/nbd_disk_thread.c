@@ -257,7 +257,6 @@ static void handle_completed_io(device_t *disk_device, header_t *req)
     {
     case NBD_REQ_TYPE_READ:
     case NBD_REQ_TYPE_WRITE:
-        req->type = NBD_HEADER_END_IO;
         break;
     case NBD_REQ_TYPE_LOCK:
     case NBD_REQ_TYPE_UNLOCK:
