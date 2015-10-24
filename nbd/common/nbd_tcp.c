@@ -307,7 +307,7 @@ static int request_send(int fd, struct pending_request *request, nbd_tcp_t *nbd_
             return DATA_TRANSFER_PENDING;
 
             /* no buffer associated, so we can put immediately the header */
-        if (request->header->sector_nb == 0)
+        if (request->header->io.sector_nb == 0)
             return DATA_TRANSFER_COMPLETE;
 
         /* Buffer MUST exist as the caller requested to send buffer's data...
@@ -321,7 +321,7 @@ static int request_send(int fd, struct pending_request *request, nbd_tcp_t *nbd_
 
     do {
         ret = os_send(fd, request->buffer,
-                      NBD_HEADER_NET_SIZE + (request->header->sector_nb << 9) - request->nb_readwrite);
+                      NBD_HEADER_NET_SIZE + (request->header->io.sector_nb << 9) - request->nb_readwrite);
     } while (ret == -EINTR);
 
     if (ret < 0)
@@ -330,7 +330,7 @@ static int request_send(int fd, struct pending_request *request, nbd_tcp_t *nbd_
     request->nb_readwrite += ret;
     request->buffer += ret;
 
-    if (request->nb_readwrite < NBD_HEADER_NET_SIZE + (request->header->sector_nb << 9))
+    if (request->nb_readwrite < NBD_HEADER_NET_SIZE + (request->header->io.sector_nb << 9))
         return DATA_TRANSFER_PENDING;
 
     return DATA_TRANSFER_COMPLETE;
@@ -364,7 +364,7 @@ static int request_recv(int fd, struct pending_request *request, nbd_tcp_t *nbd_
             return DATA_TRANSFER_PENDING;
 
             /* no buffer associated, so we can put immediately the header */
-        if (request->header->sector_nb == 0)
+        if (request->header->io.sector_nb == 0)
             return DATA_TRANSFER_COMPLETE;
 
         /* There MUST be a free buffer at this point or something went wrong */
@@ -376,7 +376,7 @@ static int request_recv(int fd, struct pending_request *request, nbd_tcp_t *nbd_
 
     do {
         ret = os_recv(fd, request->buffer,
-                      NBD_HEADER_NET_SIZE + (request->header->sector_nb << 9)
+                      NBD_HEADER_NET_SIZE + (request->header->io.sector_nb << 9)
                       - request->nb_readwrite, 0);
     } while (ret == -EINTR);
 
@@ -386,7 +386,7 @@ static int request_recv(int fd, struct pending_request *request, nbd_tcp_t *nbd_
     request->nb_readwrite += ret;
     request->buffer += ret;
 
-    if (request->nb_readwrite < NBD_HEADER_NET_SIZE + (request->header->sector_nb << 9))
+    if (request->nb_readwrite < NBD_HEADER_NET_SIZE + (request->header->io.sector_nb << 9))
         return DATA_TRANSFER_PENDING;
 
     return DATA_TRANSFER_COMPLETE;
@@ -400,7 +400,7 @@ static void request_processed(struct pending_request *pending_req,
     if (header == NULL)
         return;
 
-    header->client_id = client_id;
+    header->io.client_id = client_id;
 
     if (nbd_tcp->end_sending)
         nbd_tcp->end_sending(header, error);
@@ -599,7 +599,7 @@ static void receive_thread(void *p)
               }
 
               /* the netplugin must set this id at reception */
-              temp_header->client_id = i;
+              temp_header->io.client_id = i;
               nbd_tcp->end_receiving(temp_header, 0);
           }
       }
@@ -616,13 +616,13 @@ int tcp_send_data(struct header *data_header, struct nbd_tcp *nbd_tcp)
 
   os_thread_rwlock_rdlock(&tcp->peers_lock);
   /* we send no more data to a removed connection */
-  if (tcp->peers[data_header->client_id].sock < 0)
+  if (tcp->peers[data_header->io.client_id].sock < 0)
   {
       os_thread_rwlock_unlock(&tcp->peers_lock);
       return -NBD_ERR_NO_CONNECTION;
   }
 
-  nbd_list_post(&tcp->peers[data_header->client_id].send_list, data_header, -1);
+  nbd_list_post(&tcp->peers[data_header->io.client_id].send_list, data_header, -1);
 
   os_sem_post(&tcp->send_thread.semaphore);
 

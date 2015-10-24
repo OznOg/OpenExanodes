@@ -133,7 +133,7 @@ static void end_receiving(header_t *req_header, int error)
 
 static void *client_get_buffer(struct header *data_header)
 {
-    return exa_bdget_buffer(data_header->req_num);
+    return exa_bdget_buffer(data_header->io.req_num);
 }
 
 #ifndef WIN32

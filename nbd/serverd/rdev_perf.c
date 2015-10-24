@@ -51,8 +51,8 @@ void __rdev_perf_make_request(device_t *disk_device, header_t *req_header)
     uint64_t inter_arrival;
     int rw = -1;
 
-    EXA_ASSERT(NBD_REQ_TYPE_IS_VALID(req_header->request_type));
-    switch (req_header->request_type)
+    EXA_ASSERT(NBD_REQ_TYPE_IS_VALID(req_header->io.request_type));
+    switch (req_header->io.request_type)
     {
     case NBD_REQ_TYPE_READ:
         rw = __READ;
@@ -60,10 +60,6 @@ void __rdev_perf_make_request(device_t *disk_device, header_t *req_header)
     case NBD_REQ_TYPE_WRITE:
         rw = __WRITE;
         break;
-    case NBD_REQ_TYPE_LOCK:
-    case NBD_REQ_TYPE_UNLOCK:
-        EXA_ASSERT(false);
-        /* FIXME: formerly this case was not handled */
     }
 
     /* WARNING: be careful, although the first call is taken into account
@@ -78,7 +74,7 @@ void __rdev_perf_make_request(device_t *disk_device, header_t *req_header)
 				 inter_arrival);
     }
     disk_device->last_req_time[rw] = now_ms;
-    req_header->rdev_submit_date = now_ms;
+    req_header->io.rdev_submit_date = now_ms;
 }
 
 void __rdev_perf_end_request(device_t *disk_device, header_t *req_header)
@@ -86,8 +82,8 @@ void __rdev_perf_end_request(device_t *disk_device, header_t *req_header)
     double duration;
     int rw = -1;
 
-    EXA_ASSERT(NBD_REQ_TYPE_IS_VALID(req_header->request_type));
-    switch (req_header->request_type)
+    EXA_ASSERT(NBD_REQ_TYPE_IS_VALID(req_header->io.request_type));
+    switch (req_header->io.request_type)
     {
     case NBD_REQ_TYPE_READ:
         rw = __READ;
@@ -95,13 +91,9 @@ void __rdev_perf_end_request(device_t *disk_device, header_t *req_header)
     case NBD_REQ_TYPE_WRITE:
         rw = __WRITE;
         break;
-    case NBD_REQ_TYPE_LOCK:
-    case NBD_REQ_TYPE_UNLOCK:
-        EXA_ASSERT(false);
-        /* FIXME: formerly this case was not handled */
     }
 
-    duration = (double)os_gettimeofday_msec() - req_header->rdev_submit_date;
+    duration = (double)os_gettimeofday_msec() - req_header->io.rdev_submit_date;
 
     exaperf_duration_record(disk_device->rdev_dur[rw], duration);
 }

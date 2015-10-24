@@ -116,19 +116,19 @@ void exa_bdend(void)
 
 void exa_bd_end_request(header_t *header)
 {
-    struct bd_kerneluser_queue *bdq = nbd_get_elt_by_num(header->req_num, &request_root_list);
+    struct bd_kerneluser_queue *bdq = nbd_get_elt_by_num(header->io.req_num, &request_root_list);
     blockdevice_io_t *bio = bdq->bio;
 
     EXA_ASSERT(bdq != NULL);
 
-    EXA_ASSERT(bdq->req_num == header->req_num);
+    EXA_ASSERT(bdq->req_num == header->io.req_num);
 
     nbd_stat_request_done(&bdq->ndev->stats, header);
     clientd_perf_end_request(&bdq->ndev->perfs, header);
 
     nbd_list_post(&request_root_list.free, bdq, -1);
 
-    blockdevice_end_io(bio, header->result);
+    blockdevice_end_io(bio, header->io.result);
 }
 
 void *exa_bdget_buffer(int num) /* reentrant */
@@ -281,31 +281,31 @@ void bd_get_stats(struct nbd_stats_reply *reply, const exa_uuid_t *uuid, bool re
 static int prepare_req_header(struct bd_kerneluser_queue *bdq, int req_index,
                               struct header *req_header)
 {
-    req_header->req_num = req_index;
-    bdq->req_num = req_header->req_num;
+    req_header->io.req_num = req_index;
+    bdq->req_num = req_header->io.req_num;
 
     EXA_ASSERT(BLOCKDEVICE_IO_TYPE_IS_VALID(bdq->bio->type));
     switch (bdq->bio->type)
     {
         case BLOCKDEVICE_IO_WRITE:
-            req_header->request_type = NBD_REQ_TYPE_WRITE;
+            req_header->io.request_type = NBD_REQ_TYPE_WRITE;
             break;
         case BLOCKDEVICE_IO_READ:
-            req_header->request_type = NBD_REQ_TYPE_READ;
+            req_header->io.request_type = NBD_REQ_TYPE_READ;
             break;
     }
 
     req_header->type = NBD_HEADER_RH;
-    req_header->sector = bdq->bio->start_sector;
-    req_header->sector_nb = BYTES_TO_SECTORS(bdq->bio->size);
-    req_header->bypass_lock = bdq->bio->bypass_lock;
-    req_header->flush_cache = bdq->bio->flush_cache;
-    req_header->buf = NULL /* Dummy field not used in clientd */;
+    req_header->io.sector = bdq->bio->start_sector;
+    req_header->io.sector_nb = BYTES_TO_SECTORS(bdq->bio->size);
+    req_header->io.bypass_lock = bdq->bio->bypass_lock;
+    req_header->io.flush_cache = bdq->bio->flush_cache;
+    req_header->io.buf = NULL /* Dummy field not used in clientd */;
 
     /* get network device */
-    req_header->disk_id = bdq->ndev->server_side_disk_uid;
+    req_header->io.disk_id = bdq->ndev->server_side_disk_uid;
 
-    req_header->client_id = bdq->ndev->holder_id;
+    req_header->io.client_id = bdq->ndev->holder_id;
 
     /* FIXME
      * All this tagging and numbering stuff is brain dead: when send thread

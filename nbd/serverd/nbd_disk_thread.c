@@ -39,10 +39,10 @@ int __exa_disk_zone_lock(device_t *dev, long first_sector, long size_in_sector,
   EXA_ASSERT(header != NULL);
 
   header->type = NBD_HEADER_LOCK;
-  header->sector = first_sector;
-  header->sector_nb = size_in_sector;
+  header->lock.sector = first_sector;
+  header->lock.sector_nb = size_in_sector;
 
-  header->request_type = lock ? NBD_REQ_TYPE_LOCK : NBD_REQ_TYPE_UNLOCK;
+  header->lock.op = lock ? NBD_REQ_TYPE_LOCK : NBD_REQ_TYPE_UNLOCK;
 
   nbd_list_post(&dev->disk_queue, header, -1);
 
@@ -86,8 +86,11 @@ static void td_merge_lock(device_t *disk_device, header_t *header)
 {
     int i;
 
-    EXA_ASSERT(NBD_REQ_TYPE_IS_VALID(header->request_type));
-    switch (header->request_type)
+    EXA_ASSERT(header->type = NBD_HEADER_LOCK);
+    EXA_ASSERT(header->lock.op == NBD_REQ_TYPE_LOCK
+               || header->lock.op == NBD_REQ_TYPE_UNLOCK);
+
+    switch (header->lock.op)
     {
     case NBD_REQ_TYPE_LOCK:
         if (disk_device->nb_locked_zone > NBMAX_DISK_LOCKED_ZONES)
@@ -99,8 +102,8 @@ static void td_merge_lock(device_t *disk_device, header_t *header)
         {
             struct locked_zone *locked_zone = &disk_device->locked_zone[disk_device->nb_locked_zone];
 
-            locked_zone->sector    = header->sector;
-            locked_zone->sector_count = header->sector_nb;
+            locked_zone->sector    = header->lock.sector;
+            locked_zone->sector_count = header->lock.sector_nb;
 
             disk_device->nb_locked_zone++;
             disk_device->locking_return = 0;
@@ -113,8 +116,8 @@ static void td_merge_lock(device_t *disk_device, header_t *header)
         {
             struct locked_zone *locked_zone = &disk_device->locked_zone[i];
 
-            if (locked_zone->sector == header->sector
-                && locked_zone->sector_count == header->sector_nb)
+            if (locked_zone->sector == header->lock.sector
+                && locked_zone->sector_count == header->lock.sector_nb)
             {
                 disk_device->locking_return = 0;
                 disk_device->nb_locked_zone--;
@@ -131,11 +134,6 @@ static void td_merge_lock(device_t *disk_device, header_t *header)
 
         disk_device->locking_return = -1;
         return;
-
-    case NBD_REQ_TYPE_READ:
-    case NBD_REQ_TYPE_WRITE:
-        EXA_ASSERT(false);
-        /* FIXME: formerly the case was not tested, it was treated as UNLOCK */
     }
 }
 
@@ -153,8 +151,8 @@ static bool td_is_locked(device_t *disk_device, header_t *header)
     for (i = 0; i < disk_device->nb_locked_zone; i++)
     {
         const struct locked_zone *locked_zone = &disk_device->locked_zone[i];
-        if (header->sector < locked_zone->sector + locked_zone->sector_count
-            && header->sector + header->sector_nb > locked_zone->sector)
+        if (header->io.sector < locked_zone->sector + locked_zone->sector_count
+            && header->io.sector + header->io.sector_nb > locked_zone->sector)
             return true;
     }
 
@@ -188,28 +186,25 @@ static int exa_td_process_one_request(header_t **header,
   rdev_op_t op = (rdev_op_t)-1;
 
   /* submit this new request to exa_rdev and so to the disk driver */
-  sector_nb = req_header->sector_nb;
+  sector_nb = req_header->io.sector_nb;
 
-  buffer = req_header->buf;
+  buffer = req_header->io.buf;
 
-  sector = req_header->sector;
+  sector = req_header->io.sector;
 
-  EXA_ASSERT(NBD_REQ_TYPE_IS_VALID(req_header->request_type));
-  switch (req_header->request_type)
+  EXA_ASSERT(NBD_REQ_TYPE_IS_VALID(req_header->io.request_type));
+  switch (req_header->io.request_type)
   {
   case NBD_REQ_TYPE_READ:
-      EXA_ASSERT(!req_header->flush_cache);
+      EXA_ASSERT(!req_header->io.flush_cache);
       op = RDEV_OP_READ;
       break;
   case NBD_REQ_TYPE_WRITE:
-      if (req_header->flush_cache)
+      if (req_header->io.flush_cache)
           op = RDEV_OP_WRITE_BARRIER;
       else
           op = RDEV_OP_WRITE;
       break;
-  case NBD_REQ_TYPE_LOCK:
-  case NBD_REQ_TYPE_UNLOCK:
-      EXA_ASSERT(false);
   }
 
   rdev_perf_make_request(disk_device, req_header);
@@ -228,7 +223,7 @@ static int exa_td_process_one_request(header_t **header,
   if (*header != NULL)
   {
       rdev_perf_end_request(disk_device, *header);
-      (*header)->result = retval == RDEV_REQUEST_END_OK ? 0 : -EIO;
+      (*header)->io.result = retval == RDEV_REQUEST_END_OK ? 0 : -EIO;
   }
 
   return retval;
@@ -245,25 +240,13 @@ static void handle_completed_io(device_t *disk_device, header_t *req)
 {
     rdev_perf_end_request(disk_device, req);
 
-    EXA_ASSERT(NBD_REQ_TYPE_IS_VALID(req->request_type));
+    EXA_ASSERT(NBD_REQ_TYPE_IS_VALID(req->io.request_type));
 
-    if (req->result != 0)
+    if (req->io.result != 0)
         exalog_trace("error %d: #%"PRIu64". %s (%d) %d sector at sector %"PRId64,
-                     req->result, req->req_num,
-                     (req->request_type == NBD_REQ_TYPE_READ) ? "READ" : "WRITE",
-                     req->request_type, req->sector_nb, req->sector);
-
-    switch (req->request_type)
-    {
-    case NBD_REQ_TYPE_READ:
-    case NBD_REQ_TYPE_WRITE:
-        break;
-    case NBD_REQ_TYPE_LOCK:
-    case NBD_REQ_TYPE_UNLOCK:
-        EXA_ASSERT(false);
-        /* FIXME: formerly this case was not handled
-         * let see if it happends sometimes... */
-    }
+                     req->io.result, req->io.req_num,
+                     (req->io.request_type == NBD_REQ_TYPE_READ) ? "READ" : "WRITE",
+                     req->io.request_type, req->io.sector_nb, req->io.sector);
 
     nbd_server_send(req);
 }
@@ -307,7 +290,7 @@ static int wait_and_complete_one_io(device_t *disk_device)
     if (!means_finished(err))
         return err;
 
-    req->result = err == RDEV_REQUEST_END_OK ? 0 : -EIO;
+    req->io.result = err == RDEV_REQUEST_END_OK ? 0 : -EIO;
 
     handle_completed_io(disk_device, req);
 
@@ -348,9 +331,6 @@ static int submit_req(device_t *disk_device, header_t **_req)
 
   if (req->type == NBD_HEADER_LOCK)
   {
-      EXA_ASSERT(req->request_type == NBD_REQ_TYPE_LOCK
-                 || req->request_type == NBD_REQ_TYPE_UNLOCK);
-
       td_merge_lock(disk_device, req);
 
       __wait_for_all_completion(disk_device);
@@ -360,25 +340,25 @@ static int submit_req(device_t *disk_device, header_t **_req)
       return RDEV_REQUEST_NONE_ENDED;
   }
 
-  if (req->sector_nb == 0) /* Is a flush */
+  if (req->io.sector_nb == 0) /* Is a flush */
   {
-      EXA_ASSERT(req->request_type == NBD_REQ_TYPE_WRITE);
+      EXA_ASSERT(req->io.request_type == NBD_REQ_TYPE_WRITE);
       __wait_for_all_completion(disk_device);
       /* Once the flush is called, we wait for all pending IO to
        * finish. Upon return we have the guaranty that every
        * pending operation on disk is finished and drive is
        * flushed. */
       exa_rdev_flush(disk_device->handle);
-      req->result = 0;
+      req->io.result = 0;
       return RDEV_REQUEST_END_OK;
   }
 
-  if (!req->bypass_lock && td_is_locked(disk_device, req))
+  if (!req->io.bypass_lock && td_is_locked(disk_device, req))
   {
       /* Being here means that the IO cannot be done because of locks, thus
        * we send back a EAGAIN to caller to tell that the IO must be
        * re-submitted later. */
-      req->result = -EAGAIN;
+      req->io.result = -EAGAIN;
       return RDEV_REQUEST_END_OK;
   }
 

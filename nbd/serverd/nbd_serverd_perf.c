@@ -149,8 +149,8 @@ void __serverd_perf_make_request(header_t *req_header)
     double dist;
     int rw = -1;
 
-    EXA_ASSERT(NBD_REQ_TYPE_IS_VALID(req_header->request_type));
-    switch (req_header->request_type)
+    EXA_ASSERT(NBD_REQ_TYPE_IS_VALID(req_header->io.request_type));
+    switch (req_header->io.request_type)
     {
     case NBD_REQ_TYPE_READ:
         rw = __READ;
@@ -158,10 +158,6 @@ void __serverd_perf_make_request(header_t *req_header)
     case NBD_REQ_TYPE_WRITE:
         rw = __WRITE;
         break;
-    case NBD_REQ_TYPE_LOCK:
-    case NBD_REQ_TYPE_UNLOCK:
-        EXA_ASSERT(false);
-        /* FIXME: formerly this case was not handled */
     }
 
     now_ms = os_gettimeofday_msec();
@@ -169,20 +165,20 @@ void __serverd_perf_make_request(header_t *req_header)
     /* FIXME how is it supposed to be of an other type here ? */
     if (req_header->type == NBD_HEADER_RH)
     {
-	uint64_t lba_in_kbytes = req_header->sector / 2;
+	uint64_t lba_in_kbytes = req_header->io.sector / 2;
 	/* add the lba in MB in the repartition */
 	exaperf_repart_add_value(lba_repart[rw], lba_in_kbytes / 1024);
 
-	req_header->header_submit_date = now_ms;
+	req_header->io.header_submit_date = now_ms;
 
 	inter_arrival = (double)now_ms - last_req_time[rw];
-	dist = (double)req_header->sector - next_sector[rw];
+	dist = (double)req_header->io.sector - next_sector[rw];
 
 	exaperf_repart_add_value(inter_arrival_repart[rw], inter_arrival);
 	exaperf_repart_add_value(distance_repart[rw], dist);
 	exaperf_repart_add_value(req_size_repart[rw],
-				 (req_header->sector_nb/2.));
-	next_sector[rw] = req_header->sector + req_header->sector_nb;
+				 (req_header->io.sector_nb/2.));
+	next_sector[rw] = req_header->io.sector + req_header->io.sector_nb;
 	last_req_time[rw] = now_ms;
     }
 }
@@ -192,8 +188,8 @@ void __serverd_perf_end_request(header_t *req_header)
     double now = os_gettimeofday_msec();
     int rw = -1;
 
-    EXA_ASSERT(NBD_REQ_TYPE_IS_VALID(req_header->request_type));
-    switch (req_header->request_type)
+    EXA_ASSERT(NBD_REQ_TYPE_IS_VALID(req_header->io.request_type));
+    switch (req_header->io.request_type)
     {
     case NBD_REQ_TYPE_READ:
         rw = __READ;
@@ -201,18 +197,14 @@ void __serverd_perf_end_request(header_t *req_header)
     case NBD_REQ_TYPE_WRITE:
         rw = __WRITE;
         break;
-    case NBD_REQ_TYPE_LOCK:
-    case NBD_REQ_TYPE_UNLOCK:
-        EXA_ASSERT(false);
-        /* FIXME: formerly this case was not handled */
     }
 
     exaperf_duration_record(header_dur[rw],
-			    (double)now - req_header->header_submit_date);
+			    (double)now - req_header->io.header_submit_date);
 
     if (rw == __WRITE)
 	exaperf_duration_record(data_dur,
-				(double)now - req_header->data_submit_date);
+				(double)now - req_header->io.data_submit_date);
 }
 
 

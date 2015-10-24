@@ -111,7 +111,7 @@ void __clientd_perf_make_request(header_t *req_header)
     if (eh == NULL)
         return;
 
-    req_header->submit_date = os_gettimeofday_msec();
+    req_header->io.submit_date = os_gettimeofday_msec();
 }
 
 void __clientd_perf_end_request(struct ndev_perf *perf_infos, header_t *req_header)
@@ -119,8 +119,8 @@ void __clientd_perf_end_request(struct ndev_perf *perf_infos, header_t *req_head
     double elapsed;
     int rw = -1;
 
-    EXA_ASSERT(NBD_REQ_TYPE_IS_VALID(req_header->request_type));
-    switch (req_header->request_type)
+    EXA_ASSERT(NBD_REQ_TYPE_IS_VALID(req_header->io.request_type));
+    switch (req_header->io.request_type)
     {
     case NBD_REQ_TYPE_READ:
         rw = __READ;
@@ -128,16 +128,12 @@ void __clientd_perf_end_request(struct ndev_perf *perf_infos, header_t *req_head
     case NBD_REQ_TYPE_WRITE:
         rw = __WRITE;
         break;
-    case NBD_REQ_TYPE_LOCK:
-    case NBD_REQ_TYPE_UNLOCK:
-        EXA_ASSERT(false);
-        /* FIXME: formerly this case was not handled */
     }
 
     if (eh == NULL)
         return;
 
-    elapsed = (double)(os_gettimeofday_msec() - req_header->submit_date);
+    elapsed = (double)(os_gettimeofday_msec() - req_header->io.submit_date);
     exaperf_duration_record(perf_infos->clientd_dur[rw], elapsed);
 }
 

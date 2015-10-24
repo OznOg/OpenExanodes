@@ -14,22 +14,6 @@
 
 #include "os/include/os_network.h"
 
-/* FIXME: LOCK/UNLOCK is completely disjoint from the other IO types */
-typedef enum
-{
-#define NBD_REQ_TYPE__FIRST   NBD_REQ_TYPE_READ
-    NBD_REQ_TYPE_READ = 236,
-    NBD_REQ_TYPE_WRITE,
-    NBD_REQ_TYPE_LOCK,
-    NBD_REQ_TYPE_UNLOCK,
-#define NBD_REQ_TYPE__LAST    NBD_REQ_TYPE_UNLOCK
-} nbd_req_type_t;
-
-#define NBD_REQ_TYPE_INVALID (NBD_REQ_TYPE__LAST + 15)
-
-#define NBD_REQ_TYPE_IS_VALID(type)  \
-    ((type) >= NBD_REQ_TYPE__FIRST && (type) <= NBD_REQ_TYPE__LAST)
-
 #define DEFAULT_BD_BUFFER_SIZE 131072
 
 /* struct header is exchanged between host, so it needs to be packed! */
@@ -39,25 +23,44 @@ struct header
         NBD_HEADER_LOCK = 1135,
         NBD_HEADER_RH
     } type;
-  nbd_req_type_t request_type;
-  uint64_t sector;
-  uint32_t sector_nb;
-  int8_t disk_id;
-  uint64_t req_num;
-  int8_t result;
-  bool bypass_lock;     /**< tells if the IO can bypass rebuilding lock */
-  bool flush_cache;     /**< tells if the IO needs a disk cache synchronization (barrier) */
-  /* FIXME This is a client _index_, not an _id_ (nbd_client.servers_node_id) */
-  uint64_t client_id;
-  void *buf;
 
+    union {
+        struct {
+            enum {
+                NBD_REQ_TYPE_READ = 236,
+                NBD_REQ_TYPE_WRITE
+            } request_type;
+#define NBD_REQ_TYPE_IS_VALID(type) \
+    ((type) == NBD_REQ_TYPE_READ || (type) == NBD_REQ_TYPE_WRITE)
+
+            uint64_t sector;
+            uint32_t sector_nb;
+            int8_t disk_id;
+            uint64_t req_num;
+            int8_t result;
+            bool bypass_lock;     /**< tells if the IO can bypass rebuilding lock */
+            bool flush_cache;     /**< tells if the IO needs a disk cache synchronization (barrier) */
+            /* FIXME This is a client _index_, not an _id_ (nbd_client.servers_node_id) */
+            uint64_t client_id;
+            void *buf;
 #ifdef WITH_PERF
-  uint64_t submit_date;           /**< Date of the request reception in clientd        */
-  uint64_t header_submit_date;    /**< Date of the header reception in serverd         */
-  uint64_t data_submit_date;      /**< Date of the data reception in serverd           */
-  uint64_t rdev_submit_date;      /**< Data of the reqest submition to rdev in serverd */
+            uint64_t submit_date;           /**< Date of the request reception in clientd        */
+            uint64_t header_submit_date;    /**< Date of the header reception in serverd         */
+            uint64_t data_submit_date;      /**< Date of the data reception in serverd           */
+            uint64_t rdev_submit_date;      /**< Data of the reqest submition to rdev in serverd */
 #endif
-} __attribute__((__packed__)) ;
+        } __attribute__((__packed__)) io;
+
+        struct {
+            enum {
+                NBD_REQ_TYPE_LOCK = 822,
+                NBD_REQ_TYPE_UNLOCK
+            } op;
+            uint64_t sector;
+            uint32_t sector_nb;
+        } __attribute__((__packed__)) lock;
+    } __attribute__((__packed__));
+} __attribute__((__packed__));
 
 typedef struct header header_t;
 
