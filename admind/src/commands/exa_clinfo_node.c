@@ -62,10 +62,10 @@ void local_clinfo_node_disks(int thr_nb, void *msg)
 
     os_strlcpy(reply[i].path, disk->path, sizeof(reply[i].path));
 
-    if (disk->local->managed_by_serverd)
+    if (disk->local->reachable)
     {
       ret = serverd_get_device_size(adm_wt_get_localmb(), &disk->uuid, &reply[i].size);
-      if (ret != EXA_SUCCESS && disk->local->reachable)
+      if (ret != EXA_SUCCESS)
       {
 	exalog_error("failed to get info for disk %s: %s",
 		    disk->path, exa_error_msg(ret));

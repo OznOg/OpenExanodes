@@ -23,10 +23,8 @@
 /* FIXME 'state' field should be an enum */
 struct adm_disk_local
 {
-  int managed_by_serverd;
   exa_rdev_handle_t *rdev_req;
   int reachable;
-  int up_in_rdev;
   int state;  /* EXA_RDEV_STATUS_OK or EXA_RDEV_STATUS_FAIL */
 };
 

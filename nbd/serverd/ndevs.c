@@ -225,10 +225,7 @@ int export_device(const exa_uuid_t *uuid, char *device_path)
 
     dev->handle = exa_rdev_handle_alloc(device_path);
     if (dev->handle == NULL)
-    {
-        err = -NBD_ERR_MALLOC_FAILED;
         goto error;
-    }
 
     err = get_nb_sectors(device_path, &dev->size_in_sectors);
     if (err != EXA_SUCCESS)

@@ -334,52 +334,6 @@ nbd_recover_serverd_add_client(int thr_nb, exa_nodeset_t *nodes_up)
 }
 
 
-/**
- * Export newly up disks.
- */
-static int
-nbd_recover_serverd_device_export(int thr_nb)
-{
-  struct adm_disk *disk;
-  int export_failed = false;
-
-  adm_node_for_each_disk(adm_myself(), disk)
-  {
-    int ret;
-
-    if (disk->local->managed_by_serverd ||
-	!disk->local->reachable ||
-        disk->broken)
-      continue;
-
-    exalog_debug("serverd_device_export(%s, " UUID_FMT ")",
-                 disk->path, UUID_VAL(&disk->uuid));
-    ret = serverd_device_export(adm_wt_get_localmb(),
-				disk->path, &disk->uuid);
-    if (ret == -ADMIND_ERR_NODE_DOWN)
-      return ret;
-    if (ret == -CMD_EXP_ERR_OPEN_DEVICE)
-    {
-      exalog_warning("serverd_device_export(%s, " UUID_FMT "): %s",
-                     disk->path, UUID_VAL(&disk->uuid),
-		     exa_error_msg(ret));
-      export_failed = true;
-      continue;
-    }
-    EXA_ASSERT_VERBOSE(ret == EXA_SUCCESS,
-                       "serverd_device_export(%s, " UUID_FMT "): %s",
-                       disk->path, UUID_VAL(&disk->uuid),
-                       exa_error_msg(ret));
-
-    disk->local->managed_by_serverd = true;
-  }
-
-  if (export_failed)
-    return -NBD_WARN_EXPORT_FAILED;
-  else
-    return EXA_SUCCESS;
-}
-
 
 /**
  * Remove newly down nodes from serverd.
@@ -701,7 +655,7 @@ nbd_recover_serverd_device_get_info(int thr_nb, struct nbd_recover_disk_info *in
     int ret;
     i++; /* Start at 0 */
 
-    if (!disk->local->managed_by_serverd)
+    if (!disk->local->reachable)
       continue;
 
     EXA_ASSERT(i < NBMAX_DISKS_PER_NODE);
@@ -800,37 +754,6 @@ nbd_recover_clientd_device_import(int thr_nb,
   return retval;
 }
 
-
-static int
-nbd_recover_serverd_device_unexport(int thr_nb)
-{
-  struct adm_disk *disk;
-  int ret;
-
-  adm_node_for_each_disk(adm_myself(), disk)
-  {
-    if (!disk->local->managed_by_serverd)
-      continue;
-
-    if (disk->local->reachable &&
-        !disk->broken)
-      continue;
-
-    exalog_debug("serverd_device_unexport(" UUID_FMT ")", UUID_VAL(&disk->uuid));
-    ret = serverd_device_unexport(adm_wt_get_localmb(), &disk->uuid);
-    if (ret == -ADMIND_ERR_NODE_DOWN)
-      return ret;
-    EXA_ASSERT_VERBOSE(ret == EXA_SUCCESS,
-                       "serverd_device_unexport(" UUID_FMT "): %s",
-                       UUID_VAL(&disk->uuid), exa_error_msg(ret));
-
-    disk->local->managed_by_serverd = false;
-  }
-
-  return EXA_SUCCESS;
-}
-
-
 /**
  * Main function for NBD recovery.
  *
@@ -884,11 +807,6 @@ nbd_local_recover(int thr_nb, void *msg)
   /* Add newly up nodes to serverd (UP) */
 
   ret = nbd_recover_serverd_add_client(thr_nb, &nodes_going_up);
-
-  /* Export newly up disks (UP) */
-
-  if (ret == EXA_SUCCESS)
-    ret = nbd_recover_serverd_device_export(thr_nb);
 
   /* Stop data net checking (DOWN) */
 
@@ -951,10 +869,6 @@ nbd_local_recover(int thr_nb, void *msg)
   /*****************
    * SERVER STEP 2 *
    *****************/
-
-  /* Unexport the disks that became broken or not reachable (DOWN) */
-
-  ret = nbd_recover_serverd_device_unexport(thr_nb);
 
   /* Remove newly down nodes from serverd (DOWN) */
 
@@ -1083,16 +997,6 @@ static void nbd_diskdel(int thr_nb, struct adm_node *node,
 
   admwrk_barrier(thr_nb, EXA_SUCCESS, "NBD: Remove the disk");
 
-  if (adm_disk_is_local(disk) && disk->local->managed_by_serverd)
-  {
-    exalog_debug("serverd_device_unexport(" UUID_FMT ")", UUID_VAL(&disk->uuid));
-    ret = serverd_device_unexport(adm_wt_get_localmb(), &disk->uuid);
-    if (ret != EXA_SUCCESS)
-      exalog_error("serverd_device_unexport(" UUID_FMT "): %s",
-                   UUID_VAL(&disk->uuid), exa_error_msg(ret));
-
-    disk->local->managed_by_serverd = false;
-  }
 }
 
 
@@ -1156,28 +1060,6 @@ nbd_nodestop(int thr_nb, const exa_nodeset_t *nodes_to_stop)
 		     node->name, exa_error_msg(ret));
 
       node->managed_by_serverd = false;
-    }
-  }
-
-  if (adm_nodeset_contains_me(nodes_to_stop))
-  {
-    struct adm_disk *disk;
-    int ret;
-
-    adm_node_for_each_disk(adm_myself(), disk)
-    {
-
-      if (!disk->local->managed_by_serverd)
-	continue;
-
-      exalog_debug("serverd_device_unexport(" UUID_FMT ")",
-		   UUID_VAL(&disk->uuid));
-      ret = serverd_device_unexport(adm_wt_get_localmb(), &disk->uuid);
-      if (ret != EXA_SUCCESS)
-        exalog_error("serverd_device_unexport(" UUID_FMT "): %s",
-                     UUID_VAL(&disk->uuid), exa_error_msg(ret));
-
-      disk->local->managed_by_serverd = false;
     }
   }
 
