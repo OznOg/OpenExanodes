@@ -151,7 +151,7 @@ static int internal_setsock_opt(int sock, int islisten)
        autorisation = 1;
        if (os_setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &autorisation,
                          sizeof(autorisation)) < 0)
-        goto error;
+           return -EXA_ERR_CREATE_SOCKET;
     }
 
   if (islisten & SOCK_FLAGS)
@@ -161,11 +161,11 @@ static int internal_setsock_opt(int sock, int islisten)
       autorisation = 1;
       if (os_setsockopt(sock, IPPROTO_TCP, TCP_NODELAY, &autorisation,
                         sizeof(autorisation)) < 0)
-	  goto error;
+          return -EXA_ERR_CREATE_SOCKET;
 
       /* Set the socket kernel allocation to GFP_ATOMIC */
       if (exa_socket_set_atomic(sock) < 0)
-	  goto error;
+          return -EXA_ERR_CREATE_SOCKET;
 
       /**********************************************************************/
       /* FIXME WIN32 SO_SNDBUF SO_RCVBUF
@@ -182,13 +182,13 @@ static int internal_setsock_opt(int sock, int islisten)
       /* Set the size of the socket TCP send buffers */
       if (os_setsockopt(sock, SOL_SOCKET, SO_SNDBUF, &TCP_buffers,
                         sizeof(TCP_buffers)) < 0)
-          goto error;
+          return -EXA_ERR_CREATE_SOCKET;
 
       /* Set the size of the socket TCP receive buffers: 128K */
       recv_buf_size = 128 * 1024;
       if (os_setsockopt(sock, SOL_SOCKET, SO_RCVBUF, &recv_buf_size,
 		        sizeof(recv_buf_size)) < 0)
-	  goto error;
+          return -EXA_ERR_CREATE_SOCKET;
       /**********************************************************************/
 
       /* Fix the delay in socket shutdown */
@@ -196,16 +196,11 @@ static int internal_setsock_opt(int sock, int islisten)
       linger.l_linger = 0;
       if (os_setsockopt(sock, SOL_SOCKET, SO_LINGER, &linger,
                         sizeof(linger)) < 0)
-	goto error;
+          return -EXA_ERR_CREATE_SOCKET;
 
     }
 
   return EXA_SUCCESS;
-
-error:
-  exalog_error("Cannot set opt of socket %d", sock);
-
-  return -EXA_ERR_CREATE_SOCKET;
 }
 
 
