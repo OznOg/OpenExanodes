@@ -69,10 +69,12 @@
 #define SOCK_LISTEN_FLAGS 1
 #define SOCK_FLAGS 2
 
-#define DATA_TRANSFER_COMPLETE  1
-#define DATA_TRANSFER_PENDING   0
-#define DATA_TRANSFER_ERROR    -1
-#define DATA_TRANSFER_NEED_BUFFER -3
+typedef enum {
+    DATA_TRANSFER_COMPLETE    = 1,
+    DATA_TRANSFER_PENDING     = 0,
+    DATA_TRANSFER_ERROR       = -1,
+    DATA_TRANSFER_NEED_BUFFER = -3
+} transfer_status_t;
 
 typedef struct {
     void *data1;
@@ -296,7 +298,7 @@ static void request_reset(struct pending_request *request)
  *                           (header and buffer if any)
  *   DATA_TRANSFER_PENDING   if some remaining data to transfer
  */
-static int request_send(int fd, send_desc_t *send_desc)
+static transfer_status_t request_send(int fd, send_desc_t *send_desc)
 {
     int ret;
 
@@ -343,7 +345,7 @@ static int request_send(int fd, send_desc_t *send_desc)
  *   DATA_TRANSFER_PENDING   if some remaining data to transfer
  *   DATA_TRANSFER_NEED_BUFFER payload data upcoming but no buffer yet.
  */
-static int request_recv(int fd, struct pending_request *request)
+static transfer_status_t request_recv(int fd, struct pending_request *request)
 {
     int ret;
 
@@ -412,7 +414,7 @@ static void send_thread(void *p)
 
   while (tcp->send_thread.run)
   {
-      int i, ret;
+      int i;
       fd_set fds;
       bool active_sock = false;
       FD_ZERO(&fds);
@@ -439,7 +441,7 @@ static void send_thread(void *p)
       os_thread_rwlock_unlock(&tcp->peers_lock);
 
       if (active_sock)
-	  ret = exa_select_out(sh, &fds);
+	  exa_select_out(sh, &fds);
       else
       {
 	  os_sem_wait(&tcp->send_thread.semaphore);
@@ -458,8 +460,7 @@ static void send_thread(void *p)
 	      && peer->sock >= 0 && FD_ISSET(peer->sock, &fds))
 	  {
 		  /* send remaining data if any */
-		  ret = request_send(peer->sock, peer->pending_send);
-		  switch(ret)
+		  switch(request_send(peer->sock, peer->pending_send))
 		  {
 		  case DATA_TRANSFER_COMPLETE:
                       request_processed(peer->pending_send, nbd_tcp, 0);
@@ -477,7 +478,11 @@ static void send_thread(void *p)
                       break;
 
 		  case DATA_TRANSFER_PENDING:
-		    break;
+                      break;
+
+                  case DATA_TRANSFER_NEED_BUFFER:
+                      EXA_ASSERT(false);
+                      break;
 		  }
           }
       }
@@ -555,8 +560,7 @@ static void receive_thread(void *p)
                       continue;
               }
 
-              ret = request_recv(peer->sock, request);
-              switch (ret)
+              switch (request_recv(peer->sock, request))
               {
               case DATA_TRANSFER_PENDING:
                   break;
