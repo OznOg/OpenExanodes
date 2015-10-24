@@ -28,7 +28,6 @@
 #include "os/include/strlcpy.h"
 #include "log/include/log.h"
 #include "nbd/serverd/nbd_disk_thread.h"
-#include "nbd/serverd/nbd_thread_init_requests.h"
 #include "nbd/serverd/ndevs.h"
 #include "nbd/service/include/nbd_msg.h"
 #include "nbd/common/nbd_tcp.h"
