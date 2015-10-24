@@ -328,6 +328,7 @@ static int submit_req(device_t *disk_device, header_t **_req)
       __wait_for_all_completion(disk_device);
 
       nbd_list_post(&nbd_server.list_root.free, req, -1);
+      *_req = NULL;
       os_sem_post(&disk_device->lock_sem_disk);
       return RDEV_REQUEST_NONE_ENDED;
   }

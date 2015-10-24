@@ -73,6 +73,15 @@
 #define DATA_TRANSFER_PENDING   0
 #define DATA_TRANSFER_ERROR    -1
 
+typedef struct {
+    void *data1;
+    size_t size1;
+    void *data2;
+    size_t size2;
+    void *ctx; /* private context of caller */
+    size_t bytes_sent;
+} send_desc_t;
+
 struct tcp_plugin
 {
     struct nbd_root_list send_list;
@@ -289,50 +298,39 @@ static void request_reset(struct pending_request *request)
  *                           (header and buffer if any)
  *   DATA_TRANSFER_PENDING   if some remaining data to transfer
  */
-static int request_send(int fd, struct pending_request *request, nbd_tcp_t *nbd_tcp)
+static int request_send(int fd, send_desc_t *send_desc, nbd_tcp_t *nbd_tcp)
 {
     int ret;
 
-    if (request->nb_readwrite < NBD_HEADER_NET_SIZE)
+    if (send_desc->bytes_sent < send_desc->size1)
     {
         do {
-            ret = os_send(fd, (char *)request->io_desc + request->nb_readwrite,
-                          NBD_HEADER_NET_SIZE - request->nb_readwrite);
+            ret = os_send(fd, send_desc->data1 + send_desc->bytes_sent,
+                          send_desc->size1 - send_desc->bytes_sent);
         } while (ret == -EINTR);
 
         if (ret < 0)
             return DATA_TRANSFER_ERROR;
 
-        request->nb_readwrite += ret;
+        send_desc->bytes_sent += ret;
 
-        if (request->nb_readwrite < NBD_HEADER_NET_SIZE)
+        if (send_desc->bytes_sent < send_desc->size1 + send_desc->size2)
             return DATA_TRANSFER_PENDING;
 
-            /* no buffer associated, so we can put immediately the header */
-        if (request->io_desc->sector_nb == 0)
-            return DATA_TRANSFER_COMPLETE;
-
-        /* Buffer MUST exist as the caller requested to send buffer's data...
-         * Having buffer == NULL would mean we want to send data, but caller does
-         * not know which... */
-        request->buffer = nbd_tcp->get_buffer(request->io_desc);
-        EXA_ASSERT(request->buffer != NULL);
-
-        return DATA_TRANSFER_PENDING;
+        return DATA_TRANSFER_COMPLETE;
     }
 
     do {
-        ret = os_send(fd, request->buffer,
-                      NBD_HEADER_NET_SIZE + (request->io_desc->sector_nb << 9) - request->nb_readwrite);
+        ret = os_send(fd, send_desc->data2 + send_desc->bytes_sent - send_desc->size1,
+                      send_desc->size2);
     } while (ret == -EINTR);
 
     if (ret < 0)
         return DATA_TRANSFER_ERROR;
 
-    request->nb_readwrite += ret;
-    request->buffer += ret;
+    send_desc->bytes_sent += ret;
 
-    if (request->nb_readwrite < NBD_HEADER_NET_SIZE + (request->io_desc->sector_nb << 9))
+    if (send_desc->bytes_sent < send_desc->size1 + send_desc->size2)
         return DATA_TRANSFER_PENDING;
 
     return DATA_TRANSFER_COMPLETE;
@@ -369,9 +367,9 @@ static int request_recv(int fd, struct pending_request *request, nbd_tcp_t *nbd_
         if (request->io_desc->sector_nb == 0)
             return DATA_TRANSFER_COMPLETE;
 
-        /* There MUST be a free buffer at this point or something went wrong */
         request->buffer = nbd_tcp->get_buffer(request->io_desc);
-        EXA_ASSERT(request->buffer != NULL);
+        if (request->buffer == NULL)
+            return DATA_TRANSFER_COMPLETE;
 
         return DATA_TRANSFER_PENDING;
     }
@@ -394,23 +392,19 @@ static int request_recv(int fd, struct pending_request *request, nbd_tcp_t *nbd_
     return DATA_TRANSFER_COMPLETE;
 }
 
-static void request_processed(struct pending_request *pending_req,
+static void request_processed(send_desc_t *send_desc,
                               int client_id, nbd_tcp_t *nbd_tcp, int error)
 {
     tcp_plugin_t *tcp = nbd_tcp->tcp;
-    nbd_io_desc_t *io_desc = pending_req->io_desc;
 
-    if (io_desc == NULL)
+    if (send_desc == NULL)
         return;
 
     if (nbd_tcp->end_sending)
-        nbd_tcp->end_sending(io_desc, error);
+        nbd_tcp->end_sending(send_desc->data1, send_desc->data2,
+                             send_desc->ctx, error);
 
-    io_desc->buf = NULL;
-
-    nbd_list_post(&tcp->send_list.free, io_desc, -1);
-
-    request_reset(pending_req);
+    nbd_list_post(&tcp->send_list.free, send_desc, -1);
 }
 
 /* thread for asynchronously sending data for a peer or a server */
@@ -418,8 +412,7 @@ static void send_thread(void *p)
 {
   nbd_tcp_t *nbd_tcp = p;
   tcp_plugin_t *tcp = nbd_tcp->tcp;
-  struct pending_request pending_requests[EXA_MAX_NODES_NUMBER];
-  struct pending_request *request = NULL;
+  send_desc_t *pending_send[EXA_MAX_NODES_NUMBER];
   int i;
   int ret;
   fd_set fds;
@@ -428,7 +421,7 @@ static void send_thread(void *p)
   bool active_sock;
 
   for (i = 0; i < EXA_MAX_NODES_NUMBER; i++)
-    request_reset(&pending_requests[i]);
+      pending_send[i] = NULL;
 
   while (tcp->send_thread.run)
   {
@@ -440,7 +433,7 @@ static void send_thread(void *p)
       active_sock = false;
       for (i = 0; i <= tcp->last_peer_idx; i++)
       {
-          request = &pending_requests[i];
+          send_desc_t *request = pending_send[i];
 
 	  fd_act = tcp->peers[i].sock;
 	  if (fd_act < 0)
@@ -448,11 +441,12 @@ static void send_thread(void *p)
 	      request_processed(request, i, nbd_tcp, -1);
 	      continue;
 	  }
-          if (request->io_desc == NULL)
-              request->io_desc = nbd_list_remove(&tcp->peers[i].send_list,
+          if (request == NULL)
+              request = nbd_list_remove(&tcp->peers[i].send_list,
                                                 NULL, LISTNOWAIT);
-          if (request->io_desc != NULL)
+          if (request != NULL)
           {
+              pending_send[i] = request;
 	      FD_SET(fd_act, &fds);
               active_sock = true;
           }
@@ -471,21 +465,22 @@ static void send_thread(void *p)
       for (i = 0; i <= tcp->last_peer_idx; i++)
       {
           struct peer *peer = &tcp->peers[i];
-	  if (pending_requests[i].io_desc != NULL
+	  if (pending_send[i] != NULL
               /* Also check the socket is still valid because there is a race
                * with remove_peer function, thus the socket may be -1 even
                * if it was valid in the first part of loop. see bug #4581 and
                * #4607 */
 	      && peer->sock >= 0 && FD_ISSET(peer->sock, &fds))
 	  {
-		  /* there is a pending io_desc */
-		  request = &pending_requests[i];
+		  /* there is a pending send */
+		  send_desc_t *request = pending_send[i];
 		  /* send remaining data if any */
 		  ret = request_send(peer->sock, request, nbd_tcp);
 		  switch(ret)
 		  {
 		  case DATA_TRANSFER_COMPLETE:
                       request_processed(request, i, nbd_tcp, 0);
+                      pending_send[i] = NULL;
                       break;
 
 		  case DATA_TRANSFER_ERROR:
@@ -493,6 +488,7 @@ static void send_thread(void *p)
                                    "socket=%d", peer->ip_addr,
                                    peer->node_id, peer->sock);
                       request_processed(request, i, nbd_tcp, -1);
+                      pending_send[i] = NULL;
                       close_socket(peer->sock);
                       peer->sock = -1;
                       break;
@@ -500,7 +496,6 @@ static void send_thread(void *p)
 		  case DATA_TRANSFER_PENDING:
 		    break;
 		  }
-
           }
       }
 
@@ -619,13 +614,24 @@ static void receive_thread(void *p)
   exa_select_delete_handle(sh);
 }
 
-void tcp_send_data(struct nbd_tcp *nbd_tcp, exa_nodeid_t to, const nbd_io_desc_t *io)
+void tcp_send_data(struct nbd_tcp *nbd_tcp, exa_nodeid_t to,
+                   void *data1, size_t size1,
+                   void *data2, size_t size2,
+                   void *ctx)
 {
     tcp_plugin_t *tcp = nbd_tcp->tcp;
-    nbd_io_desc_t *io_desc = nbd_list_remove(&tcp->send_list.free, NULL, LISTWAIT);
-    EXA_ASSERT(io_desc != NULL);
+    send_desc_t *send_desc = nbd_list_remove(&tcp->send_list.free, NULL, LISTWAIT);
+    EXA_ASSERT(send_desc != NULL);
 
-    *io_desc = *io;
+    send_desc->data1 = data1;
+    send_desc->size1 = size1;
+    send_desc->data2 = data2;
+    send_desc->size2 = size2;
+    send_desc->ctx   = ctx;
+
+    send_desc->bytes_sent = 0;
+
+    EXA_ASSERT(EXA_NODEID_VALID(to));
 
     os_thread_rwlock_rdlock(&tcp->peers_lock);
     /* we send no more data to a removed connection */
@@ -634,13 +640,14 @@ void tcp_send_data(struct nbd_tcp *nbd_tcp, exa_nodeid_t to, const nbd_io_desc_t
         os_thread_rwlock_unlock(&tcp->peers_lock);
 
         if (nbd_tcp->end_sending)
-            nbd_tcp->end_sending(io_desc, -NBD_ERR_NO_CONNECTION);
+            nbd_tcp->end_sending(send_desc->data1, send_desc->data2,
+                                 send_desc->ctx, -NBD_ERR_NO_CONNECTION);
 
-        nbd_list_post(&tcp->send_list.free, io_desc, -1);
+        nbd_list_post(&tcp->send_list.free, send_desc, -1);
         return;
     }
 
-    nbd_list_post(&tcp->peers[to].send_list, io_desc, -1);
+    nbd_list_post(&tcp->peers[to].send_list, send_desc, -1);
 
     os_sem_post(&tcp->send_thread.semaphore);
 
@@ -1021,7 +1028,7 @@ int init_tcp(nbd_tcp_t *nbd_tcp, const char *hostname, const char *net_type,
   os_thread_rwlock_init(&tcp->peers_lock);
 
   /* init queue of receivable headers */
-  nbd_init_root(num_receive_headers, sizeof(nbd_io_desc_t), &tcp->send_list);
+  nbd_init_root(num_receive_headers, sizeof(send_desc_t), &tcp->send_list);
 
   for (i = 0; i < EXA_MAX_NODES_NUMBER; i++)
   {

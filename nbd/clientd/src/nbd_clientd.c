@@ -109,9 +109,15 @@ blockdevice_t *client_get_blockdevice(const exa_uuid_t *uuid)
  * This enforces encapsulation, but I dislike this kind of artificial
  * function with no real symetric equivalent. Encapsulation seems broken
  * this should be reworked. */
-void header_sending(exa_nodeid_t to, const nbd_io_desc_t *io)
+void header_sending(exa_nodeid_t to, nbd_io_desc_t *io)
 {
-    tcp_send_data(&tcp, to, io);
+    bool is_write = io->request_type == NBD_REQ_TYPE_WRITE;
+    void *buf = exa_bdget_buffer(io->req_num);
+
+    tcp_send_data(&tcp, to, io, sizeof(*io),
+                  is_write ? buf : NULL,
+                  is_write ? SECTORS_TO_BYTES(io->sector_nb) : 0,
+                  NULL);
 }
 
 static void end_receiving(exa_nodeid_t from, const nbd_io_desc_t *io, int error)
@@ -121,6 +127,8 @@ static void end_receiving(exa_nodeid_t from, const nbd_io_desc_t *io, int error)
 
 static void *client_get_buffer(const nbd_io_desc_t *io)
 {
+    EXA_ASSERT(io->request_type != NBD_REQ_TYPE_WRITE);
+
     return exa_bdget_buffer(io->req_num);
 }
 

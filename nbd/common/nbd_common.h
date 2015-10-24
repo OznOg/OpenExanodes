@@ -32,7 +32,7 @@ typedef struct {
     void *buf;
 } __attribute__((__packed__)) nbd_io_desc_t;
 
-#define NBD_HEADER_NET_SIZE (sizeof(nbd_io_desc_t) - sizeof(void *))
+#define NBD_HEADER_NET_SIZE (sizeof(nbd_io_desc_t))
 
 typedef struct tcp_plugin tcp_plugin_t;
 
@@ -41,7 +41,7 @@ struct nbd_tcp
   /* this function can be used to used buffer internally allocated by
    * plugin */
 
-  void (*end_sending)(const nbd_io_desc_t *io, int error);
+  void (*end_sending)(void *data1, void *data2, void *ctx, int error);
   void (*end_receiving)(exa_nodeid_t from, const nbd_io_desc_t *io, int error);
 
   void *(*get_buffer)(const nbd_io_desc_t *io);

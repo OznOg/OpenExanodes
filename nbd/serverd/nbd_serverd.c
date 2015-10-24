@@ -50,69 +50,82 @@ static int max_receivable_headers = 300;
 server_t nbd_server;
 
 /* callback function from plugin to release the buffer */
-static void tcp_server_end_sending(const nbd_io_desc_t *io, int error)
+static void tcp_server_end_sending(void *_io, void *_buf, void *ctx, int error)
 {
-    if (io->sector_nb > 0 && io->buf != NULL)
-        nbd_list_post(&nbd_server.ti_queue.free, io->buf, -1);
-}
+    header_t *req = ctx;
 
-static void nbd_server_send(exa_nodeid_t to, const nbd_io_desc_t *io)
-{
-    if (io->request_type == NBD_REQ_TYPE_WRITE)
-    {
-        tcp_server_end_sending(io, 0);
-        ((nbd_io_desc_t *)io)->sector_nb = 0;
-    }
+    EXA_ASSERT(req->type == NBD_HEADER_RH);
 
-    tcp_send_data(nbd_server.tcp, to, io);
-    /* when returning from here, caller may destroy io */
-}
-
-void nbd_server_end_io(header_t *req)
-{
-    nbd_server_send(req->from, &req->io);
+    if (req->io.buf != NULL)
+        nbd_list_post(&nbd_server.ti_queue.free, req->io.buf, -1);
 
     serverd_perf_end_request(&req->serv_perf);
 
     nbd_list_post(&nbd_server.list_root.free, req, -1);
 }
 
+static void nbd_server_send(exa_nodeid_t to, header_t *req)
+{
+    /* Send data only if request was a read AND was successful */
+    bool send_data = req->io.request_type == NBD_REQ_TYPE_READ
+                     && req->io.result == 0;
+
+    EXA_ASSERT(req->type == NBD_HEADER_RH);
+
+    if (!send_data)
+    {
+        nbd_list_post(&nbd_server.ti_queue.free, req->io.buf, -1);
+        req->io.buf       = NULL;
+        req->io.sector_nb = 0;
+    }
+
+    tcp_send_data(nbd_server.tcp, to, &req->io, sizeof(req->io),
+                  req->io.buf, SECTORS_TO_BYTES(req->io.sector_nb),
+                  req);
+}
+
+void nbd_server_end_io(header_t *req)
+{
+    nbd_server_send(req->from, req);
+}
+
 static void nbd_recv_processing(exa_nodeid_t from, const nbd_io_desc_t *io, int error)
 {
+    header_t *req_header = nbd_list_remove(&nbd_server.list_root.free, NULL, LISTNOWAIT);
+
+    EXA_ASSERT(req_header != NULL); /* As many header as receive buff */
+
+    req_header->from = from;
+
+    req_header->io = *io;
+    req_header->type = NBD_HEADER_RH;
+
+    /* FIXME Knowing that operation is a read or write seems really useless
+     * for perfs here... this should be done by rdev perfs... */
+    serverd_perf_make_request(&req_header->serv_perf,
+                              io->request_type == NBD_REQ_TYPE_READ,
+                              io->sector, io->sector_nb);
+
     /* put directly the header on the appropriate disk queue (the first
      * approach was to put this header on the control blocs queue for
      * the TI thread) */
     os_thread_mutex_lock(&nbd_server.mutex_edevs);
     if (nbd_server.devices[io->disk_id] != NULL)
     {
-        header_t *req_header = nbd_list_remove(&nbd_server.list_root.free, NULL, LISTNOWAIT);
+        if (io->buf == NULL)
+            req_header->io.buf = nbd_list_remove(&nbd_server.ti_queue.free, NULL, LISTNOWAIT);
+        EXA_ASSERT(req_header->io.buf != NULL);
 
-        EXA_ASSERT(req_header != NULL); /* As many header as receive buff */
-
-        req_header->from = from;
-
-        req_header->io = *io;
-
-        EXA_ASSERT(io->buf != NULL);
-
-        req_header->io.result = 0;
-        /* FIXME Knowing that operation is a read or write seems really useless
-         * for perfs here... this should be done by rdev perfs... */
-        serverd_perf_make_request(&req_header->serv_perf,
-                                  io->request_type == NBD_REQ_TYPE_READ,
-                                  io->sector, io->sector_nb);
+        req_header->io.result = -EINPROGRESS;
         nbd_list_post(&nbd_server.devices[io->disk_id]->disk_queue, req_header, -1);
     }
     else
     {
-        nbd_io_desc_t err_io;
         /* the disk no more exist, so we send an error to the sender
          * this send is needed by the sender and by the plugin (ibverbs) to
          * clear some allocated resources */
-        err_io = *io;
-        err_io.result = -EIO;
-        nbd_server_send(from, &err_io);
-        /* FIXME no perf measurment is done in the error path. */
+        req_header->io.result = -EIO;
+        nbd_server_send(from, req_header);
     }
     os_thread_mutex_unlock(&nbd_server.mutex_edevs);
 }
@@ -123,6 +136,9 @@ static void *server_get_buffer(const nbd_io_desc_t *io)
 {
     if (io->buf != NULL)
         return io->buf;
+
+    if (io->request_type == NBD_REQ_TYPE_READ)
+        return NULL;
 
     EXA_ASSERT(io->sector_nb <= BYTES_TO_SECTORS(nbd_server.bd_buffer_size));
 
