@@ -85,6 +85,14 @@ typedef struct {
     size_t bytes_sent;
 } send_desc_t;
 
+typedef struct
+{
+    nbd_io_desc_t io_desc;
+    char *buffer;
+    size_t buf_size;
+    int nb_readwrite;
+} pending_recv_t;
+
 struct tcp_plugin
 {
     struct nbd_root_list send_list;
@@ -119,6 +127,7 @@ struct tcp_plugin
         struct nbd_list send_list;
 
         send_desc_t *pending_send;
+        pending_recv_t pending_recv;
     } peers[EXA_MAX_NODES_NUMBER];
     int last_peer_idx; /*< keep record of the last peer idx that was
                            registered in order not to go through the whole
@@ -126,14 +135,6 @@ struct tcp_plugin
 };
 
 static int TCP_buffers;
-
-typedef struct pending_recv
-{
-    nbd_io_desc_t *io_desc;
-    char *buffer;
-    size_t buf_size;
-    int nb_readwrite;
-} pending_recv_t;
 
 static void close_socket(int socket)
 {
@@ -286,7 +287,7 @@ static void accept_thread(void *p)
 static void request_reset(pending_recv_t *request)
 {
   request->nb_readwrite = 0;
-  request->io_desc = NULL;
+  memset(&request->io_desc, 0xEE, sizeof(request->io_desc));
   request->buffer = NULL;
 }
 
@@ -352,7 +353,7 @@ static transfer_status_t request_recv(int fd, pending_recv_t *request)
     if (request->nb_readwrite < NBD_HEADER_NET_SIZE)
     {
         do {
-            ret = os_recv(fd, (char *)request->io_desc + request->nb_readwrite,
+            ret = os_recv(fd, (char *)&request->io_desc + request->nb_readwrite,
                           NBD_HEADER_NET_SIZE - request->nb_readwrite, 0);
         } while (ret == -EINTR);
 
@@ -365,7 +366,7 @@ static transfer_status_t request_recv(int fd, pending_recv_t *request)
             return DATA_TRANSFER_PENDING;
 
         /* no buffer associated, so we can put immediately the header */
-        if (request->io_desc->sector_nb == 0)
+        if (request->io_desc.sector_nb == 0)
             return DATA_TRANSFER_COMPLETE;
 
         if (request->buffer == NULL)
@@ -376,7 +377,7 @@ static transfer_status_t request_recv(int fd, pending_recv_t *request)
 
     do {
         ret = os_recv(fd, request->buffer,
-                      NBD_HEADER_NET_SIZE + (request->io_desc->sector_nb << 9)
+                      NBD_HEADER_NET_SIZE + (request->io_desc.sector_nb << 9)
                       - request->nb_readwrite, 0);
     } while (ret == -EINTR);
 
@@ -386,7 +387,7 @@ static transfer_status_t request_recv(int fd, pending_recv_t *request)
     request->nb_readwrite += ret;
     request->buffer += ret;
 
-    if (request->nb_readwrite < NBD_HEADER_NET_SIZE + (request->io_desc->sector_nb << 9))
+    if (request->nb_readwrite < NBD_HEADER_NET_SIZE + (request->io_desc.sector_nb << 9))
         return DATA_TRANSFER_PENDING;
 
     return DATA_TRANSFER_COMPLETE;
@@ -501,39 +502,24 @@ static void send_thread(void *p)
  */
 static void receive_thread(void *p)
 {
-  struct nbd_root_list recv_list;
   nbd_tcp_t *nbd_tcp = p;
   tcp_plugin_t *tcp = nbd_tcp->tcp;
-  pending_recv_t pending_requests[EXA_MAX_NODES_NUMBER];
   exa_select_handle_t *sh = exa_select_new_handle();
-  int i;
-
-  nbd_init_root(EXA_MAX_NODES_NUMBER, sizeof(nbd_io_desc_t), &recv_list);
-
-  for (i = 0; i < EXA_MAX_NODES_NUMBER; i++)
-    request_reset(&pending_requests[i]);
 
   while (tcp->receive_thread.run)
   {
-      int ret;
+      int ret, i;
       fd_set fds;
       FD_ZERO(&fds);
 
       os_thread_rwlock_rdlock(&tcp->peers_lock);
       for (i = 0; i <= tcp->last_peer_idx; i++)
       {
-          int fd_act = tcp->peers[i].sock;
-	  if (fd_act < 0)
-	  {
-              nbd_io_desc_t *temp_io_desc = pending_requests[i].io_desc;
-              if (temp_io_desc != NULL)
-              {
-		  nbd_list_post(&recv_list.free, temp_io_desc, -1);
-                  request_reset(&pending_requests[i]);
-              }
+          struct peer *peer = &tcp->peers[i];
+	  if (peer->sock < 0)
 	      continue;
-	  }
-	  FD_SET(fd_act,&fds);
+
+	  FD_SET(peer->sock, &fds);
       }
       os_thread_rwlock_unlock(&tcp->peers_lock);
 
@@ -548,15 +534,7 @@ static void receive_thread(void *p)
           struct peer *peer = &tcp->peers[i];
 	  if (peer->sock >= 0 && FD_ISSET(peer->sock ,&fds))
           {
-              pending_recv_t *request = &pending_requests[i];
-              if (request->io_desc == NULL)
-              {
-                  request->io_desc = nbd_list_remove(&recv_list.free,
-                                                    NULL, LISTNOWAIT);
-
-                  if (request->io_desc == NULL)
-                      continue;
-              }
+              pending_recv_t *request = &peer->pending_recv;
 
               switch (request_recv(peer->sock, request))
               {
@@ -564,7 +542,7 @@ static void receive_thread(void *p)
                   break;
 
               case DATA_TRANSFER_NEED_BUFFER:
-                  request->buffer = nbd_tcp->get_buffer(request->io_desc);
+                  request->buffer = nbd_tcp->get_buffer(&request->io_desc);
                   if (request->buffer != NULL)
                       break;
                   else
@@ -575,14 +553,11 @@ static void receive_thread(void *p)
                    * explicit way to know if transfer is over or not */
 
               case DATA_TRANSFER_COMPLETE:
-                  nbd_tcp->end_receiving(i, request->io_desc, 0);
-                  nbd_list_post(&recv_list.free, request->io_desc, -1);
+                  nbd_tcp->end_receiving(i, &request->io_desc, 0);
                   request_reset(request);
                   break;
 
               case DATA_TRANSFER_ERROR:
-                  nbd_list_post(&recv_list.free, request->io_desc, -1);
-
                   request_reset(request);
                   /* FIXME this should be an exalog_error but is debug for now
                    * because when stopping clientd, serverd close its socket
@@ -601,8 +576,6 @@ static void receive_thread(void *p)
 
       os_thread_rwlock_unlock(&tcp->peers_lock);
   }
-
-  nbd_close_root(&recv_list);
 
   exa_select_delete_handle(sh);
 }
@@ -826,6 +799,8 @@ int tcp_remove_peer(uint64_t peer_id, struct nbd_tcp *nbd_tcp)
   while ((header = nbd_list_remove(&peer->send_list, NULL, LISTNOWAIT)) != NULL)
       request_processed(header, nbd_tcp, -1);
 
+  request_reset(&peer->pending_recv);
+
   os_thread_rwlock_unlock(&tcp->peers_lock);
 
   if (sock != -1)
@@ -1031,6 +1006,7 @@ int init_tcp(nbd_tcp_t *nbd_tcp, const char *hostname, const char *net_type,
       peer->node_id      = EXA_NODEID_NONE;
       peer->ip_addr[0]   = '\0';
       peer->pending_send = NULL;
+      request_reset(&peer->pending_recv);
       nbd_init_list(&tcp->send_list, &peer->send_list);
   }
   tcp->last_peer_idx = 0;
