@@ -58,7 +58,7 @@ static void tcp_server_end_sending(const nbd_io_desc_t *io, int error)
         nbd_list_post(&nbd_server.ti_queue.free, io->buf, -1);
 }
 
-void nbd_server_send(const nbd_io_desc_t *io)
+void nbd_server_send(exa_nodeid_t to, const nbd_io_desc_t *io)
 {
     if (io->request_type == NBD_REQ_TYPE_WRITE)
     {
@@ -66,7 +66,7 @@ void nbd_server_send(const nbd_io_desc_t *io)
         ((nbd_io_desc_t *)io)->sector_nb = 0;
     }
 
-    if (tcp_send_data(nbd_server.tcp, io) < 0)
+    if (tcp_send_data(nbd_server.tcp, to, io) < 0)
     {
         /* there are one associated buffer, so we must release it */
         nbd_list_post(&nbd_server.ti_queue.free, io->buf, -1);
@@ -79,7 +79,7 @@ void nbd_server_end_io(header_t *req_header)
      nbd_list_post(&nbd_server.list_root.free, req_header, -1);
 }
 
-static void nbd_recv_processing(const nbd_io_desc_t *io, int error)
+static void nbd_recv_processing(exa_nodeid_t from, const nbd_io_desc_t *io, int error)
 {
     /* put directly the header on the appropriate disk queue (the first
      * approach was to put this header on the control blocs queue for
@@ -90,6 +90,8 @@ static void nbd_recv_processing(const nbd_io_desc_t *io, int error)
         header_t *req_header = nbd_list_remove(&nbd_server.list_root.free, NULL, LISTNOWAIT);
 
         EXA_ASSERT(req_header != NULL); /* As many header as receive buff */
+
+        req_header->from = from;
 
         req_header->io = *io;
 
@@ -107,7 +109,7 @@ static void nbd_recv_processing(const nbd_io_desc_t *io, int error)
          * clear some allocated resources */
         err_io = *io;
         err_io.result = -EIO;
-        nbd_server_send(&err_io);
+        nbd_server_send(from, &err_io);
     }
     os_thread_mutex_unlock(&nbd_server.mutex_edevs);
 }

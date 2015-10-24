@@ -407,8 +407,6 @@ static void request_processed(struct pending_request *pending_req,
     if (io_desc == NULL)
         return;
 
-    io_desc->client_id = client_id;
-
     if (nbd_tcp->end_sending)
         nbd_tcp->end_sending(io_desc, error);
 
@@ -611,8 +609,7 @@ static void receive_thread(void *p)
               }
 
               /* the netplugin must set this id at reception */
-              temp_io_desc->client_id = i;
-              nbd_tcp->end_receiving(temp_io_desc, 0);
+              nbd_tcp->end_receiving(i, temp_io_desc, 0);
               temp_io_desc->buf = NULL;
               nbd_list_post(&recv_list.free, temp_io_desc, -1);
           }
@@ -626,7 +623,7 @@ static void receive_thread(void *p)
   exa_select_delete_handle(sh);
 }
 
-int tcp_send_data(struct nbd_tcp *nbd_tcp, const nbd_io_desc_t *io)
+int tcp_send_data(struct nbd_tcp *nbd_tcp, exa_nodeid_t to, const nbd_io_desc_t *io)
 {
     tcp_plugin_t *tcp = nbd_tcp->tcp;
     nbd_io_desc_t *io_desc = nbd_list_remove(&tcp->send_list.free, NULL, LISTWAIT);
@@ -636,7 +633,7 @@ int tcp_send_data(struct nbd_tcp *nbd_tcp, const nbd_io_desc_t *io)
 
     os_thread_rwlock_rdlock(&tcp->peers_lock);
     /* we send no more data to a removed connection */
-    if (tcp->peers[io->client_id].sock < 0)
+    if (tcp->peers[to].sock < 0)
     {
         os_thread_rwlock_unlock(&tcp->peers_lock);
 
@@ -644,7 +641,7 @@ int tcp_send_data(struct nbd_tcp *nbd_tcp, const nbd_io_desc_t *io)
         return -NBD_ERR_NO_CONNECTION;
     }
 
-    nbd_list_post(&tcp->peers[io->client_id].send_list, io_desc, -1);
+    nbd_list_post(&tcp->peers[to].send_list, io_desc, -1);
 
     os_sem_post(&tcp->send_thread.semaphore);
 

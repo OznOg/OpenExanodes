@@ -303,8 +303,6 @@ static int prepare_req_header(struct bd_kerneluser_queue *bdq, int req_index)
     /* get network device */
     bdq->io.disk_id = bdq->ndev->server_side_disk_uid;
 
-    bdq->io.client_id = bdq->ndev->holder_id;
-
     /* FIXME
      * All this tagging and numbering stuff is brain dead: when send thread
      * finished sending the header_t of the IO, is should acknowledge clientd
@@ -377,7 +375,7 @@ static void exa_bdmake_request(ndev_t *ndev, blockdevice_io_t *bio)
 
     clientd_perf_make_request(&bdq->io);
 
-    header_sending(&bdq->io);
+    header_sending(bdq->ndev->holder_id, &bdq->io);
 }
 
 /*

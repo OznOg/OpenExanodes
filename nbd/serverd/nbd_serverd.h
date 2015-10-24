@@ -68,6 +68,8 @@ typedef struct
         NBD_HEADER_RH
     } type;
 
+    exa_nodeid_t from;
+
     union {
         nbd_io_desc_t io;
 
@@ -78,9 +80,9 @@ typedef struct
             } op;
             uint64_t sector;
             uint32_t sector_nb;
-        } __attribute__((__packed__)) lock;
-    } __attribute__((__packed__));
-} __attribute__((__packed__)) header_t;
+        } lock;
+    };
+} header_t;
 
 struct server
 {
@@ -131,7 +133,7 @@ typedef struct server server_t;
 
 extern server_t nbd_server;
 
-void nbd_server_send(const nbd_io_desc_t *io);
+void nbd_server_send(exa_nodeid_t to, const nbd_io_desc_t *io);
 
 void nbd_server_end_io(header_t *req_header);
 

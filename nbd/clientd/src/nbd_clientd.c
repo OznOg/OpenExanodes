@@ -108,12 +108,12 @@ blockdevice_t *client_get_blockdevice(const exa_uuid_t *uuid)
  * This enforces encapsulation, but I dislike this kind of artificial
  * function with no real symetric equivalent. Encapsulation seems broken
  * this should be reworked. */
-void header_sending(const nbd_io_desc_t *io)
+void header_sending(exa_nodeid_t to, const nbd_io_desc_t *io)
 {
-    tcp_send_data(&tcp, io);
+    tcp_send_data(&tcp, to, io);
 }
 
-static void end_receiving(const nbd_io_desc_t *io, int error)
+static void end_receiving(exa_nodeid_t from, const nbd_io_desc_t *io, int error)
 {
     exa_bd_end_request(io);
 }

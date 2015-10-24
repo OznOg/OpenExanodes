@@ -11,6 +11,7 @@
 
 #include "common/include/exa_error.h"
 #include "common/include/exa_nbd_list.h"
+#include "common/include/exa_nodeset.h"
 
 #define DEFAULT_BD_BUFFER_SIZE 131072
 typedef struct {
@@ -28,8 +29,6 @@ typedef struct {
     int8_t result;
     bool bypass_lock;     /**< tells if the IO can bypass rebuilding lock */
     bool flush_cache;     /**< tells if the IO needs a disk cache synchronization (barrier) */
-    /* FIXME This is a client _index_, not an _id_ (nbd_client.servers_node_id) */
-    uint64_t client_id;
     void *buf;
 #ifdef WITH_PERF
     uint64_t submit_date;           /**< Date of the request reception in clientd        */
@@ -49,7 +48,7 @@ struct nbd_tcp
    * plugin */
 
   void (*end_sending)(const nbd_io_desc_t *io, int error);
-  void (*end_receiving)(const nbd_io_desc_t *io, int error);
+  void (*end_receiving)(exa_nodeid_t from, const nbd_io_desc_t *io, int error);
 
   void *(*get_buffer)(const nbd_io_desc_t *io);
   /* function called by plugin to get the buffer of the plugin */
