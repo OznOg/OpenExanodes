@@ -87,6 +87,8 @@ set(EXA_TARBALL_NAME "${CMAKE_PROJECT_NAME}-${EXA_EDITION_TAG}-${EXA_VERSION}")
 set(WITH_NODES          TRUE  CACHE BOOL "Enable the cluster side")
 set(WITH_CLI            TRUE  CACHE BOOL "Enable the command line interface")
 
+set(WITH_LIBAIO         FALSE CACHE BOOL "Enable the use of libaio for performing IOs instead of Exanodes rdev kernel module")
+
 # Optional components
 set(WITH_DOCS           FALSE CACHE BOOL "Enable the documentation")
 if (VMWARE OR WIN32)

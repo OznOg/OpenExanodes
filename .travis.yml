@@ -2,8 +2,8 @@ language: c
 
 before_install:
           - sudo apt-get update -qq
-          - sudo apt-get install -y automake make libtool autoconf rpm cmake libssl-dev libxml2-dev libboost-all-dev libstring-crc32-perl 
+          - sudo apt-get install -y automake make libtool autoconf rpm cmake libssl-dev libxml2-dev libboost-all-dev libstring-crc32-perl libaio-dev
 
-script: mkdir ../build && cd ../build && cmake ../OpenExanodes/ -DWITH_UT_ROOT=FALSE && make -j4 && ctest -V
+script: mkdir ../build && cd ../build && cmake ../OpenExanodes/ -DWITH_LIBAIO=TRUE -DWITH_UT_ROOT=FALSE && make -j4 && ctest -V
 
 
