@@ -121,6 +121,13 @@ set(WITH_MEMTRACE       FALSE CACHE BOOL "Check/stat user space memory allocatio
 set(WITH_SUPSIM         FALSE CACHE BOOL "Make csupd standalone to allow simulations")
 set(WITH_TRACE          FALSE CACHE BOOL "Make the logs very verbose")
 
+if (WIN32)
+    set(WITH_EXA_SELECT FALSE) # Not available on windows
+else (WIN32)
+    # Exanodes has a custom implemntation of select() to workaround memory allocation
+    # in standard select() that may cause deadlocks under memory presure
+    set(WITH_EXA_SELECT TRUE CACHE BOOL "Use custom select()")
+endif (WIN32)
 # --- Define installation directories --------------------------------
 
 set(PKG_NAME "exanodes")
@@ -281,7 +288,9 @@ else (WIN32)
         add_definitions(-DHAVE_VALGRIND_MEMCHECK_H)
         set(KERNEL_CFLAGS "${KERNEL_CFLAGS} -DHAVE_VALGRIND_MEMCHECK_H")
     endif (HAVE_VALGRIND_MEMCHECK_H)
-
+    if (NOT WITH_EXA_SELECT)
+        add_definitions(-DUSE_OS_SELECT)
+    endif()
 endif (WIN32)
 
 if (WITH_FS AND NOT WITH_BDEV)

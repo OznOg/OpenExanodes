@@ -1353,7 +1353,7 @@ network_recv(ExamsgHandle mh, ExamsgMID *mid, char **msg, size_t *nbytes, int *t
    * not distinguish intr from timeout, but it doesn't matter much here */
   FD_ZERO(&rset);
   FD_SET(net_sock, &rset);
-  n = exa_select_in(sh, &rset);
+  n = exa_select_in(sh, net_sock + 1, &rset);
   if (n == -EFAULT) /* Implicit exa_select_in timeout ; see doxygen */
     return 0;
 
