@@ -125,6 +125,11 @@ set(WITH_TRACE          FALSE CACHE BOOL "Make the logs very verbose")
 
 set(PKG_NAME "exanodes")
 
+# Forces cmake to considere CMAKE_INSTALL_PREFIX that may be passed on the
+# command line. For some reason, -DCMAKE_INSTALL_PREFIX=/some/path is ignored
+# if the is not done
+SET(CMAKE_INSTALL_PREFIX "${CMAKE_INSTALL_PREFIX}" CACHE PATH "" FORCE)
+
 if (WIN32)
     # The user will choose the directory at installation time
     set(CMAKE_INSTALL_PREFIX ""
