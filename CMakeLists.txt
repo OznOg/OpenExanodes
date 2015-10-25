@@ -178,19 +178,23 @@ else (WIN32)
     set(SYSCONF_DIR "${CMAKE_INSTALL_PREFIX}/etc"
         CACHE PATH "Path to config [CMAKE_INSTALL_PREFIX/etc]")
 
-    set(PKG_CACHE_DIR "/var/cache/${PKG_NAME}"
-        CACHE PATH "Path to cache [/var/cache/${PKG_NAME}]")
-
     if (${CMAKE_INSTALL_PREFIX} STREQUAL "/usr")
-        set(PKG_ETC_DIR "/etc/${PKG_NAME}")
-    else (${CMAKE_INSTALL_PREFIX} STREQUAL "/usr")
-        set(PKG_ETC_DIR "${CMAKE_INSTALL_PREFIX}/etc/${PKG_NAME}")
-    endif (${CMAKE_INSTALL_PREFIX} STREQUAL "/usr")
-    set(PKG_NODE_CONF_DIR ${PKG_ETC_DIR}
-        CACHE PATH "Path to node conf [${PKG_ETC_DIR}]")
+        set(PKG_ETC_DIR "/etc/")
+	set(PKG_PID_DIR "/var/run" CACHE PATH "Path to pid files [/var/run]")
+	set(PKG_LOG_DIR "/var/log/${PKG_NAME}" CACHE PATH "Path to log files [/var/log/${PKG_NAME}]")
+	set(PKG_CACHE_DIR "/var/cache/${PKG_NAME}"
+		CACHE PATH "Path to cache [/var/cache/${PKG_NAME}]")
 
-    set(PKG_PID_DIR "/var/run" CACHE PATH "Path to pid files [/var/run]")
-    set(PKG_LOG_DIR "/var/log/${PKG_NAME}" CACHE PATH "Path to log files [/var/log/${PKG_NAME}]")
+    else (${CMAKE_INSTALL_PREFIX} STREQUAL "/usr")
+        set(PKG_ETC_DIR "${CMAKE_INSTALL_PREFIX}/etc/")
+	set(PKG_PID_DIR "${CMAKE_INSTALL_PREFIX}/var/run" CACHE PATH "Path to pid files [/var/run]")
+	set(PKG_LOG_DIR "${CMAKE_INSTALL_PREFIX}/var/log/${PKG_NAME}" CACHE PATH "Path to log files [/var/log/${PKG_NAME}]")
+	set(PKG_CACHE_DIR "${CMAKE_INSTALL_PREFIX}/var/cache/${PKG_NAME}"
+		CACHE PATH "Path to cache [/var/cache/${PKG_NAME}]")
+
+    endif (${CMAKE_INSTALL_PREFIX} STREQUAL "/usr")
+    set(PKG_NODE_CONF_DIR "${PKG_ETC_DIR}/${PKG_NAME}"
+        CACHE PATH "Path to node conf [${PKG_ETC_DIR}/${PKG_NAME}]")
 
     set(DKMS_DIR "${CMAKE_INSTALL_PREFIX}/src/${EXA_TARBALL_NAME}"
         CACHE PATH "Path to dkms source directory")
@@ -199,7 +203,7 @@ else (WIN32)
         CACHE PATH "Path to man documentation [DATA_DIR/man]")
 
     if (WITH_PERF)
-        set(EXPORT_PERF_CONF_ENV "export EXANODES_PERF_CONFIG=\"${PKG_ETC_DIR}/exaperf.conf\"")
+        set(EXPORT_PERF_CONF_ENV "export EXANODES_PERF_CONFIG=\"${PKG_NODE_CONF_DIR}/exaperf.conf\"")
     endif (WITH_PERF)
 
 endif (WIN32)
