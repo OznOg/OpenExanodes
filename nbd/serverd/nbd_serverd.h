@@ -15,6 +15,7 @@
 
 #ifdef WITH_PERF
 #include "exaperf/include/exaperf.h"
+#include "nbd/serverd/nbd_serverd_perf.h"
 #endif
 
 #include "common/include/uuid.h"
@@ -51,15 +52,38 @@ struct device
   /* used for lock/unlocking of zone */
   int locking_return;
   os_sem_t lock_sem_disk;
-
-#ifdef WITH_PERF
-    exaperf_sensor_t *rdev_dur[2];
-    exaperf_sensor_t *inter_arrival_repart[2];
-    uint64_t last_req_time[2];
-#endif
 };
 
 typedef struct device device_t;
+
+typedef struct
+{
+    enum {
+        NBD_HEADER_LOCK = 1135,
+        NBD_HEADER_RH
+    } type;
+
+    exa_nodeid_t from;
+
+    union {
+        struct {
+            nbd_io_desc_t desc;
+            void *buf;
+        } io;
+
+        struct {
+            enum {
+                NBD_REQ_TYPE_LOCK = 822,
+                NBD_REQ_TYPE_UNLOCK
+            } op;
+            uint64_t sector;
+            uint32_t sector_nb;
+        } lock;
+    };
+#ifdef WITH_PERF
+    serv_perf_t serv_perf;
+#endif
+} header_t;
 
 struct server
 {
@@ -85,9 +109,6 @@ struct server
   os_thread_t rebuild_helper_id;
 
   struct nbd_root_list list_root;
-  /* queue of requests headers and data waiting to be processed by the
-   * server */
-  struct nbd_list tr_headers_queue;
 
   /* queue of buffers managed by TI to handle requests server side */
   struct nbd_root_list ti_queue;
@@ -113,8 +134,6 @@ typedef struct server server_t;
 
 extern server_t nbd_server;
 
-extern void datanet_checking(int client_id, int action);
-
-void nbd_server_send(header_t *req_header);
+void nbd_server_end_io(header_t *req_header);
 
 #endif /* _NBD_SERVERD_NBD_SERVERD_H */

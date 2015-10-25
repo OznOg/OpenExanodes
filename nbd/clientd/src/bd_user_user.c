@@ -50,7 +50,10 @@ struct bd_kerneluser_queue
 {
     blockdevice_io_t *bio;
     ndev_t *ndev;
-    int req_num;
+    nbd_io_desc_t io;
+#ifdef WITH_PERF
+    perf_data_t perfs;
+#endif
 };
 
 /* User structure pointer get by kernel mmap This structure must be read only */
@@ -114,21 +117,21 @@ void exa_bdend(void)
     nbd_close_root(&request_root_list);
 }
 
-void exa_bd_end_request(header_t *header)
+void exa_bd_end_request(const nbd_io_desc_t *io)
 {
-    struct bd_kerneluser_queue *bdq = nbd_get_elt_by_num(header->req_num, &request_root_list);
+    struct bd_kerneluser_queue *bdq = nbd_get_elt_by_num(io->req_num, &request_root_list);
     blockdevice_io_t *bio = bdq->bio;
 
     EXA_ASSERT(bdq != NULL);
 
-    EXA_ASSERT(bdq->req_num == header->req_num);
+    EXA_ASSERT(bdq->io.req_num == io->req_num);
 
-    nbd_stat_request_done(&bdq->ndev->stats, header);
-    clientd_perf_end_request(&bdq->ndev->perfs, header);
+    nbd_stat_request_done(&bdq->ndev->stats, &bdq->io);
+    clientd_perf_end_request(&bdq->ndev->perfs, &bdq->perfs);
 
     nbd_list_post(&request_root_list.free, bdq, -1);
 
-    blockdevice_end_io(bio, header->result);
+    blockdevice_end_io(bio, io->result);
 }
 
 void *exa_bdget_buffer(int num) /* reentrant */
@@ -140,7 +143,7 @@ void *exa_bdget_buffer(int num) /* reentrant */
 
     bdq = nbd_get_elt_by_num(num % 1000 , &request_root_list);
     EXA_ASSERT(bdq != NULL);
-    EXA_ASSERT(bdq->req_num == num);
+    EXA_ASSERT(bdq->io.req_num == num);
 
     /* FIXME : buffer addresse was no always valid we can have more than
      * 1 scatter/gather buffer (legacy comment -> parse error) */
@@ -227,6 +230,9 @@ static int exa_bdset_status(const exa_uuid_t *uuid, bdminor_state_t state)
 
         ndev->suspended = false;
 
+        if (ndev->up)
+            break;
+
         /* FIXME when a header_t is sent to serverd, the associated bdq
          * remains valid, but there is no more structure pointing to bdq.
          * Thus, when an serverd answers, the bdq is found thanks to
@@ -245,6 +251,9 @@ static int exa_bdset_status(const exa_uuid_t *uuid, bdminor_state_t state)
             blockdevice_end_io(bdq->bio, -EIO);
             nbd_list_post(&request_root_list.free, bdq, -1);
         }
+        /* Removal cannot be done before otherwise the pending IOs cannot be
+         * cancelled. */
+        client_remove_device(uuid);
 	break;
     }
 
@@ -278,34 +287,29 @@ void bd_get_stats(struct nbd_stats_reply *reply, const exa_uuid_t *uuid, bool re
     nbd_get_stats(&ndev->stats, reply, reset);
 }
 
-static int prepare_req_header(struct bd_kerneluser_queue *bdq, int req_index,
-                              struct header *req_header)
+static int prepare_req_header(struct bd_kerneluser_queue *bdq, int req_index)
 {
-    req_header->req_num = req_index;
-    bdq->req_num = req_header->req_num;
+    bdq->io.req_num = req_index;
+    bdq->io.req_num = bdq->io.req_num;
 
     EXA_ASSERT(BLOCKDEVICE_IO_TYPE_IS_VALID(bdq->bio->type));
     switch (bdq->bio->type)
     {
         case BLOCKDEVICE_IO_WRITE:
-            req_header->request_type = NBD_REQ_TYPE_WRITE;
+            bdq->io.request_type = NBD_REQ_TYPE_WRITE;
             break;
         case BLOCKDEVICE_IO_READ:
-            req_header->request_type = NBD_REQ_TYPE_READ;
+            bdq->io.request_type = NBD_REQ_TYPE_READ;
             break;
     }
 
-    req_header->type = NBD_HEADER_RH;
-    req_header->sector = bdq->bio->start_sector;
-    req_header->sector_nb = BYTES_TO_SECTORS(bdq->bio->size);
-    req_header->bypass_lock = bdq->bio->bypass_lock;
-    req_header->flush_cache = bdq->bio->flush_cache;
-    req_header->buf = NULL /* Dummy field not used in clientd */;
+    bdq->io.sector = bdq->bio->start_sector;
+    bdq->io.sector_nb = BYTES_TO_SECTORS(bdq->bio->size);
+    bdq->io.bypass_lock = bdq->bio->bypass_lock;
+    bdq->io.flush_cache = bdq->bio->flush_cache;
 
     /* get network device */
-    req_header->disk_id = bdq->ndev->server_side_disk_uid;
-
-    req_header->client_id = bdq->ndev->holder_id;
+    bdq->io.disk_id = bdq->ndev->server_side_disk_uid;
 
     /* FIXME
      * All this tagging and numbering stuff is brain dead: when send thread
@@ -321,7 +325,6 @@ static int prepare_req_header(struct bd_kerneluser_queue *bdq, int req_index,
 static void exa_bdmake_request(ndev_t *ndev, blockdevice_io_t *bio)
 {
     int req_index;
-    header_t *req_header;
     struct bd_kerneluser_queue *bdq;
 
     /* FIXME: Does (bio->size == 0) still means the request is a barrier ?
@@ -371,25 +374,23 @@ static void exa_bdmake_request(ndev_t *ndev, blockdevice_io_t *bio)
     if (!bd_barrier_enable)
         bio->flush_cache = false;
 
-    req_header = nbd_list_remove(&nbd_client.recv_list.root->free, NULL, LISTWAIT);
-    EXA_ASSERT(req_header != NULL);
-
-    prepare_req_header(bdq, req_index, req_header);
+    prepare_req_header(bdq, req_index);
 
     /*FIXME I still don't know what this is supposed to lock here... */
     os_thread_rwlock_unlock(&change_state);
 
-    nbd_stat_request_begin(&ndev->stats, req_header);
+    nbd_stat_request_begin(&ndev->stats, &bdq->io);
 
-    clientd_perf_make_request(req_header);
+    clientd_perf_make_request(&bdq->perfs, bdq->bio->type == BLOCKDEVICE_IO_READ);
 
-    header_sending(req_header);
+    header_sending(bdq->ndev->holder_id, &bdq->io);
 }
 
 /*
  * Create a new ndev device.
  * The ndev is created suspended and down */
-int client_add_device(const exa_uuid_t *uuid, exa_nodeid_t node_id)
+int client_import_device(const exa_uuid_t *uuid, exa_nodeid_t node_id,
+                         uint64_t size_in_sector, int device_nb)
 {
     ndev_t *ndev;
     int err, idx;
@@ -408,35 +409,55 @@ int client_add_device(const exa_uuid_t *uuid, exa_nodeid_t node_id)
 
     ndev = &device[idx];
 
+    /* FIXME  Spurious locking: what is actually being changed is ndev, not
+     * session itself. Using this lock here would mean that it should be used
+     * in make_request... which is not done */
     os_thread_rwlock_wrlock(&change_state);
 
     err = nbd_blockdevice_open(&ndev->blockdevice,
                                BLOCKDEVICE_ACCESS_RW,
                                BYTES_TO_SECTORS(bd_buffer_size),
                                exa_bdmake_request, ndev);
-    if (err == 0)
+    if (err != 0)
     {
-        ndev->free = false;
+        os_thread_rwlock_unlock(&change_state);
 
-        ndev->up = false;
-        ndev->suspended = true;
-        os_snprintf(ndev->name, sizeof(ndev->name), UUID_FMT, UUID_VAL(uuid));
-        uuid_copy(&ndev->uuid, uuid);
-        ndev->holder_id = node_id;
-
-        nbd_stat_init(&ndev->stats);
-        clientd_perf_dev_init(&ndev->perfs, uuid);
-    }
-    else
-    {
         exalog_error("Cannot add device " UUID_FMT ": %s(%d)",
                      UUID_VAL(uuid), exa_error_msg(err), err);
-        err = -EXA_ERR_CANT_GET_MINOR;
+        return -EXA_ERR_CANT_GET_MINOR;
     }
+
+    ndev->free = false;
+
+    ndev->up = false;
+    ndev->suspended = true;
+    os_snprintf(ndev->name, sizeof(ndev->name), UUID_FMT, UUID_VAL(uuid));
+    uuid_copy(&ndev->uuid, uuid);
+    ndev->holder_id = node_id;
+    ndev->server_side_disk_uid = device_nb;
+
+    nbd_stat_init(&ndev->stats);
+    clientd_perf_dev_init(&ndev->perfs, uuid);
+
+    err = blockdevice_set_sector_count(ndev->blockdevice, size_in_sector);
+    if (err != 0)
+    {
+        os_thread_rwlock_unlock(&change_state);
+
+        /*FIXME What is supposed to be done if this function fails ?
+         * Should we do some kind of roll back and free the ndev entry ? */
+
+        exalog_error("Cannot set the size %" PRIu64 "of device " UUID_FMT,
+                     size_in_sector, UUID_VAL(uuid));
+        return -NBD_ERR_SET_SIZE;
+    }
+
+    /* The device is fine, put it up */
+    ndev->up = true;
 
     os_thread_rwlock_unlock(&change_state);
 
-    return err;
+    return EXA_SUCCESS;
 }
 
 int client_remove_device(const exa_uuid_t *uuid)
@@ -451,10 +472,6 @@ int client_remove_device(const exa_uuid_t *uuid)
         return -CMD_EXP_ERR_UNKNOWN_DEVICE;
     }
 
-    exa_bdset_status(uuid, BDMINOR_SUSPEND);
-    exa_bdset_status(uuid, BDMINOR_DOWN);
-    exa_bdset_status(uuid, BDMINOR_RESUME);
-
     bdev = ndev->blockdevice;
     ndev->blockdevice = NULL;
     ndev->name[0] = '\0' ;
@@ -466,38 +483,5 @@ int client_remove_device(const exa_uuid_t *uuid)
     EXA_ASSERT(blockdevice_close(bdev) == 0);
 
     return 0;
-}
-
-int exa_bdminor_bind_dev(const exa_uuid_t *uuid, uint64_t size_in_sector,
-                         int device_nb)
-{
-    ndev_t *ndev = __get_ndev_from_uuid(uuid);
-    int err = 0;
-
-    if (ndev == NULL)
-        return -1;
-
-    ndev->server_side_disk_uid = device_nb;
-
-    /* FIXME  Spurious locking: what is actually being changed in ndev, not
-     * session itself. Using this lock here would mean that it should be used
-     * in make_request... which is not done */
-    os_thread_rwlock_wrlock(&change_state);
-
-    /* set the correct size of the block device */
-    if (ndev->blockdevice != NULL)
-        err = blockdevice_set_sector_count(ndev->blockdevice, size_in_sector);
-
-    os_thread_rwlock_unlock(&change_state);
-
-    if (err != 0)
-    {
-        exalog_error("Cannot set the size %" PRIu64 "of device " UUID_FMT,
-                     size_in_sector, UUID_VAL(uuid));
-        return -NBD_ERR_SET_SIZE;
-    }
-
-    /* set the device to UP in the module */
-    return exa_bdset_status(uuid, BDMINOR_UP);
 }
 

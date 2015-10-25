@@ -252,17 +252,16 @@ serverd_device_unexport(ExamsgHandle h, const exa_uuid_t *uuid)
   return EXA_SUCCESS;
 }
 
-int
-clientd_device_import(ExamsgHandle h, const char *remote_node_name,
-                     const exa_uuid_t *uuid, int device_nb,
-                     uint64_t device_sectors)
+int clientd_device_import(ExamsgHandle h, exa_nodeid_t node_id,
+                          const exa_uuid_t *uuid, int device_nb,
+                          uint64_t device_sectors)
 {
   nbd_request_t req;
   nbd_answer_t ans;
   int ret;
 
   req.event   = NBDCMD_DEVICE_IMPORT;
-  strlcpy(req.node_name, remote_node_name, sizeof(req.node_name));
+  req.node_id = node_id;
   uuid_copy(&req.device_uuid, uuid);
   req.device_nb = device_nb;
   req.device_sectors = device_sectors;
@@ -314,32 +313,6 @@ clientd_device_down(ExamsgHandle h, const exa_uuid_t *uuid)
 
   req.event   = NBDCMD_DEVICE_DOWN;
   uuid_copy(&req.device_uuid, uuid);
-
-  /*  Send message to clientd */
-  ret = admwrk_daemon_query(h, EXAMSG_NBD_CLIENT_ID, EXAMSG_DAEMON_RQST,
-			    &req, sizeof(nbd_request_t),
-			    &ans, sizeof(nbd_answer_t));
-
-  if (ret != EXA_SUCCESS)
-    return ret;
-
-  if (ans.status != EXA_SUCCESS)
-    return ans.status;
-
-  return EXA_SUCCESS;
-}
-
-int clientd_device_add(ExamsgHandle h, const char *node_name,
-		       const exa_uuid_t *uuid, exa_nodeid_t node_id)
-{
-  nbd_request_t req;
-  nbd_answer_t ans;
-  int ret;
-
-  req.event   = NBDCMD_DEVICE_ADD;
-  strlcpy(req.node_name, node_name, sizeof(req.node_name));
-  uuid_copy(&req.device_uuid, uuid);
-  req.node_id = node_id;
 
   /*  Send message to clientd */
   ret = admwrk_daemon_query(h, EXAMSG_NBD_CLIENT_ID, EXAMSG_DAEMON_RQST,

@@ -24,10 +24,10 @@
 #include "common/include/exa_conversion.h"
 #include "common/include/exa_error.h"
 #include "common/include/exa_names.h"
+#include "common/include/exa_perf_instance.h" /* for 'exa_perf_instance_get' */
 #include "os/include/strlcpy.h"
 #include "log/include/log.h"
 #include "nbd/serverd/nbd_disk_thread.h"
-#include "nbd/serverd/nbd_thread_init_requests.h"
 #include "nbd/serverd/ndevs.h"
 #include "nbd/service/include/nbd_msg.h"
 #include "nbd/common/nbd_tcp.h"
@@ -50,91 +50,98 @@ static int max_receivable_headers = 300;
 server_t nbd_server;
 
 /* callback function from plugin to release the buffer */
-static void tcp_server_end_sending(header_t *req_header, int error)
+static void tcp_server_end_sending(void *ctx, int error)
 {
-    if (req_header->type == NBD_HEADER_END_IO)
-    {
-        serverd_perf_end_request(req_header);
+    header_t *req = ctx;
 
-        if (req_header->sector_nb > 0 && req_header->buf != NULL)
-            nbd_list_post(&nbd_server.ti_queue.free, req_header->buf, -1);
-    }
+    EXA_ASSERT(req->type == NBD_HEADER_RH);
+
+    if (req->io.buf != NULL)
+        nbd_list_post(&nbd_server.ti_queue.free, req->io.buf, -1);
+
+    serverd_perf_end_request(&req->serv_perf);
+
+    nbd_list_post(&nbd_server.list_root.free, req, -1);
 }
 
-void nbd_server_send(header_t *req_header)
+static void nbd_server_send(exa_nodeid_t to, header_t *req)
 {
-    if (tcp_send_data(req_header, nbd_server.tcp) < 0)
-    {
-        /* there are one associated buffer, so we must release it */
-        nbd_list_post(&nbd_server.ti_queue.free, req_header->buf, -1);
+    /* Send data only if request was a read AND was successful */
+    bool send_data = req->io.desc.request_type == NBD_REQ_TYPE_READ
+                     && req->io.desc.result == 0;
 
-        nbd_list_post(&nbd_server.tr_headers_queue.root->free, req_header, -1);
+    EXA_ASSERT(req->type == NBD_HEADER_RH);
+
+    if (!send_data)
+    {
+        nbd_list_post(&nbd_server.ti_queue.free, req->io.buf, -1);
+        req->io.buf            = NULL;
+        req->io.desc.sector_nb = 0;
     }
+
+    tcp_send_data(nbd_server.tcp, to, &req->io.desc, sizeof(req->io.desc),
+                  req->io.buf, SECTORS_TO_BYTES(req->io.desc.sector_nb),
+                  req);
 }
 
-static void nbd_recv_processing(header_t *req_header, int error)
+void nbd_server_end_io(header_t *req)
 {
-    switch (req_header->type)
-    {
-    case NBD_HEADER_RH:
-        if (req_header->request_type == NBD_REQ_TYPE_READ)
-        {
-            req_header->buf = nbd_list_remove(&nbd_server.ti_queue.free,
-                                              NULL, LISTNOWAIT);
+    nbd_server_send(req->from, req);
+}
 
-            EXA_ASSERT(req_header->buf != NULL);
-        }
+static bool nbd_recv_processing(exa_nodeid_t from, const nbd_io_desc_t *io, void **data)
+{
+    if (io->request_type == NBD_REQ_TYPE_WRITE && *data == NULL)
+    {
+        *data = nbd_list_remove(&nbd_server.ti_queue.free, NULL, LISTNOWAIT);
+        return true;
+    }
+    else
+    {
+        header_t *req_header = nbd_list_remove(&nbd_server.list_root.free, NULL, LISTNOWAIT);
+
+        EXA_ASSERT(req_header != NULL); /* As many header as receive buff */
+
+        req_header->from = from;
+
+        req_header->io.desc = *io;
+        req_header->type = NBD_HEADER_RH;
+
+        /* FIXME Knowing that operation is a read or write seems really useless
+         * for perfs here... this should be done by rdev perfs... */
+        serverd_perf_make_request(&req_header->serv_perf,
+                                  io->request_type == NBD_REQ_TYPE_READ,
+                                  io->sector, io->sector_nb);
 
         /* put directly the header on the appropriate disk queue (the first
          * approach was to put this header on the control blocs queue for
          * the TI thread) */
         os_thread_mutex_lock(&nbd_server.mutex_edevs);
-        if (nbd_server.devices[req_header->disk_id] != NULL)
+        if (nbd_server.devices[io->disk_id] != NULL)
         {
-            req_header->result = 0;
-            serverd_perf_make_request(req_header);
-            nbd_list_post(&nbd_server.devices[req_header->disk_id]->disk_queue, req_header, -1);
+            if (*data == NULL)
+                *data = nbd_list_remove(&nbd_server.ti_queue.free, NULL, LISTNOWAIT);
+
+            req_header->io.buf = *data;
+            EXA_ASSERT(req_header->io.buf != NULL);
+
+            req_header->io.desc.result = -EINPROGRESS;
+            nbd_list_post(&nbd_server.devices[io->disk_id]->disk_queue, req_header, -1);
         }
         else
         {
             /* the disk no more exist, so we send an error to the sender
              * this send is needed by the sender and by the plugin (ibverbs) to
              * clear some allocated resources */
-            req_header->type = NBD_HEADER_END_IO;
-            req_header->result = -EIO;
-            nbd_server_send(req_header);
+            req_header->io.desc.result = -EIO;
+            nbd_server_send(from, req_header);
         }
         os_thread_mutex_unlock(&nbd_server.mutex_edevs);
-        break;
-
-    case NBD_HEADER_LOCK:
-    case NBD_HEADER_END_IO:
-    default:
-	exalog_error("Inconsistent protocol header type: %d", req_header->type);
-	nbd_list_post (&nbd_server.tr_headers_queue.root->free,req_header, -1);
-        break;
     }
+    return false;
 }
 
 static void server_handle_events(void *p);
-
-static void *server_get_buffer(struct header *header)
-{
-    /* End IO buffers are set right before reading on disk */
-    if (header->type == NBD_HEADER_END_IO)
-        return header->buf;
-
-    EXA_ASSERT(header->sector_nb <= BYTES_TO_SECTORS(nbd_server.bd_buffer_size));
-
-    header->buf = nbd_list_remove(&nbd_server.ti_queue.free,
-                                  NULL, LISTNOWAIT);
-
-    /* There MUST be a buffer available as we allocated as many header as
-     * buffers. */
-    EXA_ASSERT(header->buf != NULL);
-
-    return header->buf;
-}
 
 /* Function to load a server plugin and do all needed stuff */
 static int init_tcp_server(const char *net_type)
@@ -147,12 +154,11 @@ static int init_tcp_server(const char *net_type)
         return -ENOMEM;
 
     nbd_server.tcp->end_sending = tcp_server_end_sending;
-    nbd_server.tcp->end_receiving = nbd_recv_processing;
-    nbd_server.tcp->get_buffer = server_get_buffer;
-    nbd_server.tcp->list = &nbd_server.tr_headers_queue;
+    nbd_server.tcp->keep_receiving = nbd_recv_processing;
 
     /* we will not export our buffer */
-    err = init_tcp(nbd_server.tcp, nbd_server.node_name, net_type);
+    err = init_tcp(nbd_server.tcp, nbd_server.node_name, net_type,
+                   nbd_server.num_receive_headers);
 
     if (err == EXA_SUCCESS)
         err = tcp_start_listening(nbd_server.tcp);
@@ -187,7 +193,6 @@ static int init_serverd(char *net_type)
     /* First : initialising shared queue */
     nbd_init_root(nbd_server.num_receive_headers, sizeof(header_t),
 		  &nbd_server.list_root);
-    nbd_init_list(&nbd_server.list_root, &nbd_server.tr_headers_queue);
     nbd_init_root(nbd_server.num_receive_headers, /* as many buffer as headers. */
 		  nbd_server.bd_buffer_size, &nbd_server.ti_queue);
 
@@ -332,7 +337,6 @@ static void server_handle_events(void *p)
 
 	case NBDCMD_QUIT:
 	    /* message to close all threads and quit */
-            serverd_perf_cleanup();
 	    retval = EXA_SUCCESS;
 	    break;
 
@@ -386,7 +390,6 @@ static void handle_daemon_req_msg(const nbd_request_t *req, ExamsgID from)
     case NBDCMD_DEVICE_SUSPEND:
     case NBDCMD_DEVICE_RESUME:
     case NBDCMD_DEVICE_IMPORT:
-    case NBDCMD_DEVICE_ADD:
     case NBDCMD_DEVICE_REMOVE:
     case NBDCMD_SESSION_OPEN:
     case NBDCMD_SESSION_CLOSE:
@@ -477,7 +480,7 @@ int daemon_init(int argc, char *argv[])
     /* MUST be called BEFORE spawning threads */
     exalog_static_init();
 
-    retval = serverd_perf_init();
+    retval = exa_perf_instance_static_init();
     if (retval != EXA_SUCCESS)
     {
         exalog_error("Failed to initialize exaperf library: %s", exa_error_msg(retval));
@@ -567,6 +570,8 @@ int daemon_main(void)
     server_events_loop();
 
     clean_serverd();
+
+    exa_perf_instance_static_clean();
 
     exalog_static_clean();
 

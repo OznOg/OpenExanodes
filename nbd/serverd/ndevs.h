@@ -8,24 +8,21 @@
 #ifndef _NBD_SERVERD_NDEVS_H
 #define _NBD_SERVERD_NDEVS_H
 
-#include "nbd/serverd/nbd_serverd.h"
-#include "nbd/serverd/nbd_disk_thread.h"
+#include "common/include/exa_nodeset.h"
+#include "common/include/uuid.h"
 
-extern int export_device(const exa_uuid_t *uuid, char *device_path);
+#include "examsg/include/examsg.h"
 
-extern int unexport_device(const exa_uuid_t *uuid);
+int export_device(const exa_uuid_t *uuid, char *device_path);
 
-extern int server_add_client (char *node_name, char *net_id,
-			      exa_nodeid_t node_id);
+int unexport_device(const exa_uuid_t *uuid);
 
-extern int server_remove_client(exa_nodeid_t node_id);
+int server_add_client (char *node_name, char *net_id, exa_nodeid_t node_id);
 
-extern void nbd_ndev_getinfo(const exa_uuid_t *uuid, ExamsgID from);
+int server_remove_client(exa_nodeid_t node_id);
 
-extern void rebuild_helper_thread(void *p);
+void nbd_ndev_getinfo(const exa_uuid_t *uuid, ExamsgID from);
 
-extern void nbd_rdev_check(int major, int minor, Examsg *msg, ExamsgMID *from);
+void rebuild_helper_thread(void *p);
 
-extern int get_client_id_from_node_id(exa_nodeid_t node_id);
-
-#endif /* _NBD_SERVERD_NDEVS_H */
+#endif

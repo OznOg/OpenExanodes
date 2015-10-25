@@ -25,7 +25,7 @@ typedef struct __ndev ndev_t;
 bool exa_bdinit(int buffer_size, int max_queue, bool barrier_enable);
 void exa_bdend(void);
 
-void exa_bd_end_request(header_t *header);
+void exa_bd_end_request(const nbd_io_desc_t *io);
 
 void *exa_bdget_buffer(int num);
 
@@ -35,11 +35,9 @@ const char *ndev_get_name(const ndev_t *ndev);
 
 blockdevice_t *exa_bdget_block_device(const exa_uuid_t *uuid);
 
-int client_add_device(const exa_uuid_t *uuid, exa_nodeid_t node_id);
+int client_import_device(const exa_uuid_t *uuid, exa_nodeid_t node_id,
+                         uint64_t size_in_sector, int device_nb);
 int client_remove_device(const exa_uuid_t *uuid);
-
-int exa_bdminor_bind_dev(const exa_uuid_t *uuid, uint64_t size_in_sector,
-                         int device_nb);
 
 int client_suspend_device(const exa_uuid_t *uuid);
 

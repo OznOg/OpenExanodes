@@ -8,7 +8,7 @@
 
 #include "target/linux_bd_target/include/bd_user_perf.h"
 
-#include "nbd/clientd/include/nbd_clientd_perf.h" /* for 'nbd_clientd_get_exaperf' */
+#include "common/include/exa_perf_instance.h" /* for 'exa_perf_instance_get' */
 
 #include "os/include/os_error.h"
 #include "os/include/os_stdio.h"
@@ -35,7 +35,7 @@ static /* FIXME should be const */ exaperf_t *target_eh = NULL;
 
 void bdev_target_perf_init(void)
 {
-    target_eh = nbd_clientd_get_exaperf();
+    target_eh = exa_perf_instance_get();
 
     if (target_eh == NULL)
         return;

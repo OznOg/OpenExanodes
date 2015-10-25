@@ -70,3 +70,12 @@ if (WITH_NODES AND NOT WIN32)
 
 endif (WITH_NODES AND NOT WIN32)
 
+if (WITH_PERF)
+    # this is just compiled when perf are activated, this prevents to try
+    # to link with it when the framework is not setup every where and I saves
+    # some compile time.
+    add_library(exa_perf_instance STATIC exa_perf_instance.c)
+    target_link_libraries(exa_perf_instance exalogclient examsg exaperf exa_os)
+endif (WITH_PERF)
+
+

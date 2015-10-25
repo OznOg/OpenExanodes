@@ -6,7 +6,7 @@
  * directory of the project.
  */
 
-#include "nbd/clientd/include/nbd_clientd_perf.h" /* for nbd_clientd_get_exaperf */
+#include "common/include/exa_perf_instance.h" /* for 'exa_perf_instance_get' */
 
 #include "vrt/virtualiseur/include/vrt_perf.h"
 
@@ -65,7 +65,7 @@ void vrt_perf_init(void)
 {
     unsigned int i;
 
-    eh_client = nbd_clientd_get_exaperf();
+    eh_client = exa_perf_instance_get();
 
     vrt_iodepth[__READ] = exaperf_counter_init(eh_client,
 					     "VRT_IODEPTH___READ");

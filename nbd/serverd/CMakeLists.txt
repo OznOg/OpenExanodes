@@ -7,8 +7,8 @@
 #
 
 if (WITH_PERF)
-    set(PERF_SOURCES nbd_serverd_perf.c rdev_perf.c)
-    set(LIBPERF exaperf)
+    set(PERF_SOURCES nbd_serverd_perf.c)
+    set(LIBPERF exa_perf_instance exaperf)
 endif (WITH_PERF)
 
 add_executable(exa_serverd

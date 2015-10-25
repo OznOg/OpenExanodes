@@ -101,7 +101,7 @@ struct exa_rdev_bh_struct {
 
         /* used to store private user data associated to the first element of a
          * request */
-        unsigned long private;
+        user_land_io_handle_t private;
 
         int err;
 
@@ -234,7 +234,9 @@ static void exa_rdev_bh_put_free(struct bh_stuff *bh, struct exa_rdev_bh_struct 
     spin_lock_irqsave(&st->free_bh_lock, flags);
 
     bh->next    = st->bh_first_free;
-    bh->private = 0;
+    /* Kill bh->private content, this has to be correctly set when submitting
+     * an IO. 0xDD is to make sure that the content is meaningless */
+    memset(&bh->private, 0xDD, sizeof(bh->private));
     bh->err     = -RDEV_ERR_UNKNOWN;
 
     st->bh_first_free = bh_idx;
@@ -808,7 +810,7 @@ static int exa_rdev_add_bh(struct exa_rdev_bh_struct *st,
                            const struct exa_rdev_request_kernel *req,
                            struct bdev_entry *bdev,
                            struct page *page[], int page_count,
-                           unsigned long tag)
+                           user_land_io_handle_t *tag)
 {
     struct bio *bio;
     struct bh_stuff *bio_a;
@@ -820,7 +822,7 @@ static int exa_rdev_add_bh(struct exa_rdev_bh_struct *st,
 
     bio_a->err = -RDEV_ERR_UNKNOWN;
 
-    bio_a->private = tag;
+    bio_a->private = *tag;
 
     bio = &bio_a->bio;
     memset(bio, 0, sizeof(*bio));
@@ -928,7 +930,7 @@ static void exa_rdev_start_bh(struct exa_rdev_bh_struct *st)
 static int exa_rdev_make_one(struct exa_rdev_bh_struct *st,
                              const struct exa_rdev_request_kernel *req,
                              struct bdev_entry *bdev,
-                             unsigned long tag)
+                             user_land_io_handle_t *tag)
 {
     /* array of the user page of the user buffer we must have enough pointer to
      * store the pointer on each page of the max request size */
@@ -999,7 +1001,7 @@ static int exa_rdev_make_one(struct exa_rdev_bh_struct *st,
  *          EXA_RDEV_REQUEST_NONE_ENDED : no request finded
  *          EXA_RDEV_REQUEST_ALL_ENDED  : all request was done, so none to wait for
  */
-static int exa_rdev_wait_one(bool wait, unsigned long *private,
+static int exa_rdev_wait_one(bool wait, user_land_io_handle_t *h,
                              struct exa_rdev_bh_struct *st)
 {
     unsigned long flags;
@@ -1007,8 +1009,8 @@ static int exa_rdev_wait_one(bool wait, unsigned long *private,
     struct bh_stuff *bh;
     int err;
 
-    if (private != NULL)
-        *private = 0;
+    if (h != NULL)
+        h->nbd_private = NULL;
 
     spin_lock_irqsave(&st->free_bh_lock, flags);
 
@@ -1038,8 +1040,8 @@ static int exa_rdev_wait_one(bool wait, unsigned long *private,
 
     EXA_ASSERT(bh != NULL);
 
-    if (private != NULL)
-        *private = bh->private;
+    if (h != NULL)
+        *h = bh->private;
 
     err = bh->err;
     exa_rdev_bh_put_free(bh, st);
@@ -1074,7 +1076,7 @@ static int _exa_rdev_make_request_new(struct exa_rdev_bh_struct *st,
 	strlcpy(st->name_last_user, current->comm, EXA_RDEV_NAME_SIZE);
     }
 
-    err = exa_rdev_make_one(st, req, bdev, (unsigned long)req->nbd_private);
+    err = exa_rdev_make_one(st, req, bdev, &req->h);
     if (err != EXA_SUCCESS)
     {
 	/* this is the only transitory error :
@@ -1205,7 +1207,7 @@ static int exa_rdev_ioctl(struct inode *inode, struct file *filp,
 
 	case EXA_RDEV_MAKE_REQUEST_NEW:
             {
-                unsigned long private;
+                user_land_io_handle_t h;
                 struct exa_rdev_request_kernel *u_req = arg;
                 struct exa_rdev_request_kernel req;
                 copy = copy_from_user(&req, u_req, sizeof(req));
@@ -1222,10 +1224,10 @@ static int exa_rdev_ioctl(struct inode *inode, struct file *filp,
                  * Note: the flag "no_wait" is passed to exa_rdev_wait_one()
                  * so that the caller does not remain stuck here in case of
                  * nothing was (yet) completed. */
-                ret = exa_rdev_wait_one(false, &private, sfs->st);
+                ret = exa_rdev_wait_one(false, &h, sfs->st);
 
                 /* private is the only field updated read by user */
-                copy = copy_to_user(&u_req->nbd_private, &private, sizeof(u_req->nbd_private));
+                copy = copy_to_user(&u_req->h, &h, sizeof(u_req->h));
             }
 	    break;
 
@@ -1235,12 +1237,12 @@ static int exa_rdev_ioctl(struct inode *inode, struct file *filp,
 
 	case EXA_RDEV_WAIT_ONE_REQUEST:
             {
-                unsigned long private;
+                user_land_io_handle_t h;
 
-                ret = exa_rdev_wait_one(true, &private, sfs->st);
+                ret = exa_rdev_wait_one(true, &h, sfs->st);
 
                 /* private is the only field updated read by user */
-                copy = copy_to_user(arg, &private, sizeof(private));
+                copy = copy_to_user(arg, &h, sizeof(h));
             }
 	    break;
 

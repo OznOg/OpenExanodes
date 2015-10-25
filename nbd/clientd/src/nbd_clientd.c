@@ -26,6 +26,7 @@
 #include "common/include/exa_conversion.h"
 #include "common/include/exa_constants.h"
 #include "common/include/exa_names.h"
+#include "common/include/exa_perf_instance.h"
 #include "common/include/daemon_api_server.h"
 #include "common/include/daemon_request_queue.h"
 #include "common/include/threadonize.h"
@@ -42,8 +43,6 @@
 #ifndef WIN32
 #include <signal.h>
 #endif
-
-client_t nbd_client;
 
 static struct daemon_request_queue *client_requests_queue = NULL;
 
@@ -110,31 +109,27 @@ blockdevice_t *client_get_blockdevice(const exa_uuid_t *uuid)
  * This enforces encapsulation, but I dislike this kind of artificial
  * function with no real symetric equivalent. Encapsulation seems broken
  * this should be reworked. */
-void header_sending(header_t *header)
+void header_sending(exa_nodeid_t to, nbd_io_desc_t *io)
 {
-    if (tcp_send_data(header, &tcp) < 0)
-        nbd_list_post(&nbd_client.recv_list.root->free, header, -1);
+    bool is_write = io->request_type == NBD_REQ_TYPE_WRITE;
+    void *buf = exa_bdget_buffer(io->req_num);
+
+    tcp_send_data(&tcp, to, io, sizeof(*io),
+                  is_write ? buf : NULL,
+                  is_write ? SECTORS_TO_BYTES(io->sector_nb) : 0,
+                  NULL);
 }
 
-static void end_receiving(header_t *req_header, int error)
+static bool end_receiving(exa_nodeid_t from, const nbd_io_desc_t *io, void **data)
 {
-    switch (req_header->type)
+    if (io->request_type == NBD_REQ_TYPE_READ && *data == NULL)
     {
-        case NBD_HEADER_END_IO:
-            exa_bd_end_request(req_header);
-            break;
-
-        case NBD_HEADER_LOCK:
-        case NBD_HEADER_RH:
-            exalog_error("Unknown request header %d", req_header->type);
-            break;
+        *data = exa_bdget_buffer(io->req_num);
+        return true;
     }
-    nbd_list_post(&nbd_client.recv_list.root->free, req_header, -1);
-}
 
-static void *client_get_buffer(struct header *data_header)
-{
-    return exa_bdget_buffer(data_header->req_num);
+    exa_bd_end_request(io);
+    return false;
 }
 
 #ifndef WIN32
@@ -171,24 +166,16 @@ static int init_clientd(const char *net_type, const char *hostname,
 	return -NBD_ERR_MOD_SESSION;
     }
 
-    /* init queue of receivable headers */
-    nbd_init_root(num_receive_headers, sizeof(header_t),
-		  &nbd_client.list_root);
-    nbd_init_list(&nbd_client.list_root, &nbd_client.recv_list);
-
     if (net_type == NULL)
         return -NBD_ERR_MOD_SESSION;
-
-    tcp.list = &nbd_client.recv_list;
-    tcp.get_buffer = client_get_buffer;
 
     /* no need of end_sending because the buffer will be realesed when
      * we get the next message from server 'IOD", and so after the
      * successfull sending of this messages */
     tcp.end_sending = NULL;
-    tcp.end_receiving = end_receiving;
+    tcp.keep_receiving = end_receiving;
 
-    retval = init_tcp(&tcp, hostname, net_type);
+    retval = init_tcp(&tcp, hostname, net_type, num_receive_headers);
     if (retval != EXA_SUCCESS)
     {
 	exalog_error("NBD clientd: failed initializing network '%s': %s (%d)",
@@ -254,10 +241,9 @@ static int cleanup_clientd(void)
     vrt_exit();
     lum_thread_stop();
 
-    nbd_close_root(&nbd_client.list_root);
     err = stop_threads();
 
-    clientd_perf_cleanup();
+    exa_perf_instance_static_clean();
 
     return err;
 }
@@ -292,8 +278,8 @@ static void client_handle_events(void *p)
 
 	case NBDCMD_DEVICE_IMPORT:
 	    exalog_debug("DEVICE_IMPORT message received");
-	    err = exa_bdminor_bind_dev(&req.device_uuid, req.device_sectors,
-                                       req.device_nb);
+	    err = client_import_device(&req.device_uuid, req.node_id,
+                                       req.device_sectors, req.device_nb);
 	    break;
 
 	case NBDCMD_DEVICE_SUSPEND:
@@ -309,12 +295,6 @@ static void client_handle_events(void *p)
 	case NBDCMD_DEVICE_RESUME:
 	    exalog_debug("DEVICE_RESUME message received ");
 	    err = client_resume_device(&req.device_uuid);
-	    break;
-
-	case NBDCMD_DEVICE_ADD:
-	    exalog_debug("DEVICE_ADD message received");
-            /* FIXME node_name of req is unused. */
-	    err = client_add_device(&req.device_uuid, req.node_id);
 	    break;
 
 	case NBDCMD_DEVICE_REMOVE:
@@ -358,7 +338,6 @@ static void handle_daemon_req_msg(const nbd_request_t *req, ExamsgID from)
     case NBDCMD_DEVICE_SUSPEND:
     case NBDCMD_DEVICE_DOWN:
     case NBDCMD_DEVICE_RESUME:
-    case NBDCMD_DEVICE_ADD:
     case NBDCMD_DEVICE_REMOVE:
 	daemon_request_queue_add_request(client_requests_queue,
 					 req, sizeof(*req), from);
@@ -586,7 +565,7 @@ int daemon_init(int argc, char *argv[])
     exalog_as(EXAMSG_NBD_CLIENT_ID);
     exalog_debug("clientd daemonized");
 
-    if (clientd_perf_init() != 0)
+    if (exa_perf_instance_static_init() != 0)
         return -EINVAL; /* FIXME Use better error code */
 
     retval = init_clientd(net_type, node_name, barrier_enable,
@@ -633,7 +612,7 @@ error_lum_thread_create:
 
     vrt_exit();
 
-    clientd_perf_cleanup();
+    exa_perf_instance_static_clean();
     os_random_cleanup();
 
     return retval;

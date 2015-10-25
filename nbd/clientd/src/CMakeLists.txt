@@ -8,7 +8,7 @@
 
 if (WITH_PERF)
     set(NBD_CLIENTD_PERF nbd_clientd_perf_private.c)
-    set(LIBPERF exaperf)
+    set(LIBPERF exa_perf_instance exaperf)
 endif (WITH_PERF)
 
 add_executable(exa_clientd

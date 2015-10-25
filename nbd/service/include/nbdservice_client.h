@@ -47,7 +47,7 @@ int serverd_device_export(ExamsgHandle h, const char *device_path,
 
 int serverd_device_unexport(ExamsgHandle h, const exa_uuid_t *uuid);
 
-int clientd_device_import(ExamsgHandle h, const char *remote_node_name,
+int clientd_device_import(ExamsgHandle h, exa_nodeid_t node_id,
                          const exa_uuid_t *uuid, int device_nb,
                          uint64_t device_sectors);
 
@@ -56,9 +56,6 @@ int clientd_device_suspend(ExamsgHandle h, const exa_uuid_t *uuid);
 int clientd_device_down(ExamsgHandle h, const exa_uuid_t *uuid);
 
 int clientd_device_resume(ExamsgHandle h, const exa_uuid_t *uuid);
-
-int clientd_device_add(ExamsgHandle h, const char *node_name,
-                      const exa_uuid_t *uuid, exa_nodeid_t node_id);
 
 int clientd_device_remove(ExamsgHandle h, const exa_uuid_t *uuid);
 

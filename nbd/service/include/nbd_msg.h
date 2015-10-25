@@ -10,15 +10,10 @@
 #define __NBD_MSG_H__
 
 /** \file nbd_msg.h
- * \brief Private nbd service messages.
- *
- */
+ * \brief Private nbd service messages. */
 
 #include "examsg/include/examsg.h"
 #include "nbd/service/include/nbdservice_client.h"
-
-#define DATA_NET_UP   1
-#define DATA_NET_DOWN 2
 
 struct nbd_request
 {
@@ -32,7 +27,6 @@ struct nbd_request
     NBDCMD_DEVICE_EXPORT,
     NBDCMD_DEVICE_UNEXPORT,
     NBDCMD_DEVICE_IMPORT,
-    NBDCMD_DEVICE_ADD,
     NBDCMD_DEVICE_REMOVE,
     NBDCMD_SESSION_OPEN,
     NBDCMD_SESSION_CLOSE,
@@ -43,7 +37,6 @@ struct nbd_request
   } event;
 #define NBDCMD_IS_VALID(c) ((c) >= NBDCMD_FIRST && (c) <= NBDCMD_LAST)
 
-  char cluster_name[EXA_MAXSIZE_CLUSTERNAME + 1];
   char node_name[EXA_MAXSIZE_HOSTNAME + 1];
   exa_uuid_t device_uuid;
   char device_path[EXA_MAXSIZE_DEVPATH + 1];

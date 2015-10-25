@@ -299,12 +299,16 @@ static void rdev_stop_disk(struct adm_disk *disk, struct adm_node *node)
 
   if (node == adm_myself() && disk->local->reachable)
   {
+    int err = serverd_device_unexport(adm_wt_get_localmb(), &disk->uuid);
+    if (err != EXA_SUCCESS)
+      exalog_error("Cannot unexport disk " UUID_FMT " : %s(%d)",
+                   UUID_VAL(&disk->uuid), exa_error_msg(err), err);
+
     exa_rdev_handle_free(disk->local->rdev_req);
 
     disk->local->state = EXA_RDEV_STATUS_FAIL;
     disk->local->rdev_req = NULL;
     disk->local->reachable = false;
-    disk->local->up_in_rdev = false;
   }
 
   disk->path[0] = '\0';
@@ -396,6 +400,33 @@ rdev_update_broken_disks(void)
 static bool __size_big_enough(uint64_t size)
 {
     return size >= RDEV_RESERVED_AREA_IN_SECTORS * SECTOR_SIZE;
+}
+
+/**
+ * Export newly up disks.
+ */
+static int nbd_recover_serverd_device_export(struct adm_disk *disk)
+{
+    int ret;
+
+    exalog_debug("serverd_device_export(%s, " UUID_FMT ")",
+                 disk->path, UUID_VAL(&disk->uuid));
+    ret = serverd_device_export(adm_wt_get_localmb(), disk->path, &disk->uuid);
+    if (ret == -ADMIND_ERR_NODE_DOWN)
+      return ret;
+    if (ret == -CMD_EXP_ERR_OPEN_DEVICE)
+    {
+      exalog_warning("Export device '%s', " UUID_FMT ": %s(%d)",
+                     disk->path, UUID_VAL(&disk->uuid),
+		     exa_error_msg(ret), ret);
+      return EXA_SUCCESS;
+    }
+    EXA_ASSERT_VERBOSE(ret == EXA_SUCCESS,
+                       "Export device '%s', " UUID_FMT " failed: %s(%d)",
+                       disk->path, UUID_VAL(&disk->uuid),
+                       exa_error_msg(ret), ret);
+
+    return EXA_SUCCESS;
 }
 
 /**
@@ -518,8 +549,13 @@ static int rdev_start_disk(const char *path)
 
   /* Set up disk data structure. */
   strlcpy(disk->path, path, sizeof(disk->path));
-  disk->local->reachable = true;
   disk->local->state = EXA_RDEV_STATUS_OK;
+
+  ret = nbd_recover_serverd_device_export(disk);
+  if (ret != EXA_SUCCESS)
+      return ret;
+
+  disk->local->reachable = true;
 
   return EXA_SUCCESS;
 }
@@ -639,7 +675,6 @@ rdev_recover_local(int thr_nb, void *msg)
   exa_nodeset_t nodes_going_down;
   exa_nodeset_t nodes_down;
   struct {
-    uint64_t new_disks;
     struct {
       char path[EXA_MAXSIZE_DEVPATH];
     } disk[NBMAX_DISKS_PER_NODE];
@@ -665,8 +700,6 @@ rdev_recover_local(int thr_nb, void *msg)
     rdev_start_all_disks();
   }
 
-  info.new_disks = false;
-
   /*
    * We compute the exact used size of the message. Without that, the barrier
    * mailbox could receive (8 + 8 + (8 + 128) x 16) x 128 = 274 KB which is
@@ -679,8 +712,6 @@ rdev_recover_local(int thr_nb, void *msg)
   adm_node_for_each_disk(adm_myself(), disk)
   {
     i++; /* start at 0 */
-    if (disk->local->reachable && !disk->local->up_in_rdev)
-      info.new_disks = true;
 
     strlcpy(info.disk[i].path, disk->path, sizeof(info.disk[i].path));
 
@@ -692,8 +723,6 @@ rdev_recover_local(int thr_nb, void *msg)
   {
     if (down_ret == -ADMIND_ERR_NODE_DOWN)
       continue;
-    if (info.new_disks)
-      inst_set_resources_changed_up(&adm_service_nbd);
 
     i = -1;
     adm_node_for_each_disk(adm_cluster_get_node_by_id(nodeid), disk)
@@ -703,6 +732,8 @@ rdev_recover_local(int thr_nb, void *msg)
     }
   }
 
+  inst_set_resources_changed_up(&adm_service_nbd);
+
   exa_nodeset_sum(&nodes_down, &nodes_going_down);
   exa_nodeset_substract(&nodes_down, &nodes_going_up);
 
@@ -710,10 +741,6 @@ rdev_recover_local(int thr_nb, void *msg)
       if (exa_nodeset_contains(&nodes_down, node->id))
           adm_node_for_each_disk(adm_cluster_get_node_by_id(node->id), disk)
               disk->path[0] = '\0';
-
-  adm_node_for_each_disk(adm_myself(), disk)
-    if (disk->local->reachable)
-      disk->local->up_in_rdev = true;
 
   ret = rdev_synchronise_broken_disk_table(thr_nb);
 
@@ -869,7 +896,7 @@ static void rdev_check_down_local(int thr_nb, void *msg)
 	  exalog_debug("disk " UUID_FMT " is broken", UUID_VAL(&disk->uuid));
 	  info[i].broken = true;
 	}
-      info[i].new_up = !disk->local->up_in_rdev; /* If disk is not up, it is a new disk */
+      info[i].new_up = !disk->local->reachable; /* If disk is not up, it is a new disk */
     }
     else
     {

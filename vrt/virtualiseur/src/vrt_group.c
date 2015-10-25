@@ -520,13 +520,16 @@ static int storage_build_from_description(storage_t **storage, int nb_rdevs,
             return -ENOMEM;
         }
 
-        err = vrt_rdev_open(rdev);
-        if (err != 0)
+        if (rdev_info->up)
         {
-            vrt_rdev_free(rdev);
-            __storage_free_rdevs((*storage));
-            storage_free((*storage));
-            return err;
+            err = vrt_rdev_open(rdev);
+            if (err != 0)
+            {
+                vrt_rdev_free(rdev);
+                __storage_free_rdevs((*storage));
+                storage_free((*storage));
+                return err;
+            }
         }
 
         err = storage_add_rdev((*storage), rdev->spof_id, rdev);

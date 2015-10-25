@@ -6,34 +6,33 @@
  * directory of the project.
  */
 
-
 #include "nbd/serverd/ndevs.h"
-
-#include <string.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <errno.h>
-#include <sys/types.h>
-#include <fcntl.h>
-
+#include "nbd/serverd/nbd_disk_thread.h"
 #include "nbd/serverd/nbd_serverd.h"
+
 #include "nbd/common/nbd_tcp.h"
-#include "common/include/exa_constants.h"
-#include "common/include/exa_error.h"
-#include "os/include/os_mem.h"
-#include "common/include/exa_names.h"
-#include "os/include/strlcpy.h"
-#include "common/include/threadonize.h"
-#include "examsg/include/examsg.h"
-#include "log/include/log.h"
-#include "rdev/include/exa_rdev.h"
+
 #include "nbd/service/include/nbd_msg.h"
 #include "nbd/service/include/nbdservice_client.h"
+
+#include "rdev/include/exa_rdev.h"
+
+#include "log/include/log.h"
+
+#include "examsg/include/examsg.h"
+
 #include "common/include/daemon_api_server.h"
-#include "os/include/os_thread.h"
+#include "common/include/exa_constants.h"
+#include "common/include/exa_error.h"
+#include "common/include/exa_names.h"
+#include "common/include/threadonize.h"
+
 #include "os/include/os_disk.h"
 #include "os/include/os_error.h"
 #include "os/include/os_file.h"
+#include "os/include/os_mem.h"
+#include "os/include/os_thread.h"
+#include "os/include/strlcpy.h"
 
 static device_t *find_device_from_uuid(const exa_uuid_t *uuid)
 {
@@ -225,10 +224,7 @@ int export_device(const exa_uuid_t *uuid, char *device_path)
 
     dev->handle = exa_rdev_handle_alloc(device_path);
     if (dev->handle == NULL)
-    {
-        err = -NBD_ERR_MALLOC_FAILED;
         goto error;
-    }
 
     err = get_nb_sectors(device_path, &dev->size_in_sectors);
     if (err != EXA_SUCCESS)
