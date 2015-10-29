@@ -211,13 +211,6 @@ static int init_serverd(char *net_type)
         return -NBD_ERR_SERVERD_INIT;
     }
 
-    nbd_server.exa_rdev_fd = exa_rdev_init();
-    if (nbd_server.exa_rdev_fd <= 0)
-    {
-	exalog_error("Can not open the exa_rdev char device driver file ");
-	return -NBD_ERR_SERVERD_INIT;
-    }
-
     if (net_type != NULL)
 	retval = init_tcp_server(net_type);
     else
@@ -357,7 +350,6 @@ static void server_handle_events(void *p)
 	    nbd_close_root(&nbd_server.list_root);
 	    nbd_close_root(&nbd_server.ti_queue);
 	    retval = stop_threads();
-	    close(nbd_server.exa_rdev_fd);
 	    return;
 	}
     }

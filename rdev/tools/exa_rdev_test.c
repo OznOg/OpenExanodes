@@ -360,7 +360,6 @@ static void usage(void)
 static int do_io(const char *disk_path, bool async, bool write, uint64_t offset,
                   uint64_t size_in_bytes)
 {
-    int exa_rdev_fd;
     int disk_fd;
     exa_rdev_handle_t *dev_req;
     uint64_t disk_size;
@@ -384,20 +383,11 @@ static int do_io(const char *disk_path, bool async, bool write, uint64_t offset,
     fprintf(stderr, "Disk %s has a size of %"PRIu64" bytes\n",
 	    disk_path, disk_size);
 
-    /* Initialise exa_rdev */
-    exa_rdev_fd = exa_rdev_init();
-    if (exa_rdev_fd <= 0)
-    {
-	fprintf(stderr, "exa_rdev_init() failed\n");
-	return -1;
-    }
-
     dev_req = exa_rdev_handle_alloc(disk_path);
     if (dev_req == NULL)
     {
 	fprintf(stderr, "exa_rdev_request_init() failed, disk_path = %s\n",
 		disk_path);
-	close(exa_rdev_fd);
 	return -1;
     }
 
@@ -424,8 +414,6 @@ static int do_io(const char *disk_path, bool async, bool write, uint64_t offset,
 	    size_in_bytes,
 	    disk_path,
 	    offset);
-
-    close(exa_rdev_fd);
 
     return 0;
 }

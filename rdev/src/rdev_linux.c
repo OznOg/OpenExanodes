@@ -46,6 +46,7 @@ struct exa_rdev_handle
 };
 
 static rdev_static_op_t init_op = RDEV_STATIC_OP_INVALID;
+static int rdev_fd = -1;
 
 static int __ioctl_nointr(int fd, int op, void *param)
 {
@@ -71,6 +72,18 @@ int exa_rdev_static_init(rdev_static_op_t op)
     if (err != 0)
     {
         exalog_error("Failed to load kernel module '" EXA_RDEV_MODULE_NAME "': %s (%d)",
+                     os_strerror(-err), err);
+        return err;
+    }
+
+    /* This just open the kernel module so that is turns 'in use' and doesn't
+     * get unloaded while exanodes is running.
+     * FIXME I'm not that convinced that it is really useful... */
+    rdev_fd = open(EXA_RDEV_MODULE_PATH, O_RDWR);
+    if (rdev_fd < 0)
+    {
+	err = rdev_fd;
+        exalog_error("Failed to open kernel module '" EXA_RDEV_MODULE_NAME "': %s (%d)",
                      os_strerror(-err), err);
         return err;
     }
@@ -101,21 +114,14 @@ void exa_rdev_static_clean(rdev_static_op_t op)
                            "release of static data by owner");
     }
 
+    close(rdev_fd);
+
     err = os_kmod_unload("exa_rdev");
     if (err != 0)
         exalog_warning("Failed to unload kernel module '" EXA_RDEV_MODULE_NAME "': %s (%d)",
                        os_strerror(-err), err);
 
     init_op = RDEV_STATIC_OP_INVALID;
-}
-
-int exa_rdev_init(void)
-{
-    int fd;
-
-    fd = open(EXA_RDEV_MODULE_PATH, O_RDWR);
-
-    return fd;
 }
 
 exa_rdev_handle_t *exa_rdev_handle_alloc(const char *path)

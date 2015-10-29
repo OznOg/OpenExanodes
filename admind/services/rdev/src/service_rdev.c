@@ -66,7 +66,6 @@ static void *rdev_check_buffer = NULL;
 static os_thread_t rdev_check_id;
 static bool rdev_check_id_started = false;
 
-static int exa_rdev_fd = -1;
 static ExamsgHandle mh = NULL; /* For disk check thread */
 
 static bool quit = true;
@@ -171,20 +170,12 @@ rdev_init(int thr_nb)
     goto cleanup_broken;
   }
 
-  exa_rdev_fd = exa_rdev_init();
-  if (exa_rdev_fd <= 0)
-  {
-    err = exa_rdev_fd;
-    exalog_error("Failed initializing rdev: %s (%d)", exa_error_msg(err), err);
-    goto cleanup_broken;
-  }
-
   mh = examsgInit(EXAMSG_RDEV_ID);
   if (!mh)
   {
       exalog_error("Failed initializing messaging for disk checking thread");
       err = -ENOMEM;
-      goto cleanup_rdev_fd;
+      goto cleanup_rdev;
   }
 
   COMPILE_TIME_ASSERT(RDEV_SUPERBLOCK_SIZE <= SECTORS_TO_BYTES(RDEV_RESERVED_AREA_IN_SECTORS));
@@ -219,9 +210,8 @@ cleanup_rdev_check_buffer:
 cleanup_mh:
     examsgExit(mh);
     mh = NULL;
-cleanup_rdev_fd:
-    close(exa_rdev_fd);
-    exa_rdev_fd = -1;
+cleanup_rdev:
+    exa_rdev_static_clean(RDEV_STATIC_DELETE);
 cleanup_broken:
     broken_disk_table_unload(&broken_disks);
     return err;
@@ -246,9 +236,6 @@ rdev_shutdown(int thr_nb)
   rdev_check_id_started = false;
 
   os_aligned_free(rdev_check_buffer);
-
-  if (exa_rdev_fd > 0)
-      close(exa_rdev_fd);
 
   exa_rdev_static_clean(RDEV_STATIC_DELETE);
 

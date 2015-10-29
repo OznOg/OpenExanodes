@@ -136,13 +136,6 @@ int exa_rdev_under_the_hood_do(const char *path, char op,
 #endif  /* WIN32 */
 
 /**
- * Initialise exa_rdev
- *
- * @return A file descriptor associated to exa_rdev if successfull, -1 otherwise
- */
-int exa_rdev_init(void);
-
-/**
  * Allocate and initialize a real device handler
  *
  * @param path  The path of the disk

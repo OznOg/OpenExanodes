@@ -125,9 +125,6 @@ struct server
   int bd_buffer_size;
 
   struct daemon_request_queue *server_requests_queue;
-
-  /* file descriptor of the exa_rdev module */
-  int exa_rdev_fd;
 };
 
 typedef struct server server_t;
