@@ -14,9 +14,10 @@ if (WITH_TOOLS)
     exa_rdev_broken.c)
 
   target_link_libraries(exa_rdev_test
-    exa_os
+    rdev
+    exalogclientfake
     exa_common_user
-    rdev)
+    exa_os)
 
   target_link_libraries(exa_rdev_broken
     service_rdev

@@ -25,12 +25,15 @@
 #include "os/include/os_dir.h"
 #include "os/include/os_error.h"
 #include "os/include/os_file.h"
+#include "os/include/os_kmod.h"
 #include "os/include/os_thread.h"
 #include "os/include/strlcpy.h"
 
 #include "rdev/include/exa_rdev.h"
 #include "rdev/src/rdev_kmodule.h"
 #include "rdev/src/rdev_perf.h"
+
+#include "log/include/log.h"
 
 #define EXA_RDEV_MODULE_PATH "/dev/" EXA_RDEV_MODULE_NAME
 
@@ -58,10 +61,19 @@ static int __ioctl_nointr(int fd, int op, void *param)
 
 int exa_rdev_static_init(rdev_static_op_t op)
 {
+    int err;
     EXA_ASSERT_VERBOSE(init_op == RDEV_STATIC_OP_INVALID, "static data already initialized");
 
     EXA_ASSERT_VERBOSE(op == RDEV_STATIC_CREATE || op == RDEV_STATIC_GET,
                        "invalid static init op: %d", op);
+
+    err = os_kmod_load(EXA_RDEV_MODULE_NAME);
+    if (err != 0)
+    {
+        exalog_error("Failed to load kernel module '" EXA_RDEV_MODULE_NAME "': %s (%d)",
+                     os_strerror(-err), err);
+        return err;
+    }
 
     init_op = op;
 
@@ -70,6 +82,7 @@ int exa_rdev_static_init(rdev_static_op_t op)
 
 void exa_rdev_static_clean(rdev_static_op_t op)
 {
+    int err;
     /* Initialization not performed, nothing to clean */
     if (init_op == RDEV_STATIC_OP_INVALID)
         return;
@@ -87,6 +100,11 @@ void exa_rdev_static_clean(rdev_static_op_t op)
         EXA_ASSERT_VERBOSE(init_op == RDEV_STATIC_GET,
                            "release of static data by owner");
     }
+
+    err = os_kmod_unload("exa_rdev");
+    if (err != 0)
+        exalog_warning("Failed to unload kernel module '" EXA_RDEV_MODULE_NAME "': %s (%d)",
+                       os_strerror(-err), err);
 
     init_op = RDEV_STATIC_OP_INVALID;
 }

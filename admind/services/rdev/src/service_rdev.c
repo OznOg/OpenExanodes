@@ -52,7 +52,6 @@
 #include "os/include/os_mem.h"
 #include "os/include/os_disk.h"
 #include "os/include/os_file.h"
-#include "os/include/os_kmod.h"
 #include "os/include/os_time.h"
 #include "os/include/os_string.h"
 
@@ -150,12 +149,6 @@ rdev_init(int thr_nb)
 {
   char path[OS_PATH_MAX];
   int err = 0;
-
-  if (os_kmod_load("exa_rdev") != 0)
-  {
-    exalog_error("Failed to load kernel module 'exa_rdev'");
-    return -ADMIND_ERR_MODULESTART;
-  }
 
   /* Load the broken disks table */
   err = exa_env_make_path(path, sizeof(path), exa_env_cachedir(), "broken_disks");
@@ -260,9 +253,6 @@ rdev_shutdown(int thr_nb)
   exa_rdev_static_clean(RDEV_STATIC_DELETE);
 
   examsgExit(mh);
-
-  if (os_kmod_unload("exa_rdev") != 0)
-    return -ADMIND_ERR_MODULESTOP;
 
   return EXA_SUCCESS;
 }
