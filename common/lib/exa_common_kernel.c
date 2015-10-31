@@ -13,7 +13,6 @@
 #include "common/lib/exa_common_kernel.h"
 #include "common/lib/exa_select_kernel.h"
 #include "common/lib/exa_socket_kernel.h"
-#include "common/lib/exa_thread_name_kernel.h"
 
 
 static int exa_common_major;
@@ -43,10 +42,6 @@ static int exa_common_ioctl(struct inode *inode, struct file *filp,
 
     switch (cmd)
     {
-    case EXA_SET_NAME:
-        retval = exa_thread_name_set_kernel((char *)arg);
-        break;
-
     case EXA_NOIO:
         retval = exa_socket_set_atomic_kernel(arg);
         break;

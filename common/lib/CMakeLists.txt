@@ -62,11 +62,9 @@ if (WITH_NODES AND NOT WIN32)
         exa_common_kernel.c
         exa_select_kernel.c
         exa_socket_kernel.c
-        exa_thread_name_kernel.c
         exa_common_kernel.h
         exa_select_kernel.h
-        exa_socket_kernel.h
-        exa_thread_name_kernel.h)
+        exa_socket_kernel.h)
 
 endif (WITH_NODES AND NOT WIN32)
 

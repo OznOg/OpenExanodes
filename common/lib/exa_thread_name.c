@@ -15,6 +15,8 @@
 #include "common/include/exa_thread_name.h"
 #include "common/lib/exa_common_kernel.h"
 
+#include <pthread.h>
+
 
 /**
  * On Linux, change the comm field in the current task struct.
@@ -28,17 +30,7 @@
  * @return 0 in case of success.
  */
 
-int exa_thread_name_set(char *name)
+int exa_thread_name_set(const char *name)
 {
-    int fd, ret;
-
-    fd = open(EXACOMMON_MODULE_PATH, O_RDWR);
-    if (fd < 0)
-        return -EXA_ERR_MODULE_OPEN;
-
-    ret = ioctl(fd, EXA_SET_NAME, name);
-
-    close(fd);
-
-    return ret;
+    return pthread_setname_np(pthread_self(), name);
 }

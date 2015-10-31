@@ -18,7 +18,7 @@
 #else
 
 /** Set the comm field of the current task struct */
-int exa_thread_name_set(char *name);
+int exa_thread_name_set(const char *name);
 
 #endif
 

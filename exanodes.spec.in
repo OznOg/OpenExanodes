@@ -695,7 +695,6 @@ fi
 %{_usrsrc}/%{tarball_name}/common/lib/exa_common_kernel.[ch]
 %{_usrsrc}/%{tarball_name}/common/lib/exa_select_kernel.[ch]
 %{_usrsrc}/%{tarball_name}/common/lib/exa_socket_kernel.[ch]
-%{_usrsrc}/%{tarball_name}/common/lib/exa_thread_name_kernel.[ch]
 %{_usrsrc}/%{tarball_name}/common/include/exa_names.h
 %{_usrsrc}/%{tarball_name}/common/include/exa_error.h
 %{_usrsrc}/%{tarball_name}/common/include/exa_assert.h
