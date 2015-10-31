@@ -49,6 +49,12 @@ export EXANODES_NODE_CONF_DIR="@PKG_NODE_CONF_DIR@"
 export EXANODES_LOG_DIR="@PKG_LOG_DIR@"
 @EXPORT_PERF_CONF_ENV@
 
+# NOTE: in case of huge cluster (more than 64 nodes) it may be necessary to
+# tweak /proc/sys/vm/min_free_kbytes to make sure the system has enough buffers
+# in emergency pool to be able to handle heavy loads.
+# Nevertheless, it should not be a problem on 'standard' configurations (about
+# 32 nodes)
+
 if [ "$exanodes" = "nostart" ]; then
 	echo "As required in the kernel command line, Exanodes will not be automatically started."
 	echo "You can start it manually with '/etc/init.d/exanodes start'."

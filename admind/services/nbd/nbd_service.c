@@ -83,16 +83,6 @@ nbd_init(int thr_nb)
 
   data_net_timeout = adm_cluster_get_param_text("tcp_data_net_timeout");
 
-  /* Emergency is only used for TCP netplugin on Linux.
-   * The maximum memory for GFP_ATOMIC used at one time is the size of send/recv buffer
-   * multiplicate by the max number of client.
-   * Since the number of nodes can be dynamically changed, we must use EXA_MAX_NODES_NUMBER
-   * instead of the actual number of nodes.
-   */
-  exa_socket_tweak_emergency_pool((adm_cluster_get_param_int("tcp_server_buffer_size")+
-          adm_cluster_get_param_int("tcp_client_buffer_size")) / 1024 *
-          EXA_MAX_NODES_NUMBER);
-
   os_snprintf(max_headers, sizeof(max_headers), "%d",
 	   adm_cluster_get_param_int("max_client_requests") * adm_cluster_nb_nodes());
 
@@ -150,13 +140,6 @@ nbd_init(int thr_nb)
   goto end_init;
 
  module_init_clean:
-  {
-    /* even if this code was not called, exa_common will automotically
-     * call exa_emergency_pool_add_size(0) at rmmod in its cleanup routine.
-     * */
-    exa_socket_tweak_emergency_pool(0);
-
-  }
 
   adm_monitor_unregister(EXA_DAEMON_SERVERD);
   serverd_quit(adm_wt_get_localmb(), adm_myself()->name);
@@ -1038,8 +1021,6 @@ nbd_shutdown(int thr_nb)
       error_val = serverd_quit(adm_wt_get_localmb(), adm_myself()->name);
       os_daemon_wait(server_daemon);
   }
-  /* Free additional amount of kernel emergency pool. */
-  exa_socket_tweak_emergency_pool(0);
 
  barrier_end:
   exalog_debug("Done: %d", error_val);

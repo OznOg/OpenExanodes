@@ -20,6 +20,5 @@
 #define EXA_SELECT_IN  0x63
 #define EXA_SELECT_OUT 0x64
 #define EXA_SELECT_MAL 0x65
-#define EXA_EMERGENCY_SIZE 0x66
 
 #endif /* _EXA_COMMON_KERNEL_H */
