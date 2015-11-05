@@ -20,6 +20,7 @@
 #include "common/include/exa_constants.h"
 #include "common/include/exa_conversion.h"
 #include "common/include/exa_error.h"
+#include "common/include/exa_math.h"
 
 #include "os/include/os_disk.h"
 #include "os/include/os_file.h"
@@ -182,146 +183,126 @@ static int deactivate_device(char *path)
 #endif  /* WIN32 */
 
 
-static void async_op(rdev_op_t op, uint64_t offset, uint64_t size_in_bytes,
+static int async_op(rdev_op_t op, uint64_t offset, uint64_t size_in_bytes,
                      exa_rdev_handle_t *dev_req)
 {
+    struct IO {
+        void *buffer;
+        size_t size;
+    };
     int retval;
-    void *nbd_private;
-    char *buffer;
-    uint64_t chunk_size;
-    uint64_t size_in_sectors;
-    bool quit = false;
 
-    size_in_sectors = (size_in_bytes / SECTOR_SIZE) + 1;
+    if (size_in_bytes % SECTOR_SIZE)
+        return -EINVAL;
 
-    chunk_size = (size_in_bytes > EXA_RDEV_READ_WRITE_FRAGMENT) ?
-	EXA_RDEV_READ_WRITE_FRAGMENT : size_in_bytes;
-    chunk_size /= SECTOR_SIZE;
-    if (chunk_size == 0)
-	chunk_size = 1;
+    retval = RDEV_REQUEST_NONE_ENDED;
+    while (retval != RDEV_REQUEST_ALL_ENDED) {
 
-    /* Prepare buffer to do requests, exa_rdev requires it to be aligned */
-    buffer = os_aligned_malloc(size_in_sectors * SECTOR_SIZE, PAGE_SIZE, NULL);
-    memset(buffer, 0, size_in_sectors * SECTOR_SIZE);
+        if (retval == RDEV_REQUEST_NONE_ENDED && size_in_bytes == 0)
+            retval = RDEV_REQUEST_NOT_ENOUGH_FREE_REQ;
 
-    retval = RDEV_REQUEST_ALL_ENDED;
+        switch (retval)
+        {
+            case RDEV_REQUEST_ALL_ENDED:
+            case RDEV_REQUEST_NONE_ENDED:
+                {
+                    uint64_t chunk_size = MIN(size_in_bytes, EXA_RDEV_READ_WRITE_FRAGMENT);
+                    /* Prepare buffer to do requests, exa_rdev requires it to be aligned */
+                    struct IO *io = malloc(sizeof(*io));
+                    io->buffer = os_aligned_malloc(EXA_RDEV_READ_WRITE_FRAGMENT, PAGE_SIZE, NULL);
+                    io->size = chunk_size;
 
-    while (!quit)
-    {
-	switch (retval)
-	{
-	case RDEV_REQUEST_ALL_ENDED:
-	    if (size_in_sectors <= 0)
-		quit = true;
-	    /* fallthrough */
-	case RDEV_REQUEST_NONE_ENDED:
-	    if (size_in_sectors > 0)
-	    {
-		if (op == RDEV_OP_WRITE)
-		    memset(buffer, 'E', size_in_bytes);
-		else
-		    memset(buffer, 0, chunk_size);
+                    if (op == RDEV_OP_WRITE) {
+                        /* about to write data on rdev, thus first get the data to be
+                         * written from the standard input */
+                        ssize_t bytes_read = 0;
+                        do {
+                            retval = read(0, io->buffer + bytes_read, chunk_size - bytes_read);
+                            if (retval == 0) {
+                                memset(io->buffer + bytes_read, 0, chunk_size - bytes_read);
+                                retval = chunk_size - bytes_read;
+                            }
+                            if (retval > 0)
+                                bytes_read += retval;
 
-		nbd_private = buffer;
+                        } while ((retval == -1 && errno == EINTR) || bytes_read < chunk_size);
+                    }
 
-                /* Be carefull the 'nbd_private' pointer can be modified */
-		retval = exa_rdev_make_request_new(op, &nbd_private, offset,
-						   chunk_size, buffer, dev_req);
-		if (retval == RDEV_REQUEST_NOT_ENOUGH_FREE_REQ)
-		{
- 		    fprintf(stderr, "Overflow of exa_rdev, try later\n");
-		    /* retry */
-		    break;
-		}
+                    /* Now data buffer is full, write data on rdev */
 
-		if (retval < 0)
-		{
-		    fprintf(stderr, "Error %d\n", retval);
-		    retval = RDEV_REQUEST_END_ERROR;
-		    break;
-		}
+                    /* Be carefull the 'nbd_private' pointer can be modified */
+                    retval = exa_rdev_make_request_new(op, (void **)&io, offset / SECTOR_SIZE,
+                            chunk_size / SECTOR_SIZE, io->buffer, dev_req);
+                    if (retval == RDEV_REQUEST_NOT_ENOUGH_FREE_REQ) {
+                        os_free(io->buffer);
+                        os_free(io);
+                        break; /* retry */
+                    }
 
-		size_in_sectors -= chunk_size;
-		if ((size_in_sectors > 0) && (size_in_sectors < chunk_size))
-		    chunk_size = size_in_sectors;
-		offset += (chunk_size * SECTOR_SIZE);
-		buffer = (char *)buffer + (chunk_size * SECTOR_SIZE);
-	    }
-	    else
-	    {
-		retval = RDEV_REQUEST_NOT_ENOUGH_FREE_REQ;
-	    }
-	    break;
+                    if (retval < 0)
+                    {
+                        os_free(io->buffer);
+                        os_free(io);
+                        fprintf(stderr, "Error %d\n", retval);
+                        retval = RDEV_REQUEST_END_ERROR;
+                        break;
+                    }
 
-	case RDEV_REQUEST_NOT_ENOUGH_FREE_REQ:
-	    buffer = NULL;
-	    retval = exa_rdev_wait_one_request((void **)&buffer, dev_req);
-	    break;
+                    if (retval == RDEV_REQUEST_END_OK) {
+                        if (op == RDEV_OP_READ) {
+                            /* about to write data on rdev, thus first get the data to be
+                             * written from the standard input */
+                            ssize_t bytes_written = 0;
+                            int ret;
+                            do {
+                                ret = write(1, io->buffer + bytes_written, io->size - bytes_written);
+                                if (ret >= 0)
+                                    bytes_written += ret;
 
-	case RDEV_REQUEST_END_OK:
-	case RDEV_REQUEST_END_ERROR:
-	    if (retval == RDEV_REQUEST_END_ERROR)
-		fprintf(stderr, "Request ended with error\n");
-	    retval = RDEV_REQUEST_NONE_ENDED;
-	    break;
-	}
+                            } while ((ret == -1 && errno == EINTR) || bytes_written < chunk_size);
+                        }
+                        os_free(io->buffer);
+                        os_free(io);
+                    }
+
+                    size_in_bytes -= chunk_size;
+                    offset += chunk_size;
+                }
+                break;
+
+            case RDEV_REQUEST_NOT_ENOUGH_FREE_REQ:
+                {
+                    struct IO *io = NULL;
+                    retval = exa_rdev_wait_one_request((void **)&io, dev_req);
+                    if (retval == RDEV_REQUEST_ALL_ENDED)
+                        break;
+                    if (op == RDEV_OP_READ && retval == RDEV_REQUEST_END_OK) {
+                        /* about to write data on rdev, thus first get the data to be
+                         * written from the standard input */
+                        ssize_t bytes_written = 0;
+                        do {
+                            retval = write(1, io->buffer, io->size);
+                            if (retval >= 0)
+                                bytes_written += retval;
+
+                        } while ((retval == -1 && errno == EINTR) || bytes_written < io->size);
+                    }
+                    if (io != NULL)
+                        os_free(io->buffer);
+                    os_free(io);
+                    retval = RDEV_REQUEST_END_OK;
+                    break;
+                }
+
+            case RDEV_REQUEST_END_OK:
+            case RDEV_REQUEST_END_ERROR:
+                if (retval == RDEV_REQUEST_END_ERROR)
+                    fprintf(stderr, "Request ended with error\n");
+                retval = RDEV_REQUEST_NONE_ENDED;
+                break;
+        }
     }
-}
-
-static void sync_op(rdev_op_t op, uint64_t offset, uint64_t size_in_bytes,
-                    exa_rdev_handle_t *dev_req)
-{
-    int ret;
-    char *buffer;
-    uint64_t chunk_size;
-
-    chunk_size = (size_in_bytes > EXA_RDEV_READ_WRITE_FRAGMENT) ?
-	EXA_RDEV_READ_WRITE_FRAGMENT : size_in_bytes;
-
-    /* Prepare buffer to do requests, exa_rdev requires it to be aligned */
-    buffer = os_aligned_malloc(size_in_bytes, PAGE_SIZE, NULL);
-    memset(buffer, 0, size_in_bytes);
-
-    while (size_in_bytes > 0)
-    {
-	if (op == RDEV_OP_WRITE)
-	    memset(buffer, 'E', chunk_size);
-	else
-	    memset(buffer, 0, chunk_size);
-
-	ret = exa_rdev_make_request(op,
-				    offset,
-				    chunk_size,
-				    buffer,
-				    dev_req);
-	if (ret != EXA_SUCCESS)
-	{
-	    switch(ret)
-	    {
-	    case -RDEV_ERR_INVALID_OFFSET:
-		fprintf(stderr, "Error on exa_rdev_make_request: Invalid offset\n");
-		break;
-
-	    case -RDEV_ERR_INVALID_SIZE:
-		fprintf(stderr, "Error on exa_rdev_make_request: Invalid size\n");
-		break;
-
-	    case -RDEV_ERR_NOT_OPEN:
-		fprintf(stderr, "Error on exa_rdev_make_request: Device not open\n");
-		break;
-
-	    default:
-		fprintf(stderr, "Error on exa_rdev_make_request: Unknown error\n");
-		break;
-	    }
-
-	    return;
-	}
-
-	size_in_bytes -= chunk_size;
-	offset += chunk_size;
-	buffer = (char *)buffer + chunk_size;
-    }
+    return 0;
 }
 
 static void usage(void)
@@ -331,11 +312,11 @@ static void usage(void)
 #endif
 
     fprintf(stderr, "Tool for reading and writing EXA_RDEV\n");
+    fprintf(stderr, "Size MUST be aligned on %d\n", SECTOR_SIZE);
     fprintf(stderr, "\n");
     fprintf(stderr, "Usage: %s [options]\n", program);
     fprintf(stderr, "\n");
     fprintf(stderr, "Options:\n");
-    fprintf(stderr, "  -a, --async                Use asynchronous mode\n");
     fprintf(stderr, "  -b, --break                Set the status of the device to broken\n");
     fprintf(stderr, "  -d, --disk <path>          Use the device specified by the path\n");
     fprintf(stderr, "  -G, --get-status           Get the status of the device\n");
@@ -357,7 +338,7 @@ static void usage(void)
     exit(1);
 }
 
-static int do_io(const char *disk_path, bool async, bool write, uint64_t offset,
+static int do_io(const char *disk_path, bool write, uint64_t offset,
                   uint64_t size_in_bytes)
 {
     int disk_fd;
@@ -392,36 +373,17 @@ static int do_io(const char *disk_path, bool async, bool write, uint64_t offset,
     }
 
     /* Carry on requests to exa_rdev */
-    if (async)
-    {
-	fprintf(stderr, "Asynchronous mode\n");
-	if (write)
-	    async_op(RDEV_OP_WRITE, offset, size_in_bytes, dev_req);
-	else
-	    async_op(RDEV_OP_READ, offset, size_in_bytes, dev_req);
-    }
-    else
-    {
-	fprintf(stderr, "Synchronous mode\n");
-	if (write)
-	    sync_op(RDEV_OP_WRITE, offset, size_in_bytes, dev_req);
-	else
-	    sync_op(RDEV_OP_READ, offset, size_in_bytes, dev_req);
-    }
+    ret = async_op(write ? RDEV_OP_WRITE : RDEV_OP_READ, offset, size_in_bytes, dev_req);
 
-    fprintf(stderr, "Finished %s %"PRIu64 " bytes on disk %s at offset %"PRIu64 "\n",
-	    (write == true) ? "writing" : "reading",
-	    size_in_bytes,
-	    disk_path,
-	    offset);
+    fprintf(stderr, "Finished %s %"PRIu64 " bytes on disk %s at offset %"PRIu64 "; result (%d)\n",
+	    write ? "writing" : "reading", size_in_bytes, disk_path, offset, ret);
 
-    return 0;
+    return ret;
 }
 
 int main(int argc, char *argv[])
 {
     struct option long_opts[] = {
-        { "async",         no_argument,       NULL, 'a' },
         { "break",         no_argument,       NULL, 'b' },
         { "disk",          required_argument, NULL, 'd' },
         { "get-status",    no_argument,       NULL, 'G' },
@@ -445,7 +407,6 @@ int main(int argc, char *argv[])
     } op = OP_IO;
     char *disk_path = NULL;
 /*     bool random = false; */
-    bool async = false;
     bool write = false;
     uint64_t size_in_bytes = 0;
     uint64_t offset = 0;
@@ -467,7 +428,7 @@ int main(int argc, char *argv[])
 
     while (true)
     {
-	opt = os_getopt_long(argc, argv, "ad:bGhLo:r:s:wS:", long_opts, &long_idx);
+	opt = os_getopt_long(argc, argv, "d:bGhLo:r:s:wS:", long_opts, &long_idx);
         /* Missing argument, quit right away (os_getopt_long() takes care of
          * printing an error message) */
         if (opt == ':' || opt == '?')
@@ -478,10 +439,6 @@ int main(int argc, char *argv[])
 
 	switch (opt)
 	{
-	case 'a':
-	    async = true;
-	    break;
-
 	case 'b':
 	    op = OP_DEACTIVATE_DEVICE;
 	    break;
@@ -555,10 +512,14 @@ int main(int argc, char *argv[])
         goto done;
     }
 
+    if (size_in_bytes % SECTOR_SIZE) {
+        return -EINVAL;
+    }
+
     switch (op)
     {
     case OP_IO:
-        err = do_io(disk_path, async, write, offset, size_in_bytes);
+        err = do_io(disk_path, write, offset, size_in_bytes);
         break;
 
     case OP_LIST_STATUSES:
