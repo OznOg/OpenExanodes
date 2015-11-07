@@ -7,4 +7,4 @@
 #
 
 configure_file(exanodes.in "${CMAKE_CURRENT_BINARY_DIR}/exanodes" @ONLY)
-install(PROGRAMS "${CMAKE_CURRENT_BINARY_DIR}/exanodes" DESTINATION "/etc/init.d")
+install(PROGRAMS "${CMAKE_CURRENT_BINARY_DIR}/exanodes" DESTINATION "${PKG_ETC_DIR}/init.d")
