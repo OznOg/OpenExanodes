@@ -222,19 +222,6 @@ static int run_as_service(void)
         return err;
     }
 
-    /* FIXME Is this renice really mandatory here? why not just renicing
-     * the process inside the init scrip? This would ease portability,
-     * but there are maybe some unpredictable side effects...  (If you
-     * remove the nice, do not forget to remove the unistd.h header from
-     * includes) */
-    err = nice(ADMIND_PROCESS_NICE);
-    if (err == -1)
-    {
-        os_syslog(OS_SYSLOG_ERROR, "Failed to renice");
-        exa_detach_parent(err);
-        return 1;
-    }
-
     err = admind_init(false);
 
     exa_detach_parent(err);

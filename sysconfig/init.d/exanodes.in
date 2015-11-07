@@ -55,6 +55,10 @@ export EXANODES_LOG_DIR="@PKG_LOG_DIR@"
 # Nevertheless, it should not be a problem on 'standard' configurations (about
 # 32 nodes)
 
+ADMIND_PROCESS_NICE=-11 # Admind will set its nice value to this.
+		        # Since all daemon are started from admind,
+		        # they will also inherit this value.
+
 if [ "$exanodes" = "nostart" ]; then
 	echo "As required in the kernel command line, Exanodes will not be automatically started."
 	echo "You can start it manually with '/etc/init.d/exanodes start'."
@@ -133,7 +137,7 @@ exa_startdaemon() {
     test -e $DAEMONBIN || return 2 # no such file or directory
     test -x $DAEMONBIN || return 13 # permission denied
 
-    $DAEMONCMD
+    nice $ADMIND_PROCESS_NICE $DAEMONCMD
     RETVAL=$?
     if [ $RETVAL -eq 0 ]; then
 	success "$1 successfully started"

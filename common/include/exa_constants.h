@@ -230,10 +230,6 @@ typedef int exa_bool_t;
 #define ADMIND_THREAD_STACK_SIZE	300000				//!< The size of the stack to pre-initialize.
 									//!< To be use with exa_init_stack()
 
-#define ADMIND_PROCESS_NICE	-11					//!< Admind will set its nice value to this.
-									//!< Since all daemon are started from admind,
-									//!< they will also inherit this value.
-
 #define ADMIND_SOCKET_PORT		30797				//!< The socket on which admind listen
 
 
