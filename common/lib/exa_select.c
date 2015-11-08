@@ -5,8 +5,13 @@
  * and conditions defined in the LICENSE file which is present in the root
  * directory of the project.
  */
+#ifdef USE_EXA_COMMON_KMODULE
+# define USE_OS_SELECT 0
+#else
+# define USE_OS_SELECT 1
+#endif
 
-#ifndef USE_OS_SELECT
+#if !USE_OS_SELECT
 #include <sys/ioctl.h>
 #endif
 

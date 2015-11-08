@@ -54,7 +54,7 @@ target_link_libraries(exa_nbd_list exa_os)
 
 # --- kernel module --------------------------------------------
 
-if (WITH_NODES AND NOT WIN32)
+if (WITH_NODES AND WITH_EXA_COMMON_KMODULE)
 
     include(KernelModule)
 
@@ -66,7 +66,7 @@ if (WITH_NODES AND NOT WIN32)
         exa_select_kernel.h
         exa_socket_kernel.h)
 
-endif (WITH_NODES AND NOT WIN32)
+endif ()
 
 if (WITH_PERF)
     # this is just compiled when perf are activated, this prevents to try

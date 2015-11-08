@@ -372,6 +372,7 @@ int admind_init(bool foreground)
 
     setup_signal_handlers();
 
+#if USE_EXA_COMMON_KMODULE
     /* FIXME Add module unloading in some admind_cleanup() to be added (and
      * that would be mandatory to call before exiting). */
     err = os_kmod_load("exa_common");
@@ -380,6 +381,7 @@ int admind_init(bool foreground)
         os_syslog(OS_SYSLOG_ERROR, "Failed to load kernel module 'exa_common'");
         return -ADMIND_ERR_MODULESTART;
     }
+#endif
 
     err = examsg_static_init(EXAMSG_STATIC_CREATE);
     if (err)
@@ -512,7 +514,9 @@ void admind_cleanup(void)
 
     examsg_static_clean(EXAMSG_STATIC_DELETE);
 
+#ifdef USE_EXA_COMMON_KMODULE
     os_kmod_unload("exa_common");
+#endif
 
     os_daemon_unlock(admind_daemon_lock);
 

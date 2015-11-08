@@ -122,11 +122,13 @@ set(WITH_SUPSIM         FALSE CACHE BOOL "Make csupd standalone to allow simulat
 set(WITH_TRACE          FALSE CACHE BOOL "Make the logs very verbose")
 
 if (WIN32)
-    set(WITH_EXA_SELECT FALSE) # Not available on windows
+    set(WITH_EXA_COMMON_KMODULE FALSE) # Not no kernel module on windows
 else (WIN32)
-    # Exanodes has a custom implemntation of select() to workaround memory allocation
-    # in standard select() that may cause deadlocks under memory presure
-    set(WITH_EXA_SELECT TRUE CACHE BOOL "Use custom select()")
+    # Exanodes has a custom implementation of select() and ability to force
+    # sockets to use GFP_ATOMIC pool to prevent memory allocation that is
+    # performed on standard kernel implementations and that may cause deadlocks
+    # under memory presure
+    set(WITH_EXA_COMMON_KMODULE TRUE CACHE BOOL "Use exa_common kernel module")
 endif (WIN32)
 # --- Define installation directories --------------------------------
 
@@ -253,7 +255,7 @@ if (WIN32)
     endif (WITH_PERF)
 
 else (WIN32)
-    set(KMODULE_LIST "krdev kcommon")
+    set(KMODULE_LIST "krdev")
     set(KERNEL_CFLAGS "")
     if (WITH_FS)
         add_definitions(-DWITH_FS)
@@ -288,9 +290,12 @@ else (WIN32)
         add_definitions(-DHAVE_VALGRIND_MEMCHECK_H)
         set(KERNEL_CFLAGS "${KERNEL_CFLAGS} -DHAVE_VALGRIND_MEMCHECK_H")
     endif (HAVE_VALGRIND_MEMCHECK_H)
-    if (NOT WITH_EXA_SELECT)
-        add_definitions(-DUSE_OS_SELECT)
-    endif()
+
+    if (WITH_EXA_COMMON_KMODULE)
+        add_definitions(-DUSE_EXA_COMMON_KMODULE)
+	set(KMODULE_LIST "${KMODULE_LIST} kcommon")
+    endif ()
+
 endif (WIN32)
 
 if (WITH_FS AND NOT WITH_BDEV)

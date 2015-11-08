@@ -152,9 +152,11 @@ static int internal_setsock_opt(int sock, int islisten)
 		          &authorization, sizeof(authorization)) < 0)
             goto error;
 
+#ifdef USE_EXA_COMMON_KMODULE
         /* Set the socket kernel allocation to GFP_ATOMIC */
         if (exa_socket_set_atomic(sock) < 0)
             goto error;
+#endif
 
         /* Set the size of the socket TCP send buffers */
 	TCP_buffers = 65536;

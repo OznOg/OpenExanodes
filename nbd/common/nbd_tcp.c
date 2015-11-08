@@ -165,9 +165,11 @@ static int internal_setsock_opt(int sock, int islisten)
                         sizeof(autorisation)) < 0)
           return -EXA_ERR_CREATE_SOCKET;
 
+#ifdef USE_EXA_COMMON_KMODULE
       /* Set the socket kernel allocation to GFP_ATOMIC */
       if (exa_socket_set_atomic(sock) < 0)
           return -EXA_ERR_CREATE_SOCKET;
+#endif
 
       /**********************************************************************/
       /* FIXME WIN32 SO_SNDBUF SO_RCVBUF

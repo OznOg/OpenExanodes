@@ -523,12 +523,14 @@ network_init(const exa_uuid_t *cluster_uuid, const char *node_name,
       return net_sock;
     }
 
+#ifdef USE_EXA_COMMON_KMODULE
   if (exa_socket_set_atomic(net_sock))
     {
-      exalog_error("failed to configure socket in no IO mode");
+      exalog_error("failed to configure socket in no IO mode: %s", os_strerror(-errno));
       retval = -errno;
       goto error;
     }
+#endif
 
   /* set reuse addr option */
   reuse = 1;

@@ -65,6 +65,8 @@
 %bcond_with filesystems
 # @Option: Enable token manager (default=no)
 %bcond_with tm
+# @Option: Enable use of kernel module exa_common (default=yes)
+%bcond_without kcommon
 
 # Disable auto-generation of the debug package
 
@@ -358,6 +360,7 @@ cmake .. \
   %{?with_perf:-DWITH_PERF=TRUE} \
   %{?!with_ut:-DWITH_UT=FALSE} \
   %{?!with_ut_root:-DWITH_UT_ROOT=FALSE} \
+  %{?!with_kcommon:-DWITH_EXA_COMMON_KMODULE=FALSE} \
   -DCMAKE_INSTALL_PREFIX=%{_prefix} \
   -DSBIN_DIR=%{_sbindir} \
   -DBIN_DIR=%{_bindir} \
@@ -691,10 +694,12 @@ fi
 %{_usrsrc}/%{tarball_name}/copy_symvers
 %{_usrsrc}/%{tarball_name}/os/include/os_inttypes.h
 %{_usrsrc}/%{tarball_name}/os/include/os_assert.h
+%if %with kcommon
 %{_usrsrc}/%{tarball_name}/common/lib/Makefile
 %{_usrsrc}/%{tarball_name}/common/lib/exa_common_kernel.[ch]
 %{_usrsrc}/%{tarball_name}/common/lib/exa_select_kernel.[ch]
 %{_usrsrc}/%{tarball_name}/common/lib/exa_socket_kernel.[ch]
+%endif
 %{_usrsrc}/%{tarball_name}/common/include/exa_names.h
 %{_usrsrc}/%{tarball_name}/common/include/exa_error.h
 %{_usrsrc}/%{tarball_name}/common/include/exa_assert.h
@@ -718,7 +723,9 @@ fi
 %files kernel-%{linuxver}
 %defattr(-,root,root,-)
 %dir /lib/modules/%{linuxver}/kernel/%{name}
+%if %with kcommon
 /lib/modules/%{linuxver}/kernel/%{name}/exa_common.ko
+%endif
 %if %with bdev
 /lib/modules/%{linuxver}/kernel/%{name}/exa_bd.ko
 %endif
