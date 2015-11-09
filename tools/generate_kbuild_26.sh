@@ -13,7 +13,7 @@ abs_srcdir=$2
 abs_top_builddir=$3
 CFLAGS=$4
 MODULE_NAME=$5
-MODULE_SRC=`basename $6`
+MODULE_SRC=$6
 shift 6
 for file in $*; do
   MODULE_SRC="$MODULE_SRC `basename $file`"

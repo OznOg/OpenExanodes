@@ -12,17 +12,32 @@ PACKAGE_NAME="@CMAKE_PROJECT_NAME@"
 MAKE[0]="make -C ${dkms_tree}/@CMAKE_PROJECT_NAME@/@EXA_EDITION_TAG@-@EXA_VERSION@/build LINUX_DIR=\"${kernel_source_dir}\" -f Makefile.dkms"
 CLEAN="make -C ${dkms_tree}/@CMAKE_PROJECT_NAME@/@EXA_EDITION_TAG@-@EXA_VERSION@/build LINUX_DIR=\"${kernel_source_dir}\" -f Makefile.dkms clean"
 
-BUILT_MODULE_NAME[0]="exa_common"
-BUILT_MODULE_LOCATION[0]="common/lib"
-DEST_MODULE_LOCATION[0]="/kernel/exanodes"
+POS=0
+TARGET_LIST="@KMODULE_LIST@"
 
-BUILT_MODULE_NAME[1]="exa_rdev"
-BUILT_MODULE_LOCATION[1]="rdev/src/"
-DEST_MODULE_LOCATION[1]="/kernel/exanodes"
+if [ $(echo "$TARGET_LIST" | grep -cw kcommon) -ne 0 ]
+then
+    BUILT_MODULE_NAME[$POS]="exa_common"
+    BUILT_MODULE_LOCATION[$POS]="common/lib"
+    DEST_MODULE_LOCATION[$POS]="/kernel/exanodes"
+    let POS=$POS+1
+fi
 
-@NO_EXA_BD@ BUILT_MODULE_NAME[2]="exa_bd"
-@NO_EXA_BD@ BUILT_MODULE_LOCATION[2]="target/linux_bd_target/module"
-@NO_EXA_BD@ DEST_MODULE_LOCATION[2]="/kernel/exanodes"
+if [ $(echo "$TARGET_LIST" | grep -cw krdev) -ne 0 ]
+then
+    BUILT_MODULE_NAME[$POS]="exa_rdev"
+    BUILT_MODULE_LOCATION[$POS]="rdev/src/"
+    DEST_MODULE_LOCATION[$POS]="/kernel/exanodes"
+    let POS=$POS+1
+fi
+
+if [ $(echo "$TARGET_LIST" | grep -cw kbdev) -ne 0 ]
+then
+    BUILT_MODULE_NAME[$POS]="exa_bd"
+    BUILT_MODULE_LOCATION[$POS]="target/linux_bd_target/module"
+    DEST_MODULE_LOCATION[$POS]="/kernel/exanodes"
+    let POS=$POS+1
+fi
 
 REMAKE_INITRD="no"
 AUTOINSTALL="yes"

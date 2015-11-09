@@ -42,7 +42,7 @@ if (WITH_DKMS)
                 ${DKMS_DIR}
                 ${DKMS_CURRENT_DIR}
                 ${DKMS_DIR}
-                "${KERNEL_CFLAGS}"
+		'${KERNEL_CFLAGS}'
                 ${MODULE_NAME}
                 ${MODULE_SRC}
                 > Makefile.${MODULE_NAME}
@@ -76,7 +76,7 @@ else (WITH_DKMS)
             ${CMAKE_SOURCE_DIR}
             ${CMAKE_CURRENT_SOURCE_DIR}
             ${CMAKE_BINARY_DIR}
-            "${KERNEL_CFLAGS}"
+            '${KERNEL_CFLAGS}'
             ${MODULE_NAME}
             ${MODULE_SRC}
             > kmod/Makefile
