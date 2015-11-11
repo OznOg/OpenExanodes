@@ -165,9 +165,11 @@ static int internal_setsock_opt(int sock, int islisten)
                         sizeof(autorisation)) < 0)
           return -EXA_ERR_CREATE_SOCKET;
 
+#ifdef USE_EXA_COMMON_KMODULE
       /* Set the socket kernel allocation to GFP_ATOMIC */
       if (exa_socket_set_atomic(sock) < 0)
           return -EXA_ERR_CREATE_SOCKET;
+#endif
 
       /**********************************************************************/
       /* FIXME WIN32 SO_SNDBUF SO_RCVBUF
@@ -407,6 +409,7 @@ static void send_thread(void *p)
   while (tcp->send_thread.run)
   {
       int i;
+      int nfds = 0;
       fd_set fds;
       bool active_sock = false;
       FD_ZERO(&fds);
@@ -427,13 +430,14 @@ static void send_thread(void *p)
           if (peer->pending_send != NULL)
           {
 	      FD_SET(peer->sock, &fds);
+	      nfds = peer->sock > nfds ? peer->sock : nfds;
               active_sock = true;
           }
       }
       os_thread_rwlock_unlock(&tcp->peers_lock);
 
       if (active_sock)
-	  exa_select_out(sh, &fds);
+	  exa_select_out(sh, nfds + 1, &fds);
       else
       {
 	  os_sem_wait(&tcp->send_thread.semaphore);
@@ -496,6 +500,7 @@ static void receive_thread(void *p)
   while (tcp->receive_thread.run)
   {
       int ret, i;
+      int nfds = 0;
       fd_set fds;
       FD_ZERO(&fds);
 
@@ -507,10 +512,11 @@ static void receive_thread(void *p)
 	      continue;
 
 	  FD_SET(peer->sock, &fds);
+	  nfds = peer->sock > nfds ? peer->sock : nfds;
       }
       os_thread_rwlock_unlock(&tcp->peers_lock);
 
-      ret = exa_select_in(sh, &fds);
+      ret = exa_select_in(sh, nfds + 1, &fds);
       if (ret == -EFAULT)
           continue;
 

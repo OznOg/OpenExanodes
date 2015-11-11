@@ -14,6 +14,5 @@
 
 struct socket *exa_getsock(int fd);
 int exa_socket_set_atomic_kernel(int fd);
-void exa_socket_tweak_emergency_pool_kernel(int size);
 
 #endif /* _EXA_SOCKET_KERNEL_H */

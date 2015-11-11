@@ -121,6 +121,15 @@ set(WITH_MEMTRACE       FALSE CACHE BOOL "Check/stat user space memory allocatio
 set(WITH_SUPSIM         FALSE CACHE BOOL "Make csupd standalone to allow simulations")
 set(WITH_TRACE          FALSE CACHE BOOL "Make the logs very verbose")
 
+if (WIN32)
+    set(WITH_EXA_COMMON_KMODULE FALSE) # Not no kernel module on windows
+else (WIN32)
+    # Exanodes has a custom implementation of select() and ability to force
+    # sockets to use GFP_ATOMIC pool to prevent memory allocation that is
+    # performed on standard kernel implementations and that may cause deadlocks
+    # under memory presure
+    set(WITH_EXA_COMMON_KMODULE TRUE CACHE BOOL "Use exa_common kernel module")
+endif (WIN32)
 # --- Define installation directories --------------------------------
 
 set(PKG_NAME "exanodes")
@@ -222,7 +231,6 @@ configure_file(config/exa_version.h.in     config/exa_version.h)
 
 # WITH_xxx
 if (WIN32)
-    set(KERNEL_CFLAGS "")
     if (WITH_FS)
         add_definitions(/DWITH_FS)
     endif (WITH_FS)
@@ -246,43 +254,39 @@ if (WIN32)
     endif (WITH_PERF)
 
 else (WIN32)
+    set(KMODULE_LIST "krdev")
     set(KERNEL_CFLAGS "")
     if (WITH_FS)
         add_definitions(-DWITH_FS)
-        set(KERNEL_CFLAGS "${KERNEL_CFLAGS} -DWITH_FS")
     endif (WITH_FS)
     if (WITH_BDEV)
         add_definitions(-DWITH_BDEV)
-        set(KERNEL_CFLAGS "${KERNEL_CFLAGS} -DWITH_BDEV")
-    else (WITH_BDEV)
-        # Set NO_EXA_BD to "#" to comment out build of exa_bd in dkms.conf
-        # and Makefile.dkms
-        set(NO_EXA_BD "#")
+	set(KMODULE_LIST "${KMODULE_LIST} kbdev")
     endif (WITH_BDEV)
     if (WITH_MEMTRACE)
         add_definitions(-DWITH_MEMTRACE)
-        set(KERNEL_CFLAGS "${KERNEL_CFLAGS} -DWITH_MEMTRACE")
     endif (WITH_MEMTRACE)
     if (WITH_MONITORING)
         add_definitions(-DWITH_MONITORING)
-        set(KERNEL_CFLAGS "${KERNEL_CFLAGS} -DWITH_MONITORING")
     endif (WITH_MONITORING)
     if (WITH_SUPSIM)
         add_definitions(-DWITH_SUPSIM)
-        set(KERNEL_CFLAGS "${KERNEL_CFLAGS} -DWITH_SUPSIM")
     endif (WITH_SUPSIM)
     if (WITH_TRACE)
         add_definitions(-DWITH_TRACE)
-        set(KERNEL_CFLAGS "${KERNEL_CFLAGS} -DWITH_TRACE")
     endif (WITH_TRACE)
     if (WITH_PERF)
-        add_definitions(-DWITH_PERF)
-        set(KERNEL_CFLAGS "${KERNEL_CFLAGS} -DWITH_PERF")
+        add_definitions(-DWITH_PERF) # exa_bd kernel structures differs when using perfs
+        set(KERNEL_CFLAGS ${KERNEL_CFLAGS} "-DWITH_PERF")
     endif (WITH_PERF)
     if (HAVE_VALGRIND_MEMCHECK_H)
         add_definitions(-DHAVE_VALGRIND_MEMCHECK_H)
-        set(KERNEL_CFLAGS "${KERNEL_CFLAGS} -DHAVE_VALGRIND_MEMCHECK_H")
     endif (HAVE_VALGRIND_MEMCHECK_H)
+
+    if (WITH_EXA_COMMON_KMODULE)
+        add_definitions(-DUSE_EXA_COMMON_KMODULE)
+	set(KMODULE_LIST "${KMODULE_LIST} kcommon")
+    endif ()
 
 endif (WIN32)
 

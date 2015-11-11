@@ -6,14 +6,33 @@
 # directory of the project.
 #
 
-all:
-	$(MAKE) -C $(LINUX_DIR) M="`pwd`/common/lib" V=1 modules
-	./copy_symvers common/lib rdev/src/
-	$(MAKE) -C $(LINUX_DIR) M="`pwd`/rdev/src/" V=1 modules
-@NO_EXA_BD@	./copy_symvers rdev target/linux_bd_target/module
-@NO_EXA_BD@	$(MAKE) -C $(LINUX_DIR) M="`pwd`/target/linux_bd_target/module" V=1 modules
+TARGET_LIST:=@KMODULE_LIST@
 
-clean:
+all: $(TARGET_LIST)
+
+krdev:
+	./copy_symvers . rdev/src/
+	$(MAKE) -C $(LINUX_DIR) M="`pwd`/rdev/src" V=1 modules
+	./copy_symvers rdev/src/ .
+
+krdev_clean:
+	$(MAKE) -C $(LINUX_DIR) M="`pwd`/rdev/src" clean
+
+kbdev:
+	./copy_symvers . target/linux_bd_target/module
+	$(MAKE) -C $(LINUX_DIR) M="`pwd`/target/linux_bd_target/module" V=1 modules
+	./copy_symvers target/linux_bd_target/module .
+
+kbdev_clean:
+	$(MAKE) -C $(LINUX_DIR) M="`pwd`/target/linux_bd_target/module" clean
+
+kcommon:
+	./copy_symvers . common/lib
+	$(MAKE) -C $(LINUX_DIR) M="`pwd`/common/lib" V=1 modules
+	./copy_symvers common/lib .
+
+kcommon_clean:
 	$(MAKE) -C $(LINUX_DIR) M="`pwd`/common/lib" clean
-	$(MAKE) -C $(LINUX_DIR) M="`pwd`/rdev/src/" clean
-@NO_EXA_BD@	$(MAKE) -C $(LINUX_DIR) M="`pwd`/target/linux_bd_target/module" clean
+
+clean: $(foreach target,$(TARGET_LIST),$(target)_clean)
+

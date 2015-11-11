@@ -46,11 +46,6 @@ static int exa_common_ioctl(struct inode *inode, struct file *filp,
         retval = exa_socket_set_atomic_kernel(arg);
         break;
 
-    case EXA_EMERGENCY_SIZE:
-        exa_socket_tweak_emergency_pool_kernel(arg);
-        retval = 0;
-        break;
-
     case EXA_SELECT_MAL:
         retval = exa_select_alloc(filp);
         break;
@@ -100,7 +95,6 @@ int init_module(void)
 void cleanup_module(void)
 {
     unregister_chrdev(exa_common_major, EXACOMMON_MODULE_NAME);
-    exa_socket_tweak_emergency_pool_kernel(0);
 }
 
 

@@ -523,12 +523,14 @@ network_init(const exa_uuid_t *cluster_uuid, const char *node_name,
       return net_sock;
     }
 
+#ifdef USE_EXA_COMMON_KMODULE
   if (exa_socket_set_atomic(net_sock))
     {
-      exalog_error("failed to configure socket in no IO mode");
+      exalog_error("failed to configure socket in no IO mode: %s", os_strerror(-errno));
       retval = -errno;
       goto error;
     }
+#endif
 
   /* set reuse addr option */
   reuse = 1;
@@ -1353,7 +1355,7 @@ network_recv(ExamsgHandle mh, ExamsgMID *mid, char **msg, size_t *nbytes, int *t
    * not distinguish intr from timeout, but it doesn't matter much here */
   FD_ZERO(&rset);
   FD_SET(net_sock, &rset);
-  n = exa_select_in(sh, &rset);
+  n = exa_select_in(sh, net_sock + 1, &rset);
   if (n == -EFAULT) /* Implicit exa_select_in timeout ; see doxygen */
     return 0;
 

@@ -22,17 +22,11 @@ typedef enum socket_operation {
 
 #include "common/include/exa_error.h"
 
-/* There is no need to tweak memory allocation behaviour of sockets on Windows. */
-
-#define exa_socket_tweak_emergency_pool(size) EXA_SUCCESS
 #define exa_socket_set_atomic(socket) EXA_SUCCESS
 
 #else /* WIN32 */
 
 #include <sys/select.h> /* for fd_set */
-
-/** Tweak the size of the kernel emergency memory pool */
-int exa_socket_tweak_emergency_pool(int size);
 
 /** Allocate memory with the GFP_ATOMIC flag for this socket */
 int exa_socket_set_atomic(int socket);

@@ -152,9 +152,11 @@ static int internal_setsock_opt(int sock, int islisten)
 		          &authorization, sizeof(authorization)) < 0)
             goto error;
 
+#ifdef USE_EXA_COMMON_KMODULE
         /* Set the socket kernel allocation to GFP_ATOMIC */
         if (exa_socket_set_atomic(sock) < 0)
             goto error;
+#endif
 
         /* Set the size of the socket TCP send buffers */
 	TCP_buffers = 65536;
@@ -641,6 +643,7 @@ static void algopr_send_thread(void *unused)
     while (algopr_run)
     {
         fd_set fds;
+	int nfds = 0;
         bool active_sock = false;
 
         FD_ZERO(&fds);
@@ -678,6 +681,7 @@ static void algopr_send_thread(void *unused)
             {
                 /* if buffers are waiting to be sent, add peer to select list */
                 FD_SET(fd_act, &fds);
+		nfds = fd_act > nfds ? fd_act : nfds;
                 active_sock = true;
             }
         }
@@ -691,7 +695,7 @@ static void algopr_send_thread(void *unused)
             continue;
         }
 
-        exa_select_out(sh, &fds);
+	exa_select_out(sh, nfds + 1, &fds);
 
         os_thread_mutex_lock(&peers_lock);
         for (i = 0; i < EXA_MAX_NODES_NUMBER; i++)
@@ -756,6 +760,7 @@ static void algopr_receive_thread(void *unused)
 
     while (algopr_run)
     {
+	int nfds = 0;
         FD_ZERO(&fds);
         /* if one node is added or deleted, this deletion or addition are
            effective after this */
@@ -780,10 +785,11 @@ static void algopr_receive_thread(void *unused)
             }
 
             FD_SET(fd_act, &fds);
+	    nfds = fd_act > nfds ? fd_act : nfds;
         }
         os_thread_mutex_unlock(&peers_lock);
 
-        ret = exa_select_in(sh, &fds);
+        ret = exa_select_in(sh, nfds + 1, &fds);
         if (ret != 0 && ret != -EFAULT)
             exalog_error("Select upon receive failed: %s (%d)",
                          os_strerror(-ret), ret);

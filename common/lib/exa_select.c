@@ -5,8 +5,13 @@
  * and conditions defined in the LICENSE file which is present in the root
  * directory of the project.
  */
+#ifdef USE_EXA_COMMON_KMODULE
+# define USE_OS_SELECT 0
+#else
+# define USE_OS_SELECT 1
+#endif
 
-#ifndef WIN32
+#if !USE_OS_SELECT
 #include <sys/ioctl.h>
 #endif
 
@@ -18,13 +23,13 @@
 #include "os/include/os_file.h"
 #include "os/include/os_mem.h"
 
-#if WIN32
+#if USE_OS_SELECT
 const static struct timeval select_timeout = { .tv_sec = 0, .tv_usec = 500000 };
 #endif
 
 struct exa_select_handle
 {
-#if WIN32
+#if USE_OS_SELECT
 #define EXA_SELECT_MAGIC 0x12332145
     uint32_t magic;
 #else
@@ -36,7 +41,7 @@ exa_select_handle_t *exa_select_new_handle(void)
 {
     exa_select_handle_t *h = os_malloc(sizeof(exa_select_handle_t));
     EXA_ASSERT(h != NULL);
-#if WIN32
+#if USE_OS_SELECT
     h->magic = EXA_SELECT_MAGIC;
 #else
     h->fd = open(EXACOMMON_MODULE_PATH, O_RDWR);
@@ -55,7 +60,7 @@ void exa_select_delete_handle(exa_select_handle_t *h)
     if (h == NULL)
         return;
 
-#if WIN32
+#if USE_OS_SELECT
     EXA_ASSERT_VERBOSE(h->magic == EXA_SELECT_MAGIC,
                        "Corrupted handle detected %d", h->magic);
 #else
@@ -65,15 +70,15 @@ void exa_select_delete_handle(exa_select_handle_t *h)
     os_free(h);
 }
 
-int exa_select_in(exa_select_handle_t *h, fd_set *set)
+int exa_select_in(exa_select_handle_t *h, int nfds, fd_set *set)
 {
-#if WIN32
+#if USE_OS_SELECT
     int nb_sock;
 
     EXA_ASSERT_VERBOSE(h->magic == EXA_SELECT_MAGIC,
                        "Corrupted handle detected %d", h->magic);
 
-    nb_sock = os_select(0 /* ignored */, set, NULL, NULL, &select_timeout);
+    nb_sock = os_select(nfds, set, NULL, NULL, &select_timeout);
     if (nb_sock == 0)/* timeout is reached */
     {
         /* reset set because there was actually no event on sockets */
@@ -90,15 +95,15 @@ int exa_select_in(exa_select_handle_t *h, fd_set *set)
 #endif
 }
 
-int exa_select_out(exa_select_handle_t *h, fd_set *set)
+int exa_select_out(exa_select_handle_t *h, int nfds, fd_set *set)
 {
-#if WIN32
+#if USE_OS_SELECT
     int nb_sock;
 
     EXA_ASSERT_VERBOSE(h->magic == EXA_SELECT_MAGIC,
                        "Corrupted handle detected %d", h->magic);
 
-    nb_sock = os_select(0 /* ignored */, NULL, set, NULL, &select_timeout);
+    nb_sock = os_select(nfds, NULL, set, NULL, &select_timeout);
 
     if (nb_sock == 0) /* timeout is reached */
     {
