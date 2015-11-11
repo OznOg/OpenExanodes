@@ -32,12 +32,12 @@ if (NOT WIN32)
         add_kernel_module(exa_rdev
             rdev_kmodule.c
             rdev_kmodule.h
+            ${CMAKE_SOURCE_DIR}/rdev/include/exa_rdev.h
             ${CMAKE_SOURCE_DIR}/common/include/exa_assert.h
             ${CMAKE_SOURCE_DIR}/common/include/exa_constants.h
             ${CMAKE_SOURCE_DIR}/common/include/exa_error.h
             ${CMAKE_SOURCE_DIR}/common/include/exa_math.h
             ${CMAKE_SOURCE_DIR}/common/include/exa_names.h
-            ${CMAKE_SOURCE_DIR}/rdev/include/exa_rdev.h
             ${CMAKE_SOURCE_DIR}/os/include/os_assert.h
             ${CMAKE_SOURCE_DIR}/os/include/os_inttypes.h)
     endif (WITH_LIBAIO)
