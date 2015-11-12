@@ -1256,7 +1256,6 @@ print("Rsync                   : ", $RSYNC ? "yes" : "no", "\n");
 #print("Pushing as user         : ${USER} (user dir: ${userdir}, rpm build dir: ${rpmdir}, temp dir: ${rootdir})\n");
 print_opt("Superblock endianness   ", &with("bigendiansb"), "big endian",
           "little endian");
-print_opt("Yaourt usage            ", &with("yaourt"));
 print("----------------------------------------\n");
 
 if (!$RSYNC && $INSTALL)

@@ -40,10 +40,6 @@
 #include "examsg/src/mailbox.h"
 #include "network.h"
 
-#ifdef USE_YAOURT
-#include <yaourt/yaourt.h>
-#endif
-
 /** examsg stack size */
 #define EXAMSGD_STACK_SIZE	65536
 
@@ -816,13 +812,6 @@ int daemon_init(int argc, char *argv[])
 
   /* Log as exa_msgd by default */
   exalog_as(EXAMSG_CMSGD_ID);
-
-#ifdef USE_YAOURT
-  if (yaourt_init())
-    exalog_debug("Yaourt: Examsgd init OK");
-  else
-    exalog_warning("Yaourt: Examsgd init FAILED (%s)", yaourt_error);
-#endif
 
   /* set up network communication */
   return startup(&cluster_uuid, node_name, hostname, nodeid, mgroup, mport, inca);

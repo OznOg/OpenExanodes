@@ -34,10 +34,6 @@
 #include "os/include/os_daemon_parent.h"
 #include "os/include/os_stdio.h"
 
-#ifdef USE_YAOURT
-#include <yaourt/yaourt.h>
-#endif
-
 struct nbd_recover_disk_info
 {
   uint64_t sectors;
@@ -702,10 +698,6 @@ nbd_local_recover(int thr_nb, void *msg)
   struct nbd_recover_disk_info info[NBMAX_DISKS_PER_NODE];
   exa_nodeset_t nodes_up, nodes_going_up, nodes_going_down;
   int ret;
-
-#ifdef USE_YAOURT
-  yaourt_event_wait(EXAMSG_NBD_ID, "nbd_local_recover");
-#endif
 
   /* Compute the correct mship of service for working
    * FIXME this should probably be a parameter of this function */

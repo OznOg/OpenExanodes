@@ -30,10 +30,6 @@
 #include "log/include/log.h"
 #include "vrt/virtualiseur/include/vrt_client.h"
 
-#ifdef USE_YAOURT
-#include <yaourt/yaourt.h>
-#endif
-
 __export(EXA_ADM_VLDELETE) struct vldelete_params
   {
     char group_name[EXA_MAXSIZE_GROUPNAME + 1];
@@ -200,10 +196,6 @@ get_barrier:
   ret = conf_save_synchronous();
   EXA_ASSERT_VERBOSE(ret == EXA_SUCCESS, "%s", exa_error_msg(ret));
 
-#ifdef USE_YAOURT
-  yaourt_event_wait(examsgOwner(adm_wt_get_inboxmb(thr_nb)), "local_exa_vldelete_tr_inprogress");
-#endif
-
   /*** Barrier: mark the transaction as in-progress ***/
   barrier_ret = admwrk_barrier(thr_nb, ret, "Marking transaction as in-progress");
   if (barrier_ret == -ADMIND_ERR_NODE_DOWN)
@@ -247,10 +239,6 @@ get_barrier:
   else if (barrier_ret != EXA_SUCCESS)
     goto local_exa_vldelete_end;
 
-#ifdef USE_YAOURT
-  yaourt_event_wait(examsgOwner(adm_wt_get_inboxmb(thr_nb)), "local_exa_vldelete_tr_committed");
-#endif
-
   /* Delete the volume from the configuration */
   adm_group_remove_volume(volume);
   adm_volume_free(volume);
@@ -264,9 +252,6 @@ get_barrier:
   goto local_exa_vldelete_end;
 
 metadata_corruption:
-#ifdef USE_YAOURT
-  yaourt_event_wait(examsgOwner(adm_wt_get_inboxmb(thr_nb)), "local_exa_vldelete_mrecovery");
-#endif
   ret = -ADMIND_ERR_METADATA_CORRUPTION;
 
 local_exa_vldelete_end:

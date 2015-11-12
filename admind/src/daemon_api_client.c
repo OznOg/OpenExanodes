@@ -17,10 +17,6 @@
 #include "common/include/daemon_api_client.h"
 #include "common/include/daemon_request_queue.h"
 
-#ifdef USE_YAOURT
-#include <yaourt/yaourt.h>
-#endif
-
 /* --- _there_is_node_down ------------------------------------------- */
 /**
  * Check if there is a node down, thus if we should interrupt
@@ -66,9 +62,6 @@ receive_reply_timeout(ExamsgHandle mh, void *answer, size_t answer_size,
   switch (msg_answer.any.type)
   {
       case EXAMSG_DAEMON_INTERRUPT_ACK:
-#ifdef USE_YAOURT
-	  yaourt_event_wait(examsgOwner(mh), "admwrk_daemon_query receive ack interrupt");
-#endif
 	  return -ADMIND_ERR_NODE_DOWN;
 	  break;
 
@@ -77,9 +70,6 @@ receive_reply_timeout(ExamsgHandle mh, void *answer, size_t answer_size,
 		  "the received message has not the right size (%d != %" PRIzu "+%" PRIzu ")",
 		  ret, sizeof(ExamsgAny), answer_size);
 
-#ifdef USE_YAOURT
-	  yaourt_event_wait(examsgOwner(mh), "admwrk_daemon_query receive reply");
-#endif
 	  memcpy(answer, msg_answer.payload, answer_size);
 	  break;
 
@@ -113,10 +103,6 @@ _admwrk_daemon_query(ExamsgHandle mh, ExamsgID to, ExamsgType request_type,
   ExamsgAny header;
   int ret;
 
-#ifdef USE_YAOURT
-  yaourt_event_wait(examsgOwner(mh), "admwrk_daemon_query begin");
-#endif
-
   /* Send the message */
   header.type = request_type;
   ret = examsgSendWithHeader(mh, to, EXAMSG_LOCALHOST,
@@ -133,10 +119,6 @@ _admwrk_daemon_query(ExamsgHandle mh, ExamsgID to, ExamsgType request_type,
   if (ret != request_size)
       return ret;
 
-#ifdef USE_YAOURT
-  yaourt_event_wait(examsgOwner(mh), "admwrk_daemon_query after send");
-#endif
-
   do {
       struct timeval timeout = { .tv_sec = 1, .tv_usec = 0 };
       /* Receive a message */
@@ -152,10 +134,6 @@ _admwrk_daemon_query(ExamsgHandle mh, ExamsgID to, ExamsgType request_type,
   EXA_ASSERT(might_block);
 
   /* If we are here, this means that we received an interrupt */
-
-#ifdef USE_YAOURT
-  yaourt_event_wait(examsgOwner(mh), "admwrk_daemon_query receive interrupt");
-#endif
 
   header.type = EXAMSG_DAEMON_INTERRUPT;
   ret = examsgSendWithHeader(mh, to, EXAMSG_LOCALHOST, &header, NULL, 0);

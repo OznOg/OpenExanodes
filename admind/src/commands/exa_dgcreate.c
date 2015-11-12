@@ -31,10 +31,6 @@
 #include "os/include/strlcpy.h"
 #include "os/include/os_stdio.h"
 
-#ifdef USE_YAOURT
-#include <yaourt/yaourt.h>
-#endif
-
 __export(EXA_ADM_DGCREATE) struct dgcreate_params
 {
     xmlDocPtr config;		/**< XML corresponding to structure dgcreate_info */
@@ -549,10 +545,6 @@ local_exa_dgcreate (int thr_nb, void *msg)
     else if (barrier_ret != EXA_SUCCESS)
 	goto undo_diskgroup_add;
 
-#ifdef USE_YAOURT
-    yaourt_event_wait(examsgOwner(adm_wt_get_inboxmb(thr_nb)), "local_exa_dgcreate_tr_inprogress");
-#endif
-
     ret = conf_save_synchronous();
     barrier_ret = admwrk_barrier(thr_nb, ret, "Saving configuration file");
     if (barrier_ret == -ADMIND_ERR_NODE_DOWN)
@@ -567,10 +559,6 @@ local_exa_dgcreate (int thr_nb, void *msg)
 	goto metadata_corruption;
     else if (barrier_ret != EXA_SUCCESS)
 	goto undo_vrt_create;
-
-#ifdef USE_YAOURT
-    yaourt_event_wait(examsgOwner(adm_wt_get_inboxmb(thr_nb)), "local_exa_dgcreate_tr_committed");
-#endif
 
     group->committed = true;
 
@@ -604,9 +592,6 @@ undo_diskgroup_add:
     goto local_exa_dgcreate_end;
 
 metadata_corruption:
-#ifdef USE_YAOURT
-    yaourt_event_wait(examsgOwner(adm_wt_get_inboxmb(thr_nb)), "local_exa_dgcreate_mrecovery");
-#endif
     ret = -ADMIND_ERR_METADATA_CORRUPTION;
 
 local_exa_dgcreate_end:

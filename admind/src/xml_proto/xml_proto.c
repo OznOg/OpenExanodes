@@ -58,10 +58,6 @@
 #include "os/include/os_mem.h"
 #include "log/include/log.h"
 
-#ifdef USE_YAOURT
-#include <yaourt/yaourt.h>
-#endif
-
 #include "os/include/os_stdio.h"
 
 

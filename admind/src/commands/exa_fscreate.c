@@ -32,10 +32,6 @@
 #include "vrt/virtualiseur/include/vrt_client.h"
 #include "lum/export/include/export.h"
 
-#ifdef USE_YAOURT
-#include <yaourt/yaourt.h>
-#endif
-
 __export(EXA_ADM_FSCREATE) struct fscreate_params
 {
   char group_name[EXA_MAXSIZE_GROUPNAME + 1];

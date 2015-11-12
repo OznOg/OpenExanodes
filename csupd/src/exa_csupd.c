@@ -39,10 +39,6 @@
 /* For temporary logging functions */
 #include <stdarg.h>
 
-#ifdef USE_YAOURT
-#include <yaourt/yaourt.h>
-#endif
-
 static const char *program;    /**< Daemon name */
 
 int ping_period = 1;           /**< Ping period, in seconds */
@@ -105,10 +101,6 @@ dump_node(const sup_node_t *node)
 static inline void
 set_state(sup_state_t new_state)
 {
-#ifdef USE_YAOURT
-  yaourt_event_wait(EXAMSG_CSUPD_ID, "sup_set_state %s",
-		    sup_state_name(new_state));
-#endif
   self->view.state = new_state;
   __trace("state is now %s", sup_state_name(new_state));
 }
@@ -656,11 +648,6 @@ sup_pre_ping(void)
 {
   update_last_seen();
 
-#ifdef USE_YAOURT
-  if (yaourt_event_wait(EXAMSG_CSUPD_ID, "sup_pre_ping") != 0)
-    self_view_changed = true;
-#endif
-
   if (self_view_changed || other_view_changed)
     {
       exa_nodeset_t new_clique;
@@ -832,14 +819,6 @@ init(exa_nodeid_t local_id, unsigned short incarnation)
 
   if (!sup_setup_messaging(local_id))
     return false;
-
-#ifdef USE_YAOURT
-  if (!yaourt_init())
-    {
-      __debug("Yaourt: Csupd init FAILED (%s)", yaourt_error);
-      return false;
-    }
-#endif
 
 #ifdef WIN32
   signal(SIGSEGV, segfault_handler);

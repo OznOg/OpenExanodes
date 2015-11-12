@@ -30,11 +30,6 @@
 #include "log/include/log.h"
 #include "vrt/virtualiseur/include/vrt_client.h"
 
-#ifdef USE_YAOURT
-#include "admind/src/adm_workthread.h"
-#include <yaourt/yaourt.h>
-#endif
-
 static int fs_init(int thr_nb)
 {
   char admind_pid_str[8 /* enougth for a pid */ ];
@@ -455,10 +450,6 @@ static void local_exa_fs_config (int thr_nb, void *msg)
   /* Ok, everything ran ok on all nodes : force a config file save */
   save_ret = conf_save_synchronous();
   EXA_ASSERT_VERBOSE(save_ret == EXA_SUCCESS, "%s", exa_error_msg(save_ret));
-
-#ifdef USE_YAOURT
-  yaourt_event_wait(examsgOwner(adm_wt_get_inboxmb(thr_nb)), "fs_transaction_set");
-#endif
 
   /* normal bail-out */
   exalog_debug("fsupdate local command is complete");

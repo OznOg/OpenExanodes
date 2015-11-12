@@ -20,10 +20,6 @@
 #include "mailbox.h"
 #include "examsgd/network.h"
 
-#ifdef USE_YAOURT
-#include <yaourt/yaourt.h>
-#endif
-
 /* Exported shared predefined nodesets.
  * The "otherhosts" nodeset is initialized when examsgNetInit() is called
  * by examsgd, so that attempting to communicate using this nodeset before
@@ -327,12 +323,6 @@ int examsgRecv(ExamsgHandle mh, ExamsgMID *mid, void *buffer, size_t maxbytes)
 
   if (mid)
     *mid = lmid;
-
-#ifdef USE_YAOURT__0
-  if (!yaourt_event_recv(mh->owner, buffer, n, lmid.host,
-			 lmid.id, &lmid.date))
-    exalog_warning("Yaourt: failed in examsgDoRecv()");
-#endif
 
   return n - sizeof(lmid);
 }

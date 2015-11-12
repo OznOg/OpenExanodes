@@ -38,10 +38,6 @@
 
 #include "fs/exa_fsd/src/fscommands.h"
 
-#ifdef USE_YAOURT
-#include <yaourt/yaourt.h>
-#endif
-
 #define EXA_FSSCRIPT  "exa_fsscript"
 
 #define FSD_ACTION_PREPARE "PREPARE"
@@ -276,10 +272,6 @@ fsd_do_dfinfo(const char *mountpoint, struct fsd_capa *capa)
   capa->free = -1;
 
   exalog_debug("dfinfo mountpoint=%s", mountpoint);
-
-#ifdef USE_YAOURT
-  yaourt_event_wait(EXAMSG_FSD_ID, "fsd_do_dfinfo statfs");
-#endif
 
   ret = statfs(mountpoint, &buf);
   if (ret)

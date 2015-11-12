@@ -39,10 +39,6 @@
 #include "iface.h"
 #include "network.h"
 
-#ifdef USE_YAOURT
-#include <yaourt/yaourt.h>
-#endif
-
 /** Max number of sent network messages to remember for retransmission */
 #define EXAMSG_NETMSG_BUFFER  511
 
@@ -481,11 +477,7 @@ network_init(const exa_uuid_t *cluster_uuid, const char *node_name,
   for (node = 0; node < EXA_MAX_NODES_NUMBER; node++)
     reset_node_state(&mcaststate[node]);
 
-#ifdef USE_YAOURT
-  mcastcount = yaourt_event_wait(EXAMSG_CMSGD_ID, "examsg_net_init");
-#else
   mcastcount = 0;
-#endif
 
   memset(&sentbuf, 0, sizeof(sentbuf));
   memset(&recvbuf, 0, sizeof(recvbuf));
@@ -1341,15 +1333,6 @@ network_recv(ExamsgHandle mh, ExamsgMID *mid, char **msg, size_t *nbytes, int *t
   int n;
   fd_set rset;
 
-#ifdef USE_YAOURT__0
-  if (yaourt_event_wait(EXAMSG_CMSGD_ID, "examsg_net_recv") == 1)
-    {
-      errno = ENOMEM;
-      network_set_status(-errno);
-      return -errno;
-    }
-#endif
-
   /* We *have* to have a timeout. Fortunately (sort of), exa_select_in() has
    * an implicit timeout of 1/2 second. Unfortunately, exa_select_in() does
    * not distinguish intr from timeout, but it doesn't matter much here */
@@ -1388,17 +1371,6 @@ network_recv(ExamsgHandle mh, ExamsgMID *mid, char **msg, size_t *nbytes, int *t
 
   if (!network_msg_valid(netmsg, n))
     return 0;
-
-#ifdef USE_YAOURT
-  if (!(netmsg->flags & EXAMSGF_SPECIAL)
-      && yaourt_event_wait(EXAMSG_CMSGD_ID, "network_Recv %s %d",
-			   netmsg->mid.host, netmsg->count))
-    {
-      exalog_error("Yaourt: network_Recv dropped message with seq %d from %s",
-		   netmsg->count, netmsg->mid.host);
-      return 0;
-    }
-#endif
 
   src_node_id = netmsg->mid.netid.node;
   msg_type = ((ExamsgAny *)netmsg->msg)->type;

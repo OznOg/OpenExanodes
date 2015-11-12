@@ -53,8 +53,6 @@
 %bcond_with memtrace
 # @Option: Enable kernel space memory allocation checks (default=no)
 %bcond_with kmemtrace
-# @Option: Enable Yaourt support (default=no)
-%bcond_with yaourt
 # @Option: Don't strip binairies and don't build the debug rpm (default=no)
 %bcond_with symbols
 # @Option: Enable code coverage analysis (default=no)
@@ -230,10 +228,6 @@ Requires(pre):  %{name}-admind = %{version}-%{release}
 Requires(post): %{name}-admind = %{version}-%{release}
 Requires:	logrotate
 Requires:	procps, psmisc
-%if %with yaourt
-Requires:	yaourt-yaourtyaourtlib
-BuildRequires:	yaourt-yaourtlib
-%endif
 
 %description nodes
 Exanodes daemons (to use on nodes)
@@ -352,7 +346,6 @@ cmake .. \
   %{?with_kmemtrace:-DWITH_KMEMTRACE=TRUE} \
   %{?!with_test:-DWITH_TEST=FALSE} \
   %{?with_tools:-DWITH_TOOLS=TRUE} \
-  %{?with_yaourt:-DWITH_YAOURT=TRUE} \
   %{?!with_dkms:-DWITH_DKMS=FALSE} \
   %{?with_filesystems:-DWITH_FS=TRUE} \
   %{?with_coverage:-DCMAKE_BUILD_TYPE=Coverage} \

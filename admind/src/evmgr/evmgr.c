@@ -38,44 +38,6 @@
 #include "os/include/os_thread.h"
 #include "os/include/os_time.h"
 
-#ifdef USE_YAOURT
-#include <yaourt/yaourt.h>
-
-static void
-init_yaourt(void)
-{
-  adm_service_id_t svc;
-  int ok;
-
-  exalog_debug("Yaourt: initializing...");
-
-  ok = yaourt_init();
-  if (ok)
-    for (svc = ADM_SERVICE_FIRST; svc <= ADM_SERVICE_LAST; svc++)
-      {
-	/* FIXME: what was the status (1) shouldn't be hardcoded but this will
-	 * do until the Yaourt/Exanodes interface is completely fixed */
-	ok = yaourt_register_svc(svc, 1, "", NULL);
-	if (!ok)
-	  break;
-
-	exalog_debug("Yaourt: registered service %d=%s",
-		     svc, adm_service_name(svc));
-      }
-
-  if (ok)
-    {
-      exalog_debug("Yaourt: event manager init OK");
-      yaourt_event_generic(EXAMSG_ADMIND_EVMGR_ID, "Service registration OK");
-    }
-  else
-    {
-      exalog_warning("Yaourt: event manager init FAILED (%s)", yaourt_error);
-      yaourt_event_generic(EXAMSG_ADMIND_EVMGR_ID, "Service registration FAILED");
-    }
-}
-#endif /* USE_YAOURT */
-
 /* How long in seconds we wait for the beginning of hierarchy_run_start
    after a CLI clwaitstart has been issued */
 #define TIMEOUT_CLWAITSTART 120
@@ -167,9 +129,6 @@ evmgr_init(void)
   /* prepare the deamon liveness-check layer*/
   adm_monitor_init();
 
-#ifdef USE_YAOURT
-  init_yaourt();
-#endif
   return EXA_SUCCESS;
 }
 

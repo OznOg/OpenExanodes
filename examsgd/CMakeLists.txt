@@ -18,7 +18,6 @@ target_link_libraries(exa_msgd
     exalogclient
     examsg
     exa_common_user
-    exa_os
-    ${LIBYAOURT})
+    exa_os)
 
 install(TARGETS exa_msgd DESTINATION ${SBIN_DIR})

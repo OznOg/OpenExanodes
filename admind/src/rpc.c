@@ -22,10 +22,6 @@
 #include "admind/src/adm_workthread.h"
 #include "log/include/log.h"
 
-#ifdef USE_YAOURT
-#include <yaourt/yaourt.h>
-#endif
-
 typedef struct rpc_cmd {
   exa_nodeset_t mship;
   rpc_command_t command; /**< rpc command id */
@@ -221,11 +217,6 @@ admwrk_exec_command(int thr_nb, const struct adm_service *service,
   int err;
 
   admwrk_run_command(thr_nb, service, &handle, command, request, size);
-
-#ifdef USE_YAOURT
-  yaourt_event_wait(examsgOwner(adm_wt_get_inboxmb()),
-		    "admwrk_exec_command");
-#endif
 
   while (admwrk_get_ack(&handle, &nodeid, &err))
   {
@@ -566,11 +557,6 @@ admwrk_barrier_msg(int thr_nb, int err, const char *step, const char *fmt, ...)
     strlcpy(msg.error_msg, exa_error_msg(err), sizeof(msg.error_msg));
 
 
-#ifdef USE_YAOURT
-  yaourt_event_generic(EXAMSG_ADMIND_EVMGR_ID, "%s (before)", step);
-  yaourt_event_wait(EXAMSG_ADMIND_EVMGR_ID, step);
-#endif
-
   admwrk_bcast(thr_nb, &handle, EXAMSG_SERVICE_BARRIER, &msg, sizeof(msg));
   /* initialize return values */
 
@@ -610,10 +596,6 @@ admwrk_barrier_msg(int thr_nb, int err, const char *step, const char *fmt, ...)
   if (!sent_inprogress)
     adm_write_inprogress(adm_nodeid_to_name(adm_myself()->id), step,
 	                 EXA_SUCCESS, exa_error_msg(EXA_SUCCESS));
-
-#ifdef USE_YAOURT
-  yaourt_event_generic(EXAMSG_ADMIND_EVMGR_ID, "%s (after)", step);
-#endif
 
   return ret;
 }

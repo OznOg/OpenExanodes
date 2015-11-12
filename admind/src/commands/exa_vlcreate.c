@@ -40,10 +40,6 @@
 #include "os/include/strlcpy.h"
 #include "vrt/virtualiseur/include/vrt_client.h"
 
-#ifdef USE_YAOURT
-#include <yaourt/yaourt.h>
-#endif
-
 __export(EXA_ADM_VLCREATE) struct vlcreate_params
 {
     char group_name[EXA_MAXSIZE_GROUPNAME + 1];
@@ -354,11 +350,6 @@ local_exa_vlcreate (int thr_nb, void *msg)
 
     ret = adm_group_insert_volume(group, volume);
 
-#ifdef USE_YAOURT
-    yaourt_event_wait(examsgOwner(adm_wt_get_inboxmb(thr_nb)),
-                      "local_exa_vlcreate_tr_inprogress");
-#endif
-
 update_barrier:
     /*** Barrier: "xml_update", update XML configuration ***/
     barrier_ret = admwrk_barrier(thr_nb, ret, "Updating XML configuration");
@@ -399,11 +390,6 @@ update_barrier:
         goto metadata_corruption;
     else if (barrier_ret != EXA_SUCCESS)
         goto undo_vrt_sync;
-
-#ifdef USE_YAOURT
-    yaourt_event_wait(examsgOwner(adm_wt_get_inboxmb(thr_nb)),
-                      "local_exa_vlcreate_tr_committed");
-#endif
 
     /*** Action: mark the progress parameter as COMMITTED in the XML config file ***/
     /* This is an in-memory operation, and we assume it won't fail */
@@ -488,9 +474,6 @@ undo_xml_update:
 
     /*** Metadata-recovery ***/
 metadata_corruption:
-#ifdef USE_YAOURT
-    yaourt_event_wait(examsgOwner(adm_wt_get_inboxmb(thr_nb)), "local_exa_vlcreate_mrecovery");
-#endif
     ret = -ADMIND_ERR_METADATA_CORRUPTION;
 
 local_exa_vlcreate_end:

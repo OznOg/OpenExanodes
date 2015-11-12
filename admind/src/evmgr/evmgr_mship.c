@@ -28,10 +28,6 @@
 #include "monitoring/md_client/include/md_notify.h"
 #endif
 
-#ifdef USE_YAOURT
-#include <yaourt/yaourt.h>
-#endif
-
 /** All: Best candidate for leadership */
 static exa_nodeid_t best_candidate = EXA_NODEID_NONE;
 
@@ -434,15 +430,6 @@ send_ready(ExamsgHandle mh, sup_gen_t gen, const exa_nodeset_t *mship)
 
   __debug_mship_info("sending READY", &local);
 
-#ifdef USE_YAOURT
-  {
-    char mship_str[EXA_MAX_NODES_NUMBER + 1];
-    exa_nodeset_to_bin(&local.mship, mship_str);
-    yaourt_event_wait(EXAMSG_ADMIND_EVMGR_ID,
-		      "sending READY: gen=%u mship=%s", local.gen, mship_str);
-  }
-#endif
-
   /* Send the message to all nodes in the membership */
   ready.any.type = EXAMSG_EVMGR_MSHIP_READY;
   ready.info = local;
@@ -725,11 +712,6 @@ set_leader(exa_nodeid_t new_leader, const evmgr_mship_info_t *info)
   leader_node = adm_cluster_get_node_by_id(new_leader);
   exalog_info("The leader is now %u:%s", leader_node->id, leader_node->name);
 
-#ifdef USE_YAOURT
-  yaourt_event_set_leader(EXAMSG_ADMIND_EVMGR_ID,
-			  adm_nodeid_to_name(leader_node->id));
-#endif
-
   adm_leader_id = new_leader;
   adm_leader_set = true;
 
@@ -761,16 +743,6 @@ send_prepare(ExamsgHandle mh, const evmgr_mship_info_t *info,
     exa_nodeset_to_bin(&info->mship, mship_str);
     __debug("sending PREPARE: gen=%u mship=%s leader_id=%u", info->gen,
 	    mship_str, leader_id);
-  }
-#endif
-
-#ifdef USE_YAOURT
-  {
-    char mship_str[EXA_MAX_NODES_NUMBER + 1];
-    exa_nodeset_to_bin(&info->mship, mship_str);
-    yaourt_event_wait(EXAMSG_ADMIND_EVMGR_ID,
-		      "mship sending PREPARE: gen=%u mship=%s leader_id=%u",
-		      info->gen, mship_str, leader_id);
   }
 #endif
 
@@ -978,15 +950,6 @@ commit_cc(ExamsgHandle mh, sup_gen_t gen, exa_nodeid_t instigator)
 	    instigator, cc.instigator);
 #endif
 
-#ifdef USE_YAOURT
-  {
-    char mship_str[EXA_MAX_NODES_NUMBER + 1];
-    exa_nodeset_to_bin(&cc.info.mship, mship_str);
-    yaourt_event_wait(EXAMSG_ADMIND_EVMGR_ID, "mship commit: gen=%u mship=%s",
-		      cc.info.gen, mship_str);
-  }
-#endif
-
   /* Assume the commit has already been done if the commit's generation
    * is older than the one of the last committed membership */
   if (gen <= last_committed_gen)
@@ -1072,11 +1035,6 @@ finish_cc(ExamsgHandle mh)
     }
 
   __trace("no commit pending");
-
-#ifdef USE_YAOURT
-  if (yaourt_event_wait(EXAMSG_ADMIND_EVMGR_ID, "finish_cc") != 0)
-    return;
-#endif
 
   EXA_ASSERT(adm_is_leader());
 
@@ -1179,11 +1137,6 @@ evmgr_mship_received_local(ExamsgHandle mh, const SupEventMshipChange *mc)
   exa_nodeset_copy(&local.mship, &mc->mship);
 
   __debug_mship_info("received local", &local);
-
-#ifdef USE_YAOURT
-  yaourt_event_wait(EXAMSG_ADMIND_EVMGR_ID,
-		    "mship received local: gen=%u", local.gen);
-#endif
 
   /* Update current commit */
   update_cc(mh, &mc->mship);
@@ -1292,11 +1245,6 @@ evmgr_mship_received_ready(ExamsgHandle mh, const evmgr_ready_msg_t *ready,
   }
 #endif
 
-#ifdef USE_YAOURT
-  yaourt_event_wait(EXAMSG_ADMIND_EVMGR_ID, "mship received READY: node=%u gen=%u",
-		    sender_id, sender->gen);
-#endif
-
   if (sender->gen < local.gen)
     {
       __trace("received gen %u smaller than local gen %u => dropped",
@@ -1400,11 +1348,6 @@ evmgr_mship_received_yes(ExamsgHandle mh, const evmgr_yes_msg_t *yes,
   __debug("received YES from node %u: gen=%u match?=%d",
 	  sender_id, yes->gen, yes->gen == local.gen);
 
-#ifdef USE_YAOURT
-  yaourt_event_wait(EXAMSG_ADMIND_EVMGR_ID, "mship received YES: node=%u gen=%u",
-		    sender_id, yes->gen);
-#endif
-
   if (yes->gen != local.gen)
     return;
 
@@ -1473,17 +1416,6 @@ evmgr_mship_received_prepare(ExamsgHandle mh,
   }
 #endif
 
-#ifdef USE_YAOURT
-  {
-    char mship_str[EXA_MAX_NODES_NUMBER + 1];
-    exa_nodeset_to_bin(&prep->info.mship, mship_str);
-    if (yaourt_event_wait(EXAMSG_ADMIND_EVMGR_ID,
-			  "mship received PREPARE: node=%u gen=%u",
-			  sender_id, prep->info.gen) != 0)
-      return;
-  }
-#endif
-
   prepare_cc(&prep->info, prep->leader_id, sender_id);
   send_ack(mh, EVMGR_MSHIP_PHASE_PREPARE, prep->info.gen, sender_id);
 }
@@ -1505,12 +1437,6 @@ evmgr_mship_received_ack(ExamsgHandle mh, const evmgr_ack_msg_t *ack,
 
   __debug("received ACK from node %u for phase=%s gen=%u", sender_id,
 	  phase_names[ack->phase], ack->gen);
-
-#ifdef USE_YAOURT
-  yaourt_event_wait(EXAMSG_ADMIND_EVMGR_ID,
-		    "mship received ACK: node=%u gen=%u",
-		    sender_id, ack->gen);
-#endif
 
   if (ack->gen != cc.info.gen)
     return;
@@ -1557,13 +1483,6 @@ evmgr_mship_received_commit(ExamsgHandle mh, const evmgr_commit_msg_t *commit,
 
   __debug("received COMMIT from node %u: gen=%u", sender_id, commit->gen);
 
-#ifdef USE_YAOURT
-  if (yaourt_event_wait(EXAMSG_ADMIND_EVMGR_ID,
-			"mship received COMMIT: node=%u gen=%u",
-			sender_id, commit->gen) != 0)
-    return false;
-#endif
-
   if (!commit_cc(mh, commit->gen, sender_id))
     return false;
 
@@ -1588,12 +1507,6 @@ evmgr_mship_received_abort(ExamsgHandle mh, const evmgr_abort_msg_t *abort_msg,
   EXA_ASSERT(EXA_NODEID_VALID(sender_id));
 
   __debug("received ABORT from node %u: gen=%u", sender_id, abort_msg->gen);
-
-#ifdef USE_YAOURT
-  yaourt_event_wait(EXAMSG_ADMIND_EVMGR_ID,
-		    "mship received ABORT: node=%u gen=%u",
-		    sender_id, abort_msg->gen);
-#endif
 
   abort_cc(abort_msg->gen);
 }

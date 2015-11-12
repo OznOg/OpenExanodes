@@ -36,10 +36,6 @@
 #include "log/include/log.h"
 #include "os/include/os_thread.h"
 
-#ifdef USE_YAOURT
-#include <yaourt/yaourt.h>
-#endif
-
 
 __export(EXA_ADM_CLCREATE) struct clcreate_params
   {
@@ -141,10 +137,6 @@ cluster_clcreate(int thr_nb, void *data, cl_error_desc_t *err_desc)
   exalog_info("received clcreate '%s' (" UUID_FMT ") as host '%s' from %s",
 	      adm_cluster.name, UUID_VAL(&adm_cluster.uuid), hostname,
 	      adm_cli_ip());
-
-#ifdef USE_YAOURT
-  yaourt_event_wait(examsgOwner(adm_wt_get_inboxmb(thr_nb)), "cmd_clcreate begin");
-#endif
 
   /* Check the license */
   /* Check the license status to send warnings/errors */

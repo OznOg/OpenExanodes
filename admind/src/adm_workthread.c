@@ -397,10 +397,6 @@ work_thread_receive(t_work *thr, Examsg *msg, ExamsgMID *from)
   if (s < 0)
       return s;
 
-#ifdef USE_YAOURT__0
-  yaourt_event_generic(examsgOwner(thr->mb_inbox), "workEventSwitch");
-#endif
-
   return EXA_SUCCESS;
 }
 

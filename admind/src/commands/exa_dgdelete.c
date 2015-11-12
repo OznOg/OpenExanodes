@@ -28,10 +28,6 @@
 #include "nbd/service/include/nbdservice_client.h"
 #include "vrt/virtualiseur/include/vrt_client.h"
 
-#ifdef USE_YAOURT
-#include <yaourt/yaourt.h>
-#endif
-
 /**
  * The structure used to pass the command parameters from the cluster
  * command to the local command.
@@ -137,10 +133,6 @@ local_exa_dgdelete (int thr_nb, void *msg)
 
   group->committed = false;
 
-#ifdef USE_YAOURT
-  yaourt_event_wait(examsgOwner(adm_wt_get_inboxmb(thr_nb)), "local_exa_dgdelete_tr_inprogress");
-#endif
-
   ret = conf_save_synchronous();
   barrier_ret = admwrk_barrier(thr_nb, ret, "Saving configuration file");
   if (barrier_ret == -ADMIND_ERR_NODE_DOWN)
@@ -158,10 +150,6 @@ local_exa_dgdelete (int thr_nb, void *msg)
   sb_version_delete(group->sb_version);
   adm_group_free(group);
 
-#ifdef USE_YAOURT
-  yaourt_event_wait(examsgOwner(adm_wt_get_inboxmb(thr_nb)), "local_exa_dgdelete_tr_committed");
-#endif
-
   ret = conf_save_synchronous();
   EXA_ASSERT(ret == EXA_SUCCESS);
   barrier_ret = admwrk_barrier(thr_nb, ret, "Saving configuration file group");
@@ -171,9 +159,6 @@ local_exa_dgdelete (int thr_nb, void *msg)
   goto local_exa_dgdelete_end;
 
 metadata_corruption:
-#ifdef USE_YAOURT
-  yaourt_event_wait(examsgOwner(adm_wt_get_inboxmb(thr_nb)), "local_exa_dgdelete_mrecovery");
-#endif
   ret = -ADMIND_ERR_METADATA_CORRUPTION;
 
  local_exa_dgdelete_end:

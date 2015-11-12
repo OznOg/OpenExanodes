@@ -26,10 +26,6 @@
 #include "os/include/strlcpy.h"
 #include "log/include/log.h"
 
-#ifdef USE_YAOURT
-#include <yaourt/yaourt.h>
-#endif
-
 typedef struct {
   adm_service_id_t service_id;
 
@@ -209,10 +205,6 @@ void inst_evt_up(const struct adm_node *node)
 {
   const struct adm_service *service;
 
-#ifdef USE_YAOURT
-  yaourt_event_wait(EXAMSG_ADMIND_EVMGR_ID, "inst_evt_up %s", node->name);
-#endif
-
   LOCK();
 
   adm_service_for_each(service)
@@ -245,10 +237,6 @@ void inst_evt_up(const struct adm_node *node)
 void inst_evt_down(const struct adm_node *node)
 {
   const struct adm_service *service;
-
-#ifdef USE_YAOURT
-  yaourt_event_wait(EXAMSG_ADMIND_EVMGR_ID, "inst_evt_down %s", node->name);
-#endif
 
   LOCK();
 
@@ -504,9 +492,6 @@ inst_op_t inst_compute_recovery(void)
 {
   inst_op_t op;
   const struct adm_service *service;
-#ifdef USE_YAOURT
-  bool interrupted = false;
-#endif
 
   LOCK();
 
@@ -521,11 +506,6 @@ inst_op_t inst_compute_recovery(void)
   {
     adm_service_state_t *s_state = state_of(service->id);
 
-#ifdef USE_YAOURT
-    if (s_state->op_in_progress != INST_OP_NOTHING)
-      interrupted = true;
-#endif
-
     /* Include the instance in the recovery */
     inst_compute_involved_in_op(s_state, op);
   }
@@ -535,11 +515,6 @@ inst_op_t inst_compute_recovery(void)
   inst_dump();
 
   UNLOCK();
-
-#ifdef USE_YAOURT
-  yaourt_event_wait(EXAMSG_ADMIND_EVMGR_ID,
-                    "recovery_interrupted %d", interrupted);
-#endif
 
   return op;
 }
@@ -1192,10 +1167,6 @@ void adm_hierarchy_run_stop(int thr_nb, const stop_data_t *stop_data, cl_error_d
     __inst_sync_after_recovery(thr_nb, s, &committed_up, 0);
   }
 
-#ifdef USE_YAOURT
-  yaourt_event_wait(EXAMSG_ADMIND_RECOVERY_ID, "adm_hierarchy_run_stop end");
-#endif
-
   set_error(err_desc, error_val, NULL);
 }
 
@@ -1225,10 +1196,6 @@ static void adm_hierarchy_run_shutdown(int thr_nb, void *data, cl_error_desc_t *
     if (error_val != EXA_SUCCESS)
       exalog_error("shutdown failed: %s", exa_error_msg(error_val));
   }
-
-#ifdef USE_YAOURT
-  yaourt_event_wait(EXAMSG_ADMIND_RECOVERY_ID, "adm_hierarchy_run_shutdown end");
-#endif
 
   set_error(err_desc, error_val, NULL);
 }
@@ -1262,10 +1229,6 @@ static void adm_hierarchy_run_init(int thr_nb, void *data, cl_error_desc_t *err_
       return;
     }
   }
-
-#ifdef USE_YAOURT
-  yaourt_event_wait(EXAMSG_ADMIND_RECOVERY_ID, "adm_hierarchy_run_init end");
-#endif
 
   set_success(err_desc);
 }
@@ -1397,10 +1360,6 @@ adm_hierarchy_run_recovery(int thr_nb, void *data, cl_error_desc_t *err_desc)
   inst_op_t op = *(inst_op_t *)data;
 
   exalog_debug("hierarchy_run_recovery %s: start", inst_op2str(op));
-#ifdef USE_YAOURT
-  yaourt_event_wait(EXAMSG_ADMIND_RECOVERY_ID,
-		    "adm_hierarchy_run_recovery begin %s", inst_op2str(op));
-#endif
 
   /* Synchronize instance states on nodes */
   inst_sync_before_recovery(thr_nb, err_desc);
@@ -1470,11 +1429,6 @@ adm_hierarchy_run_recovery(int thr_nb, void *data, cl_error_desc_t *err_desc)
 	                 inst_op2str(op), op);
       break;
   }
-
-#ifdef USE_YAOURT
-  yaourt_event_wait(EXAMSG_ADMIND_RECOVERY_ID,
-		    "adm_hierarchy_run_recovery end %s", inst_op2str(op));
-#endif
 
   EXA_ASSERT_VERBOSE(err_desc->code == EXA_SUCCESS
                      || err_desc->code == -ADMIND_ERR_NODE_DOWN,

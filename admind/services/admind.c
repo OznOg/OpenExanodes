@@ -32,11 +32,6 @@
 
 #include "examsgd/examsgd_client.h"
 
-#ifdef USE_YAOURT
-#include <yaourt/yaourt.h>
-#endif
-
-
 #define ADM_CONFIG_RECOVER_BUF_LEN 2047
 
 
@@ -177,10 +172,6 @@ admin_check_license_local(int thr_nb, void *msg)
 static int
 admin_recover(int thr_nb)
 {
-#ifdef USE_YAOURT
-  yaourt_event_wait(examsgOwner(adm_wt_get_inboxmb(thr_nb)), "recover of admind");
-#endif
-
   EXA_ASSERT_VERBOSE(adm_is_leader(), "the clustered command must run on the master");
   EXA_ASSERT_VERBOSE(thr_nb == RECOVERY_THR_ID,
                      "the recovery must use working thread %d", RECOVERY_THR_ID);
@@ -258,10 +249,6 @@ admin_recover_local(int thr_nb, void *msg)
   int pos;
   int ret;
   int tm_err = EXA_SUCCESS;
-
-#ifdef USE_YAOURT
-  yaourt_event_generic(EXAMSG_ADMIND_EVMGR_ID, "recovery_begin");
-#endif
 
   /* Exchange config file version numbers and compute best node */
 
@@ -395,9 +382,6 @@ ack:
 
   admwrk_ack(thr_nb, ret);
 
-#ifdef USE_YAOURT
-  yaourt_event_generic(EXAMSG_ADMIND_EVMGR_ID, "recovery_end -> %d", ret);
-#endif
 }
 
 

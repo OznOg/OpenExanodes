@@ -16,10 +16,6 @@
 
 #include "common/include/exa_assert.h"
 
-#ifdef USE_YAOURT
-# include <yaourt/yaourt.h>
-#endif
-
 /* --- admwrk_daemon_reply ------------------------------------------- */
 
 /** \brief Send acknowledgement message.
@@ -37,10 +33,6 @@ int admwrk_daemon_reply(ExamsgHandle mh, ExamsgID id,
   ExamsgAny header;
 
   header.type = EXAMSG_DAEMON_REPLY;
-
-#ifdef USE_YAOURT
-  yaourt_event_wait(examsgOwner(mh), "admwrk_daemon_reply before reply");
-#endif
 
   ret = examsgSendWithHeader(mh, id, EXAMSG_LOCALHOST, &header,
 			     answer, answer_size);
@@ -65,10 +57,6 @@ int admwrk_daemon_ackinterrupt(ExamsgHandle mh, ExamsgID id)
   ExamsgAny msg_answer;
 
   msg_answer.type = EXAMSG_DAEMON_INTERRUPT_ACK;
-
-#ifdef USE_YAOURT
-  yaourt_event_wait(examsgOwner(mh), "admwrk_daemon_reply before ack interrupt");
-#endif
 
   ret = examsgSend(mh, id, EXAMSG_LOCALHOST, &msg_answer,
 		   sizeof(msg_answer));
