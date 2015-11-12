@@ -1269,13 +1269,12 @@ static int scsi_command_t(TARGET_SESSION_T *sess, unsigned char *header)
 
     if (cmd->scsi_cmd.trans_len > sess->sess_params.max_burst_length)
     {
-        /* FIXME this test seems wrong, see bug #4026 */
-        exalog_error(
-            "iscsi: disconnect initiator. (initiators trans_len (%d) > negociated MaxBurstLength (%d))",
-            cmd->scsi_cmd.trans_len,
-            sess->sess_params.max_burst_length);
-        cmd_put(cmd);
-        return -1;
+        /* FIXME this test is legacy and seems wrong, investigate either to fix
+         * or remove */
+        exalog_warning("iscsi: disconnect initiator. (initiators trans_len (%d)"
+                " > negociated MaxBurstLength (%d))",
+                cmd->scsi_cmd.trans_len,
+                sess->sess_params.max_burst_length);
     }
 
     cmd->data_len = scsi_cmd->trans_len;
