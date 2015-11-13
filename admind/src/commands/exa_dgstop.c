@@ -186,7 +186,7 @@ local_exa_dgstop(int thr_nb, void *msg)
   }
 
   /* Stop the group in VRT if needed */
-  barrier_ret = service_vrt_group_stop(thr_nb, group, info->force);
+  barrier_ret = service_vrt_group_stop(group, info->force);
 
 local_exa_dgstop_end:
 

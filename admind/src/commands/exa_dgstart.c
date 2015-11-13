@@ -128,7 +128,7 @@ local_exa_dgstart (int thr_nb, void *msg)
     goto local_exa_dgstart_end;
   }
 
-  ret = local_exa_dgstart_vrt_start (thr_nb, group);
+  ret = local_exa_dgstart_vrt_start(group);
   barrier_ret = admwrk_barrier(thr_nb, ret, "Starting group");
   if (barrier_ret == -VRT_INFO_GROUP_ALREADY_STARTED)
   {

@@ -68,8 +68,7 @@ static int vrt_suspend(int thr_nb)
 			     RPC_SERVICE_VRT_SUSPEND, NULL, 0);
 }
 
-static int
-vrt_suspend_groups(int thr_nb)
+static int vrt_suspend_groups(void)
 {
   struct adm_group *group;
 
@@ -99,7 +98,7 @@ local_vrt_suspend(int thr_nb, void *msg)
 {
   int ret;
 
-  ret = vrt_suspend_groups(thr_nb);
+  ret = vrt_suspend_groups();
 
   admwrk_ack(thr_nb, ret);
 }
@@ -110,8 +109,7 @@ static int vrt_resume(int thr_nb)
 			      NULL, 0);
 }
 
-static int
-vrt_resume_groups(int thr_nb)
+static int vrt_resume_groups(void)
 {
   struct adm_group *group;
 
@@ -142,7 +140,7 @@ local_vrt_resume (int thr_nb, void *msg)
 {
   int ret;
 
-  ret = vrt_resume_groups(thr_nb);
+  ret = vrt_resume_groups();
 
   admwrk_ack(thr_nb, ret);
 }
@@ -202,7 +200,7 @@ int service_vrt_prepare_group(struct adm_group *group)
     return EXA_SUCCESS;
 }
 
-int local_exa_dgstart_vrt_start(int thr_nb, struct adm_group *group)
+int local_exa_dgstart_vrt_start(struct adm_group *group)
 {
     struct adm_disk *disk;
     int ret;
@@ -236,8 +234,7 @@ int local_exa_dgstart_vrt_start(int thr_nb, struct adm_group *group)
     return EXA_SUCCESS;
 }
 
-static int
-vrt_restart_groups(int thr_nb)
+static int vrt_restart_groups(void)
 {
     struct adm_group *group;
 
@@ -256,7 +253,7 @@ vrt_restart_groups(int thr_nb)
 	    continue;
 	}
 
-	ret = local_exa_dgstart_vrt_start(thr_nb, group);
+	ret = local_exa_dgstart_vrt_start(group);
 	if (ret == -ADMIND_ERR_NODE_DOWN)
 	{
 	    exalog_debug("vrt_client_group_start(%s) interrupted", group->name);
@@ -273,8 +270,7 @@ vrt_restart_groups(int thr_nb)
     return EXA_SUCCESS;
 }
 
-static int
-vrt_update_disks(int thr_nb, struct adm_group *group)
+static int vrt_update_disks(struct adm_group *group)
 {
     struct adm_disk *disk;
 
@@ -379,8 +375,7 @@ static int local_vrt_recover_restart_volume(struct adm_group *group,
     return EXA_SUCCESS;
 }
 
-static int
-local_vrt_recover_restart_group_volumes(int thr_nb, struct adm_group *group)
+static int local_vrt_recover_restart_group_volumes(struct adm_group *group)
 {
     struct adm_volume *volume;
 
@@ -545,7 +540,7 @@ local_vrt_recover (int thr_nb, void *msg)
 
   /* Restart the groups. */
 
-  ret = vrt_restart_groups(thr_nb);
+  ret = vrt_restart_groups();
   EXA_ASSERT(ret == EXA_SUCCESS || ret == -ADMIND_ERR_NODE_DOWN);
   barrier_ret = admwrk_barrier(thr_nb, ret, "VRT: Restart the group(s)");
   if (barrier_ret != EXA_SUCCESS)
@@ -585,7 +580,7 @@ local_vrt_recover (int thr_nb, void *msg)
   {
     if (!group->started)
       continue;
-    ret = vrt_update_disks(thr_nb, group);
+    ret = vrt_update_disks(group);
     if (ret == -ADMIND_ERR_NODE_DOWN)
       break;
     EXA_ASSERT(ret == EXA_SUCCESS);
@@ -671,7 +666,7 @@ local_vrt_recover (int thr_nb, void *msg)
       continue;
 
     /* Restart the volumes. */
-    ret = local_vrt_recover_restart_group_volumes(thr_nb, group);
+    ret = local_vrt_recover_restart_group_volumes(group);
     if (ret == -ADMIND_ERR_NODE_DOWN)
       break;
 
@@ -935,7 +930,7 @@ vrt_check_up(int thr_nb)
   return ret;
 }
 
-int service_vrt_group_stop(int thr_nb, struct adm_group *group, bool force)
+int service_vrt_group_stop(struct adm_group *group, bool force)
 {
     int ret = EXA_SUCCESS;
 
@@ -963,13 +958,13 @@ int service_vrt_group_stop(int thr_nb, struct adm_group *group, bool force)
 }
 
 static int
-vrt_nodestop_stop_groups(int thr_nb, bool force)
+vrt_nodestop_stop_groups(bool force)
 {
   struct adm_group *group;
 
   adm_group_for_each_group(group)
   {
-    int ret = service_vrt_group_stop(thr_nb, group, force);
+    int ret = service_vrt_group_stop(group, force);
     if (ret)
 	return ret;
   }
@@ -1008,7 +1003,7 @@ vrt_nodestop(int thr_nb, const exa_nodeset_t *nodes_to_stop,
 
   /* Stop the groups on the nodes to stop. */
   if (adm_nodeset_contains_me(nodes_to_stop))
-    ret = vrt_nodestop_stop_groups(thr_nb, force);
+    ret = vrt_nodestop_stop_groups(force);
   else
     ret = -ADMIND_ERR_NOTHINGTODO;
   EXA_ASSERT(ret == EXA_SUCCESS || ret == -ADMIND_ERR_NOTHINGTODO);

@@ -18,7 +18,7 @@ struct adm_disk;
 struct adm_volume;
 
 int service_vrt_prepare_group(struct adm_group *group);
-int local_exa_dgstart_vrt_start(int thr_nb, struct adm_group *group);
+int local_exa_dgstart_vrt_start(struct adm_group *group);
 
 /* volume commands */
 int vrt_master_volume_stop(int thr_nb, struct adm_volume *volume,
@@ -49,7 +49,7 @@ int vrt_master_volume_tune_readahead(int thr_nb, const struct adm_volume *volume
 
 int adm_vrt_group_sync_sb(int thr_nb, struct adm_group *group);
 
-int service_vrt_group_stop(int thr_nb, struct adm_group *group, bool force);
+int service_vrt_group_stop(struct adm_group *group, bool force);
 
 /**
  * Synchronize sb_version metadata for a group.
