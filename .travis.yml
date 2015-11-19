@@ -4,6 +4,6 @@ before_install:
           - sudo apt-get update -qq
           - sudo apt-get install -y automake make libtool autoconf rpm cmake libssl-dev libxml2-dev libboost-all-dev libstring-crc32-perl 
 
-script: mkdir ../build && cd ../build && cmake ../OpenExanodes/ -DWITH_UT=FALSE && make -j4
+script: mkdir ../build && cd ../build && cmake ../OpenExanodes/ -DWITH_UT_ROOT=FALSE && make -j4 && ctest -V
 
 

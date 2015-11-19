@@ -276,7 +276,7 @@ ut_test(getsockopt)
     int sock;
     int size;
     int value;
-    int len = sizeof(int);
+    int len = sizeof(value);
 
     sock = os_socket(AF_INET, SOCK_STREAM, 0);
     UT_ASSERT(sock >= 0);
@@ -288,11 +288,9 @@ ut_test(getsockopt)
 
     /* Linux doubles the value to set */
 #ifdef WIN32
-	if (value != size)
-		UT_FAIL();
+    UT_ASSERT_EQUAL(value, size);
 #else
-	if (value != 2* size)
-		UT_FAIL();
+    UT_ASSERT(value >= 2 * size);
 #endif
 
     os_closesocket(sock);
@@ -604,8 +602,8 @@ ut_test(os_host_canonical_name)
     char canonical[256];
 
     os_net_init();
-    UT_ASSERT(!os_host_canonical_name("fusion", canonical, sizeof(canonical)));
-    UT_ASSERT(!strcmp("fusion.toulouse", canonical));
+    UT_ASSERT(!os_host_canonical_name("seanodes.com", canonical, sizeof(canonical)));
+    UT_ASSERT(!strcmp("seanodes.com", canonical));
     os_net_cleanup();
 }
 
@@ -618,13 +616,14 @@ ut_test(os_host_addr)
 
     os_net_init();
 
-    ret = os_host_addr("fusion", &addr);
+    ret = os_host_addr("seanodes.com", &addr);
     UT_ASSERT(ret == 0);
-    UT_ASSERT_EQUAL(htonl(0xC0A80002), addr.s_addr);
+    UT_ASSERT_EQUAL(htonl(0x5CF31B59), addr.s_addr);
 
-    ret = os_host_addr("192.168.0.2", &addr);
+    ret = os_host_addr("92.243.27.89", &addr);
     UT_ASSERT(ret == 0);
-    UT_ASSERT_EQUAL(htonl(0xC0A80002), addr.s_addr);
+    
+    UT_ASSERT_EQUAL(htonl(0x5CF31B59), addr.s_addr);
 
     ret = os_host_addr("sjkfhqsdfhmorqze", &addr);
 #ifdef WIN32

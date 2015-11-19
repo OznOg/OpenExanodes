@@ -18,6 +18,8 @@
 #include "admind/src/adm_serialize.h"
 #include "admind/src/adm_cluster.h"
 #include "common/include/exa_error.h"
+#include "common/include/exa_env.h"
+
 #include <unit_testing.h>
 
 /*
@@ -43,6 +45,16 @@ static char buffer[16];
 static bool __deserialize_from_file(const char *filename)
 {
     int ret;
+#define TMP_DIR    "." OS_FILE_SEP "tmp"
+    /* FIXME The deserialization expects to read/create a superblock version
+     * file thus expects to be able to access the EXA_ENV_CACHE_DIR. This is
+     * why we need to set the environment variable here, but would deserve to
+     * be modified to prevent this side effect, at least from here  */
+#ifdef WIN32
+    _putenv(EXA_ENV_CACHE_DIR"="TMP_DIR);
+#else
+    putenv(EXA_ENV_CACHE_DIR"="TMP_DIR);
+#endif
 
     /* Reset cluster is mandatory because adm_xxx() has side-effects, working
      * on a global, hidden cluster variable */
