@@ -69,7 +69,7 @@
     } while (0);
 
 #if LINUX_VERSION_CODE > KERNEL_VERSION(2, 6, 31)
-# if LINUX_VERSION_CODE > KERNEL_VERSION(3, 0, 0)
+# if LINUX_VERSION_CODE > KERNEL_VERSION(2, 6, 35)
 #  define bio_barrier(bio) ((bio)->bi_rw == WRITE_FLUSH || (bio)->bi_rw == WRITE_FUA || (bio)->bi_rw == WRITE_FLUSH_FUA)
 # else
 #  define bio_barrier(bio) bio_flagged((bio), BIO_RW_BARRIER)
