@@ -104,7 +104,8 @@ static int sock_writable(struct socket *sock)
     return 0;
 }
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(3,0,0)
+/* the function sk_sleep was added in 2.6.35 */
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,35)
 # define sk_sleep(sk) ((sk)->sk_sleep)
 #endif
 
