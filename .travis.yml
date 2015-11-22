@@ -11,8 +11,8 @@ after_success:
         - ln -s ../OpenExanodes/.git .git 
         - find . -type f -name '*.gcno'
           #- coveralls --root .. --gcov-options '\-lp'
-        - echo "set -x" > codecov.sh
-        - curl -s https://codecov.io/bash >> codecov.sh
-        - bash codecov.sh -v 
+          #- echo "set -x" > codecov.sh
+          #- curl -s https://codecov.io/bash >> codecov.sh
+        - bash ../OpenExanodes/codecov.sh -v 
           #- coveralls --root .. --gcov-options '\-lp'
 
