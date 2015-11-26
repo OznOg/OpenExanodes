@@ -3,16 +3,10 @@ language: c
 before_install:
           - sudo apt-get update -qq
           - sudo apt-get install -y automake make libtool autoconf rpm cmake libssl-dev libxml2-dev libboost-all-dev libstring-crc32-perl 
-          - pip install --user cpp-coveralls
+          - pip install --user codecov
 
-script: mkdir ../build && cd ../build && cmake ../OpenExanodes/ -DCMAKE_VERBOSE_MAKEFILE=TRUE -DCMAKE_BUILD_TYPE=COVERAGE -DWITH_CLI=FALSE -DWITH_UT_ROOT=FALSE && make -j4 ut_os_atomic && os/test/ut_os_atomic
+script: mkdir build && cd build && cmake ../ -DCMAKE_VERBOSE_MAKEFILE=TRUE -DCMAKE_BUILD_TYPE=COVERAGE -DWITH_CLI=FALSE -DWITH_UT_ROOT=FALSE && make -j4 && ctest -V
 
 after_success:
-        - ln -s ../OpenExanodes/.git .git 
-        - find . -type f -name '*.gcno'
-          #- coveralls --root .. --gcov-options '\-lp'
-          #- echo "set -x" > codecov.sh
-          #- curl -s https://codecov.io/bash >> codecov.sh
-        - bash ../OpenExanodes/codecov.sh -v 
-          #- coveralls --root .. --gcov-options '\-lp'
+        - codecov
 
