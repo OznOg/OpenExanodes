@@ -392,15 +392,18 @@ static inst_op_t inst_op_get_most_prioritary(inst_op_t op1, inst_op_t op2)
     return INST_OP_NOTHING;
 }
 
-static inst_op_t inst_which_recovery(void)
+static inst_op_t inst_which_recovery(const struct adm_service **_service)
 {
     inst_op_t op = INST_OP_NOTHING;
     const struct adm_service *service;
+    EXA_ASSERT(_service != NULL);
+    *_service = NULL;
 
     adm_service_for_each(service)
     {
         inst_op_t service_op = inst_op_wanted_by_service(state_of(service->id));
         op = inst_op_get_most_prioritary(op, service_op);
+        *_service = service;
     }
 
     return op;
@@ -467,28 +470,15 @@ inst_op_t inst_compute_recovery(void)
   LOCK();
 
   /* Get the kind of recovery that is required */
-  op = inst_which_recovery();
+  op = inst_which_recovery(&service);
 
-  if (op == INST_OP_NOTHING) {
-      UNLOCK();
-      return INST_OP_NOTHING;
-  }
-
-  /* dump debug */
-  exalog_debug("=== Before recovery %s (begin) ===", inst_op2str(op));
-  inst_dump();
-
-  adm_service_for_each(service)
+  if (op != INST_OP_NOTHING)
   {
     adm_service_state_t *s_state = state_of(service->id);
 
     /* Include the instance in the recovery */
     inst_compute_involved_in_op(s_state, op);
   }
-
-  /* dump debug */
-  exalog_debug("=== Before recovery (middle) ===");
-  inst_dump();
 
   UNLOCK();
 
