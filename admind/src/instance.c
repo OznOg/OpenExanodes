@@ -339,102 +339,71 @@ void inst_set_all_instances_down(void)
 
 /* --- inst_op_wanted_by_service --------------------------------- */
 /**
- * Does this service want this operation ?
+ * Return the operation that a service need to perform prioritarly
  *
  * The lock must be taken by the caller.
  */
-static int
-inst_op_wanted_by_service(const adm_service_state_t *state, inst_op_t op)
+static inst_op_t inst_op_wanted_by_service(const adm_service_state_t *state)
 {
   exa_nodeset_t up_needed;
 
-  /* If there is no node committed up, nothing to do: this, as a matter of
-   * fact, prevents a node going up to perform a node down (or any other
-   * operation). This is needed by the current framework, but really depends
-   * on the design of the recovery. I keep this behaviour like this until
-   * the behaviour is really settled in design. */
-  if (op != INST_OP_UP && exa_nodeset_is_empty(&state->committed_up))
-      return false;
+  /* If there is no node committed up, the only operation possible is a UP as
+   * the service is not clustered until the UP completed successfully */
+  if (exa_nodeset_is_empty(&state->committed_up))
+      return INST_OP_UP;
 
-  switch (op)
-  {
-    case INST_OP_CHECK_DOWN:
-      return state->check_down_needed > 0;
+  if (state->check_down_needed > 0)
+      return INST_OP_CHECK_DOWN;
 
-    case INST_OP_DOWN:
-      return !exa_nodeset_is_empty(&state->down_needed)
-	     || state->resources_changed_down;
+  if (!exa_nodeset_is_empty(&state->down_needed) || state->resources_changed_down)
+      return INST_OP_DOWN;
 
-    case INST_OP_UP:
-      exa_nodeset_copy(&up_needed, &state->up_needed);
-      /* FIXME how actually an instance can be up_needed and committed up ?
-       * The only situation seems to be when a node/instance is going down,
-       * but as the DOWN is prioritary, the current operation should not be
-       * INST_OP_UP */
-      exa_nodeset_substract(&up_needed, &state->committed_up);
-      return !exa_nodeset_is_empty(&up_needed) || state->resources_changed_up;
+  exa_nodeset_copy(&up_needed, &state->up_needed);
+  /* FIXME how actually an instance can be up_needed and committed up ?
+   * The only situation seems to be when a node/instance is going down,
+   * but as the DOWN is prioritary, the current operation should not be
+   * INST_OP_UP */
+  exa_nodeset_substract(&up_needed, &state->committed_up);
+  if (!exa_nodeset_is_empty(&up_needed) || state->resources_changed_up)
+      return INST_OP_UP;
 
-    case INST_OP_CHECK_UP:
-      return state->check_up_needed > 0;
+  if (state->check_up_needed > 0)
+      return INST_OP_CHECK_UP;
 
-    case INST_OP_NOTHING:
-      return false;
-
-    default:
-      EXA_ASSERT_VERBOSE(false, "Unknown operation %d", op);
-      return false;
-  }
-}
-
-/* --- inst_op_wanted -------------------------------------------- */
-/**
- * Does one of the services want this operation ?
- *
- * The lock must be taken by the caller.
- */
-static int
-inst_op_wanted(inst_op_t op)
-{
-  const struct adm_service *service;
-
-  adm_service_for_each(service)
-  {
-    if (inst_op_wanted_by_service(state_of(service->id), op))
-      return true;
-  }
-
-  return false;
-}
-
-/* --- inst_which_recovery ---------------------------------------- */
-/**
- * Which recovery (down, up, check) we want the hierarchy ?
- *
- * The lock must be taken by the caller.
- *
- * \return inst_op_t: the recovery needed for the hierarchy
- */
-static inst_op_t
-inst_which_recovery(void)
-{
-  /* 1st priority: check down */
-  if (inst_op_wanted(INST_OP_CHECK_DOWN))
-    return INST_OP_CHECK_DOWN;
-
-  /* 2nd priority: down */
-  if (inst_op_wanted(INST_OP_DOWN))
-    return INST_OP_DOWN;
-
-  /* 3th priority: up */
-  if (inst_op_wanted(INST_OP_UP))
-    return INST_OP_UP;
-
-  /* 4th priority: check up */
-  if (inst_op_wanted(INST_OP_CHECK_UP))
-    return INST_OP_CHECK_UP;
-
-  /* 5th priority: nothing to do */
   return INST_OP_NOTHING;
+}
+
+static inst_op_t inst_op_get_most_prioritary(inst_op_t op1, inst_op_t op2)
+{
+    inst_op_t ops[] = {
+        INST_OP_CHECK_DOWN,
+        INST_OP_DOWN,
+        INST_OP_UP,
+        INST_OP_CHECK_UP
+    }; /* Careful: operations are put in the order of piority */
+
+    int i;
+    for (i = 0; i < sizeof(ops)/ sizeof(*ops); i++) {
+      inst_op_t op = ops[i];
+      if (op1 == op || op2 == op)
+          return op;
+    }
+
+    return INST_OP_NOTHING;
+}
+
+static inst_op_t inst_which_recovery(void)
+{
+    inst_op_t op = INST_OP_NOTHING;
+    const struct adm_service *service;
+
+    adm_service_for_each(service)
+    {
+        inst_op_t service_op = inst_op_wanted_by_service(state_of(service->id));
+        op = inst_op_get_most_prioritary(op, service_op);
+    }
+
+    return op;
 }
 
 /**
@@ -448,7 +417,9 @@ static void
 inst_compute_involved_in_op(adm_service_state_t *state,
 			    inst_op_t op)
 {
-  if (!inst_op_wanted_by_service(state, op))
+  EXA_ASSERT(op != INST_OP_NOTHING);
+
+  if (inst_op_wanted_by_service(state) != op)
   {
     state->op_in_progress = INST_OP_NOTHING;
     exa_nodeset_reset(&state->involved_in_op);
@@ -497,6 +468,11 @@ inst_op_t inst_compute_recovery(void)
 
   /* Get the kind of recovery that is required */
   op = inst_which_recovery();
+
+  if (op == INST_OP_NOTHING) {
+      UNLOCK();
+      return INST_OP_NOTHING;
+  }
 
   /* dump debug */
   exalog_debug("=== Before recovery %s (begin) ===", inst_op2str(op));
