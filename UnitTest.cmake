@@ -43,7 +43,6 @@ add_custom_command(
 )
 
 add_executable(${NAME} tmp__${NAME}.${UT_EXT} ${ARGN})
-add_dependencies(${NAME} tmp__${NAME}.${UT_EXT} ${ARGN} ${CMAKE_CURRENT_SOURCE_DIR}/${NAME}.${UT_EXT})
 
 file(TO_NATIVE_PATH ${CMAKE_CURRENT_SOURCE_DIR} NATIVE_CURRENT_SOURCE_DIR)
 string(REPLACE "\\" "\\\\" NATIVE_CURRENT_SOURCE_DIR ${NATIVE_CURRENT_SOURCE_DIR})
