@@ -100,7 +100,7 @@ build_response(xmlNodePtr exanodes_node)
 	    if (xml_set_prop(exanodes_param, EXA_PARAM_CHOICES, str) != EXA_SUCCESS)
                 return -EXA_ERR_XML_INIT;
 
-            if(str == NULL)
+            if (str[0] == '\0')
                 os_snprintf(param_info, sizeof(param_info),
                     "It must be a character string.");
             else

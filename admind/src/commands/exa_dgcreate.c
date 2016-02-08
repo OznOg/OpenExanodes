@@ -167,7 +167,7 @@ get_info_from_params(const struct dgcreate_params *params,
     }
 
     /* Check the group name */
-    if (info->name == NULL || info->name[0] == '\0')
+    if (info->name[0] == '\0')
     {
 	set_error(err_desc, -EXA_ERR_INVALID_PARAM, NULL);
 	return;

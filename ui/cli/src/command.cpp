@@ -46,8 +46,6 @@ const std::string Command::TIMEOUT_ARG_NAME(Command::Boldify("TIMEOUT"));
 /* Maximun number of retry when we get a busy from admind */
 #define MAX_RETRY_ON_BUSY 10
 
-static const size_t CLI_MAX_OPTION = 64;
-
 Line::Line(Exabase &_exa,
            const AdmindMessage &message,
            bool _in_progress_hidden) :

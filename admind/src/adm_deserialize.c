@@ -720,8 +720,7 @@ adm_deserialize_monitoring(void *data, const xmlChar **attrs)
 			    snmpd_port_attr);
 
     adm_cluster.monitoring_parameters.started =
-	(adm_cluster.monitoring_parameters.snmpd_host != NULL) &&
-	strcmp("", adm_cluster.monitoring_parameters.snmpd_host);
+        strcmp("", adm_cluster.monitoring_parameters.snmpd_host);
 
 }
 
