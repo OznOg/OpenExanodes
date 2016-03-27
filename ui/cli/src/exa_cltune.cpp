@@ -242,7 +242,7 @@ exa_error_code exa_cltune::send_single_param(string param, string value)
     exa_cli_info("%-" exa_mkstr(FMT_TYPE_H1) "s ",
                  "Setting parameter:");
 
-    nb_error = send_admind_by_node(commandl, nodelist, boost::ref(myfilter));
+    nb_error = send_admind_by_node(commandl, nodelist, std::ref(myfilter));
 
     /* Display the global status */
     if (!myfilter.got_error)

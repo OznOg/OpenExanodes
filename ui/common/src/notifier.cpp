@@ -14,6 +14,8 @@
 #include "os/include/os_time.h"
 #include "os/include/os_network.h"
 
+#include <cstring>
+
 using boost::apply;
 using boost::shared_ptr;
 using std::list;

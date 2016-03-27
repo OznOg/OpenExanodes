@@ -8,8 +8,8 @@
 #ifndef __ADMINDCLIENT_H__
 #define __ADMINDCLIENT_H__
 
-#include <boost/function.hpp>
 #include <boost/noncopyable.hpp>
+#include <functional>
 #include <set>
 
 class AdmindCommand;
@@ -22,9 +22,9 @@ class AdmindClient: private boost::noncopyable
 public:
   AdmindClient(Notifier &_notifier);
 
-  typedef boost::function<void(const AdmindMessage& message)> MessageFunc;
-  typedef boost::function<void(const std::string &info)> ErrorFunc;
-  typedef boost::function<void(const std::string &hostname,
+  typedef std::function<void(const AdmindMessage& message)> MessageFunc;
+  typedef std::function<void(const std::string &info)> ErrorFunc;
+  typedef std::function<void(const std::string &hostname,
 			       const std::string &info, int warn)
     > WarningFunc;
 

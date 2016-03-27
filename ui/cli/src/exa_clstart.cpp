@@ -184,7 +184,7 @@ void exa_clstart::run()
                      FMT_TYPE_H1) "s\n",
                  "Initializing the cluster (Please wait):");
 
-    send_admind_by_node(command_init, nodelist, boost::ref(myfilter));
+    send_admind_by_node(command_init, nodelist, std::ref(myfilter));
 
     /* Display the global status */
     if (myfilter.nb_node_unreachable

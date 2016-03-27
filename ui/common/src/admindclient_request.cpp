@@ -13,8 +13,9 @@
 #include "ui/common/include/admindmessage.h"
 #include "os/include/os_network.h"
 
+#include <cstring>
+
 using boost::bind;
-using boost::function;
 using boost::shared_ptr;
 using std::exception;
 using std::string;
@@ -32,7 +33,7 @@ AdmindClient::RequestImpl::RequestImpl(AdmindClient &_client,
 				       MessageFunc _progressive_payload,
 				       MessageFunc _done, ErrorFunc _error,
 				       unsigned int _timeout,
-				       function<void(RequestImpl*)> _cleanup):
+				       std::function<void(RequestImpl*)> _cleanup):
   client(_client),
   connected_node(_connected_node),
   command_name(cmd_name),

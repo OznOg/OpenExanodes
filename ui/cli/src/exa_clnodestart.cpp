@@ -150,7 +150,7 @@ void exa_clnodestart::run()
 
     clinit_filter myfilter;
     nr_errors = send_admind_by_node(command_init, nodelist,
-                                    boost::ref(myfilter));
+                                    std::ref(myfilter));
 
     if (nr_errors)
     {

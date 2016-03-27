@@ -258,7 +258,7 @@ void exa_clnodestop::run()
 
     exa_cli_info("%s\n", msg_str.c_str());
     send_admind_by_node(command_stop, exa.get_hostnames(),
-                                    boost::ref(stop_filter));
+                                    std::ref(stop_filter));
 
     if (stop_filter.got_error)
     {
@@ -279,7 +279,7 @@ void exa_clnodestop::run()
     clshutdown_filter shutdown_filter(exa, nodelist);
 
     send_admind_by_node(command_shutdown, exa.get_hostnames(),
-                                    boost::ref(shutdown_filter));
+                                    std::ref(shutdown_filter));
 
     exa_cli_info("%-" exa_mkstr(FMT_TYPE_H1) "s ", "Stopping requested nodes");
 

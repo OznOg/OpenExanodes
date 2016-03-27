@@ -832,7 +832,7 @@ shared_ptr<AdmindMessage> Command::send_command(const AdmindCommand &command,
         client.send_leader(command, nodes,
                            bind(&Command::handle_inprogress, this, _1),
                            bind(handle_progressive_payload, _1,
-                                boost::ref(payload)),
+                                std::ref(payload)),
                            bind(leader_done, _1, &message),
                            bind(leader_warning, _1, _2, &warnings),
                            bind(leader_error, _1, &error_message),
@@ -949,7 +949,7 @@ shared_ptr<AdmindMessage> Command::send_admind_to_node(
 
     client.send_node(command, node,
                      bind(&Command::handle_inprogress, this, _1),
-                     bind(handle_progressive_payload, _1, boost::ref(payload)),
+                     bind(handle_progressive_payload, _1, std::ref(payload)),
                      bind(to_node_done, _1, &message),
                      bind(to_node_error, _1, node),
                      _timeout);
@@ -1067,11 +1067,11 @@ unsigned int Command::send_admind_by_node(AdmindCommand &command,
                       it->c_str());
         client.send_node(command, *it,
                          bind(&Command::handle_inprogress, this, _1),
-                         /* Careful passing a ref thru bind needs use of boost::ref() */
+                         /* Careful passing a ref thru bind needs use of std::ref() */
                          bind(handle_progressive_payload, _1,
-                              boost::ref(payload)),
+                              std::ref(payload)),
                          bind(&Command::by_node_done, this, _1, *it,
-                              boost::ref(payload), &errors, func),
+                              std::ref(payload), &errors, func),
                          bind(by_node_error, _1, *it, &errors, func),
                          _timeout);
     }

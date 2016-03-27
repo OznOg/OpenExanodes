@@ -333,7 +333,7 @@ if (NOT DEFAULT_FORCED)
     set(CMAKE_C_FLAGS_RELWITHDEBINFO "-O0 -ggdb -DRELEASE -D_FORTIFY_SOURCE=2" CACHE STRING "Release with debug C flags" FORCE)
     set(CMAKE_C_FLAGS_COVERAGE "-ggdb -fprofile-arcs -ftest-coverage" CACHE STRING "Coverage C flags" FORCE)
 
-    set(CMAKE_CXX_FLAGS "-Wall -fno-strict-aliasing -Werror" CACHE STRING "CXX flags" FORCE)
+    set(CMAKE_CXX_FLAGS "-std=c++11 -Wall -fno-strict-aliasing -Werror" CACHE STRING "CXX flags" FORCE)
     set(CMAKE_CXX_FLAGS_DEBUG "-O0 -ggdb -DDEBUG" CACHE STRING "Debug CXX flags" FORCE)
     set(CMAKE_CXX_FLAGS_RELEASE "-O2 -ggdb -DRELEASE" CACHE STRING "Release CXX flags" FORCE)
     set(CMAKE_CXX_FLAGS_MINSIZEREL "-Os" CACHE STRING "Minisize release CXX flags" FORCE)

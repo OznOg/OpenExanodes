@@ -184,7 +184,7 @@ void exa_cldelete::run()
     cldelete_filter myfilter1;
 
     send_admind_by_node(command_getname, exa.get_hostnames(),
-                                      boost::ref(myfilter1));
+                                      std::ref(myfilter1));
 
     /* Display the global status */
     if (!myfilter1.filter_got_error)
@@ -210,7 +210,7 @@ void exa_cldelete::run()
     exa_cli_info("%-" exa_mkstr(FMT_TYPE_H1) "s ",
                  "Deleting the initialization file");
 
-    send_admind_by_node(command_delete, exa.get_hostnames(), boost::ref(myfilter2));
+    send_admind_by_node(command_delete, exa.get_hostnames(), std::ref(myfilter2));
 
     /* Display the global status */
     if (!myfilter2.filter_got_error)

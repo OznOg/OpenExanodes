@@ -13,6 +13,8 @@
 #include "ui/common/include/notifier.h"
 #include "os/include/os_network.h"
 
+#include <cstring>
+
 using boost::bind;
 using boost::shared_ptr;
 using std::exception;

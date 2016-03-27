@@ -681,7 +681,7 @@ void exa_clcreate::run()
         struct getnodedisks_filter command_filter;
 
         send_admind_by_node(command_getdisks, node_set,
-                            boost::ref(command_filter));
+                            std::ref(command_filter));
         if (command_filter.got_error)
             throw CommandException("Can't retrieve available disks.");
 
@@ -876,7 +876,7 @@ void exa_clcreate::run()
     getclustername_filter mygetclusternamefilter;
 
     send_admind_by_node(command_getname, nodelist,
-                        boost::ref(mygetclusternamefilter));
+                        std::ref(mygetclusternamefilter));
 
     /* Display the global status */
     if (!mygetclusternamefilter.filter_got_error)
@@ -922,7 +922,7 @@ void exa_clcreate::run()
     clcreate_filter myclcreatefilter(*line);
 
     unsigned int nb_error(send_admind_by_node(command_create, nodelist,
-                                              boost::ref(
+                                              std::ref(
                                                   myclcreatefilter),
                                               set_hostname_override));
 

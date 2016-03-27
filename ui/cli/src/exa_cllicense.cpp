@@ -193,7 +193,7 @@ void exa_cllicense::run()
     getclustername_filter_t getclustername_filter(exa.get_cluster());
 
     send_admind_by_node(command_getname, exa.get_hostnames(),
-                        boost::ref(getclustername_filter));
+                        std::ref(getclustername_filter));
 
     /* Display the global status */
     if (getclustername_filter.got_error)
@@ -239,7 +239,7 @@ void exa_cllicense::run()
 
     /* Send the command and receive the response */
     send_admind_by_node(setlicense_command, exa.get_hostnames(),
-                        boost::ref(setlicense_filter));
+                        std::ref(setlicense_filter));
 
     if (setlicense_filter.got_error)
     {

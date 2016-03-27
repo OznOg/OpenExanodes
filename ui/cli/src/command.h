@@ -13,6 +13,7 @@
 #include "ui/cli/src/command_arg.h"
 #include "ui/common/include/exabase.h"
 #include "ui/common/include/notifier.h"
+#include <functional>
 
 
 
@@ -70,12 +71,12 @@ public:
     virtual ~Command();
 
 
-    typedef boost::function < void (const std::string & node,
+    typedef std::function < void (const std::string & node,
                                     exa_error_code error_code,
                                     boost::shared_ptr<const AdmindMessage>)
 	> by_node_func;
 
-    typedef boost::function < void (const std::string & node,
+    typedef std::function < void (const std::string & node,
                                     AdmindCommand & command) >
     per_node_modify_func;
 

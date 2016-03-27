@@ -8,9 +8,9 @@
 #ifndef __NOTIFIER_H__
 #define __NOTIFIER_H__
 
-#include <boost/function.hpp>
 #include <boost/noncopyable.hpp>
 #include <boost/weak_ptr.hpp>
+#include <functional>
 #include <list>
 #include <map>
 #include <queue>
@@ -19,8 +19,8 @@
 class Notifier: private boost::noncopyable
 {
 public:
-  typedef boost::function<void(int)> FdNotifyFunc;
-  typedef boost::function<void()> VoidFunc;
+  typedef std::function<void(int)> FdNotifyFunc;
+  typedef std::function<void()> VoidFunc;
 
   class Timer;
 

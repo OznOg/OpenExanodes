@@ -10,6 +10,7 @@
 
 #include "ui/common/include/admindclient.h"
 #include "ui/common/include/notifier.h"
+#include <functional>
 
 
 class AdmindClient::Request : private boost::noncopyable
@@ -35,7 +36,7 @@ public:
                 MessageFunc _done,
                 ErrorFunc _error,
                 unsigned int _timeout,
-                boost::function < void (RequestImpl *) > _cleanup);
+                std::function < void (RequestImpl *) > _cleanup);
     ~RequestImpl();
 
 private:
@@ -63,7 +64,7 @@ private:
     MessageFunc progressive_payload;
     MessageFunc done;
     ErrorFunc error;
-    boost::function < void (RequestImpl *) > cleanup;
+    std::function < void (RequestImpl *) > cleanup;
     boost::shared_ptr<Notifier::Timer>timeout;
 };
 
