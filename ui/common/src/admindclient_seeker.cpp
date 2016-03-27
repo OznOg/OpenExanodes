@@ -7,18 +7,18 @@
  */
 #include "ui/common/src/admindclient_seeker.h"
 
-#include <boost/bind.hpp>
-
 #include "ui/common/include/admindmessage.h"
 #include "ui/common/include/notifier.h"
 #include "os/include/os_network.h"
 
+#include <functional>
 #include <cstring>
 
-using boost::bind;
 using boost::shared_ptr;
+using std::bind;
 using std::exception;
 using std::map;
+using std::placeholders::_1;
 using std::set;
 using std::string;
 

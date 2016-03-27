@@ -11,7 +11,6 @@
 
 #include <iostream>
 
-#include <boost/bind.hpp>
 #include <boost/lexical_cast.hpp>
 #include <boost/algorithm/string.hpp>
 
@@ -28,17 +27,20 @@
 #include "os/include/os_getopt.h"
 #include "os/include/os_time.h"
 
+#include <functional>
+
 #ifdef WIN32
 #include <wincon.h>  /* For GetConsoleScreenBufferInfo() */
 #else
 #include <sys/ioctl.h>
 #endif
 
-using boost::bind;
 using boost::lexical_cast;
 using boost::shared_ptr;
 using std::string;
 using std::map;
+using std::placeholders::_1;
+using std::placeholders::_2;
 using std::set;
 
 const std::string Command::TIMEOUT_ARG_NAME(Command::Boldify("TIMEOUT"));
@@ -830,12 +832,12 @@ shared_ptr<AdmindMessage> Command::send_command(const AdmindCommand &command,
         message = shared_ptr<AdmindMessage>();
 
         client.send_leader(command, nodes,
-                           bind(&Command::handle_inprogress, this, _1),
-                           bind(handle_progressive_payload, _1,
-                                std::ref(payload)),
-                           bind(leader_done, _1, &message),
-                           bind(leader_warning, _1, _2, &warnings),
-                           bind(leader_error, _1, &error_message),
+                           std::bind(&Command::handle_inprogress, this, _1),
+                           std::bind(handle_progressive_payload, _1,
+                                     std::ref(payload)),
+                           std::bind(leader_done, _1, &message),
+                           std::bind(leader_warning, _1, _2, &warnings),
+                           std::bind(leader_error, _1, &error_message),
                            _timeout);
 
         notifier.run();
@@ -948,10 +950,10 @@ shared_ptr<AdmindMessage> Command::send_admind_to_node(
                   node.c_str(), command.get_xml_command(true).c_str());
 
     client.send_node(command, node,
-                     bind(&Command::handle_inprogress, this, _1),
-                     bind(handle_progressive_payload, _1, std::ref(payload)),
-                     bind(to_node_done, _1, &message),
-                     bind(to_node_error, _1, node),
+                     std::bind(&Command::handle_inprogress, this, _1),
+                     std::bind(handle_progressive_payload, _1, std::ref(payload)),
+                     std::bind(to_node_done, _1, &message),
+                     std::bind(to_node_error, _1, node),
                      _timeout);
 
     notifier.run();
@@ -1066,13 +1068,13 @@ unsigned int Command::send_admind_by_node(AdmindCommand &command,
         exa_cli_trace("Command::send_admind_by_node: sending to %s\n",
                       it->c_str());
         client.send_node(command, *it,
-                         bind(&Command::handle_inprogress, this, _1),
+                         std::bind(&Command::handle_inprogress, this, _1),
                          /* Careful passing a ref thru bind needs use of std::ref() */
-                         bind(handle_progressive_payload, _1,
+                         std::bind(handle_progressive_payload, _1,
                               std::ref(payload)),
-                         bind(&Command::by_node_done, this, _1, *it,
+                         std::bind(&Command::by_node_done, this, _1, *it,
                               std::ref(payload), &errors, func),
-                         bind(by_node_error, _1, *it, &errors, func),
+                         std::bind(by_node_error, _1, *it, &errors, func),
                          _timeout);
     }
 

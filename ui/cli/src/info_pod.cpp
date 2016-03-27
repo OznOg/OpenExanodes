@@ -8,7 +8,6 @@
 #include "ui/cli/src/command.h"
 #include <iostream>
 
-#include <boost/bind.hpp>
 #include <boost/lexical_cast.hpp>
 #include <boost/algorithm/string.hpp>
 

@@ -7,15 +7,14 @@
  */
 #include "ui/common/src/admindclient_request.h"
 
-#include <boost/bind.hpp>
 #include <errno.h>
 
 #include "ui/common/include/admindmessage.h"
 #include "os/include/os_network.h"
+#include <functional>
 
 #include <cstring>
 
-using boost::bind;
 using boost::shared_ptr;
 using std::exception;
 using std::string;
@@ -46,12 +45,12 @@ AdmindClient::RequestImpl::RequestImpl(AdmindClient &_client,
 {
   assert(fd != -1);
 
-  client.notifier.add_write(fd, bind(&RequestImpl::state_connecting, this,
+  client.notifier.add_write(fd, std::bind(&RequestImpl::state_connecting, this,
 				     xml_cmd));
 
   if (_timeout)
     timeout = client.notifier.get_timer(_timeout,
-					bind(&RequestImpl::do_timeout, this));
+					std::bind(&RequestImpl::do_timeout, this));
 }
 
 
@@ -69,7 +68,7 @@ void AdmindClient::RequestImpl::state_connecting(string xml_cmd)
   if (rv)
     return do_error(strerror(rv));
 
-  client.notifier.add_write(fd, bind(&RequestImpl::state_sending, this,
+  client.notifier.add_write(fd, std::bind(&RequestImpl::state_sending, this,
 				     xml_cmd));
 }
 
@@ -94,13 +93,13 @@ void AdmindClient::RequestImpl::state_sending(string xml_cmd)
   /* If there is more to write, we stay in this state. */
   if (xml_cmd.length() > 0)
     client.notifier.add_write(fd,
-			      bind(&RequestImpl::state_sending, this,
+			      std::bind(&RequestImpl::state_sending, this,
 				   xml_cmd));
   else
   {
     client.notifier.del_write(fd);
     client.notifier.add_read(fd,
-			     bind(&RequestImpl::state_receiving, this, ""));
+			     std::bind(&RequestImpl::state_receiving, this, ""));
   }
 }
 
@@ -151,7 +150,7 @@ void AdmindClient::RequestImpl::state_receiving(string incoming)
   }
 
   client.notifier.add_read(fd,
-			   bind(&RequestImpl::state_receiving, this,
+			   std::bind(&RequestImpl::state_receiving, this,
 				incoming));
 }
 
@@ -238,7 +237,7 @@ void AdmindClient::RequestImpl::cleanup_fd()
 void AdmindClient::RequestImpl::terminate()
 {
   cleanup_fd();
-  client.notifier.delay_call(bind(cleanup, this));
+  client.notifier.delay_call(std::bind(cleanup, this));
 }
 
 
