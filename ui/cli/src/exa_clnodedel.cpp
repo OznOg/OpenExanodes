@@ -12,7 +12,7 @@
 #include "ui/common/include/admindmessage.h"
 #include "ui/common/include/cli_log.h"
 
-using boost::shared_ptr;
+using std::shared_ptr;
 using std::string;
 
 const std::string exa_clnodedel::OPT_ARG_NODE_HOSTNAME(Command::Boldify(

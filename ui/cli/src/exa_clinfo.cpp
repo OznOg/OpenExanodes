@@ -29,7 +29,7 @@ using std::string;
 using std::set;
 using std::multiset;
 
-using boost::shared_ptr;
+using std::shared_ptr;
 using boost::format;
 using boost::lexical_cast;
 

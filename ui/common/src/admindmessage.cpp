@@ -8,7 +8,6 @@
 #include "ui/common/include/admindmessage.h"
 
 #include <boost/lexical_cast.hpp>
-#include <boost/shared_ptr.hpp>
 #include <stdexcept>
 
 #include "ui/common/include/exa_conversion.hpp"
@@ -16,8 +15,10 @@
 #include "common/include/exa_config.h"
 #include "admind/src/xml_proto/xml_protocol_version.h"
 
+#include <memory>
+
 using boost::lexical_cast;
-using boost::shared_ptr;
+using std::shared_ptr;
 using std::exception;
 using std::runtime_error;
 using std::string;

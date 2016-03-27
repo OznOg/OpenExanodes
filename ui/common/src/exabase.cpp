@@ -32,7 +32,7 @@
 #include "os/include/os_stdio.h"
 #include "os/include/os_user.h"
 
-using boost::shared_ptr;
+using std::shared_ptr;
 using std::exception;
 using std::set;
 using std::map;

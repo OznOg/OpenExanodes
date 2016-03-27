@@ -63,7 +63,7 @@ struct CommandOptionCmp
 
 
 
-typedef std::map<char,boost::shared_ptr<CommandOption>,CommandOptionCmp> CommandOptions;
+typedef std::map<char,std::shared_ptr<CommandOption>,CommandOptionCmp> CommandOptions;
 
 
 #endif

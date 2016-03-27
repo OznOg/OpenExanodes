@@ -11,11 +11,13 @@
 
 #include "ui/common/include/admindmessage.h"
 #include "os/include/os_network.h"
+#include <cassert>
+#include <cstring>
 #include <functional>
 
 #include <cstring>
 
-using boost::shared_ptr;
+using std::shared_ptr;
 using std::exception;
 using std::string;
 

@@ -92,7 +92,7 @@ struct clnodestop_filter : private boost::noncopyable
 
 
     void operator ()(const std::string &hostname, exa_error_code err_code,
-                     boost::shared_ptr<const AdmindMessage> message)
+                     std::shared_ptr<const AdmindMessage> message)
     {
         std::string nodename = exa.to_nodename(hostname);
 
@@ -151,7 +151,7 @@ struct clshutdown_filter : private boost::noncopyable
 
 
     void operator ()(const std::string &hostname, exa_error_code err_code,
-                     boost::shared_ptr<const AdmindMessage> message)
+                     std::shared_ptr<const AdmindMessage> message)
     {
         std::string nodename = exa.to_nodename(hostname);
 

@@ -11,7 +11,7 @@
 #include <libxml/tree.h>
 
 #include <boost/noncopyable.hpp>
-#include <boost/shared_ptr.hpp>
+#include <memory>
 #include <string>
 
 #include "common/include/exa_error.h"
@@ -71,7 +71,7 @@ public:
     return connected_node;
   }
 
-  boost::shared_ptr<xmlDoc> get_subtree() const;
+  std::shared_ptr<xmlDoc> get_subtree() const;
   std::string get_summary() const;
   std::string dump() const;
 
@@ -80,7 +80,7 @@ private:
    * const!), avoiding the accesoors, but because they are initialized
    * in the constructor body rather than in the initializer list (and
    * so, cannot be const), things have to be this way. Oh well. */
-  boost::shared_ptr<xmlDoc> xml_msg;
+  std::shared_ptr<xmlDoc> xml_msg;
   std::string payload_string;
   xmlNodePtr subtree;
   MessageType type;

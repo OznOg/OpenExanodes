@@ -16,7 +16,7 @@
 #include "ui/common/include/cli_log.h"
 
 using std::string;
-using boost::shared_ptr;
+using std::shared_ptr;
 
 const std::string exa_fstune::ARG_PARAMETER_PARAMETER(Command::Boldify(
                                                           "PARAMETER"));

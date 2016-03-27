@@ -38,7 +38,7 @@ protected:
     void parse_opt_args (const std::map<char, std::string>& opt_args);
 
 private:
-    boost::shared_ptr<AdmindCommand> generate_config_command();
+    std::shared_ptr<AdmindCommand> generate_config_command();
 
     exa_error_code create_and_send_xml_command();
 

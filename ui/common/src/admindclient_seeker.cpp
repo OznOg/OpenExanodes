@@ -11,10 +11,11 @@
 #include "ui/common/include/notifier.h"
 #include "os/include/os_network.h"
 
+#include <cstring>
 #include <functional>
 #include <cstring>
 
-using boost::shared_ptr;
+using std::shared_ptr;
 using std::bind;
 using std::exception;
 using std::map;

@@ -25,7 +25,7 @@
 using boost::lexical_cast;
 using std::set;
 
-using boost::shared_ptr;
+using std::shared_ptr;
 using std::string;
 
 const std::string exa_clnodeadd::OPT_ARG_CONFIG_FILE(Command::Boldify("FILE"));

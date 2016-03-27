@@ -65,7 +65,7 @@ private:
     MessageFunc done;
     ErrorFunc error;
     std::function < void (RequestImpl *) > cleanup;
-    boost::shared_ptr<Notifier::Timer>timeout;
+    std::shared_ptr<Notifier::Timer>timeout;
 };
 
 

@@ -12,9 +12,11 @@
 #include "os/include/os_time.h"
 #include "os/include/os_network.h"
 
+#include <algorithm>
+#include <cassert>
 #include <cstring>
 
-using boost::shared_ptr;
+using std::shared_ptr;
 using std::list;
 using std::map;
 

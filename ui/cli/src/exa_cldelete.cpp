@@ -86,7 +86,7 @@ struct cldelete_filter : private boost::noncopyable
 
 
     void operator ()(const std::string &node, exa_error_code error_code,
-                     boost::shared_ptr<const AdmindMessage> message)
+                     std::shared_ptr<const AdmindMessage> message)
     {
         switch (error_code)
         {

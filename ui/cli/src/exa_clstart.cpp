@@ -12,7 +12,7 @@
 #include "ui/common/include/admindmessage.h"
 #include "ui/common/include/cli_log.h"
 
-using boost::shared_ptr;
+using std::shared_ptr;
 using std::string;
 
 exa_clstart::exa_clstart(int argc, char *argv[])

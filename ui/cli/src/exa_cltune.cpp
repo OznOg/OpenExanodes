@@ -24,7 +24,7 @@
 #include <boost/lexical_cast.hpp>
 
 using boost::lexical_cast;
-using boost::shared_ptr;
+using std::shared_ptr;
 using std::string;
 
 /* TODO : grep all these constants and see if should be moved at an */
@@ -102,7 +102,7 @@ public:
 
 
     void operator ()(const std::string &node, exa_error_code error_code,
-                     boost::shared_ptr<const AdmindMessage> message)
+                     std::shared_ptr<const AdmindMessage> message)
     {
         switch (error_code)
         {

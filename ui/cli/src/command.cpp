@@ -36,7 +36,7 @@
 #endif
 
 using boost::lexical_cast;
-using boost::shared_ptr;
+using std::shared_ptr;
 using std::string;
 using std::map;
 using std::placeholders::_1;
@@ -213,7 +213,7 @@ void Command::add_option(const char short_opt,
             "Option config error, short option -" + std::string(1, short_opt)
             + " already reserved.");
 
-    boost::shared_ptr<CommandOption> sp(new CommandOption(short_opt,
+    std::shared_ptr<CommandOption> sp(new CommandOption(short_opt,
                                                           long_opt,
                                                           description,
                                                           param_groups,
@@ -244,7 +244,7 @@ void Command::add_arg(const std::string &arg_name,
                       const std::string &default_value,
                       bool multiple)
 {
-    boost::shared_ptr<CommandArg> sp(new CommandArg(_args.size(),
+    std::shared_ptr<CommandArg> sp(new CommandArg(_args.size(),
                                                     arg_name,
                                                     param_groups,
                                                     hidden,
@@ -265,7 +265,7 @@ void Command::add_see_also(const std::string &see_also)
 }
 
 
-void Command::add_to_param_groups(const boost::shared_ptr<CommandParam> &param)
+void Command::add_to_param_groups(const std::shared_ptr<CommandParam> &param)
 {
     if (!param->is_mandatory())
         return;
@@ -416,13 +416,13 @@ void Command::parse()
 
 struct CommandParamCmp
 {
-    bool operator ()(const boost::shared_ptr<CommandParam> &op1,
-                     const boost::shared_ptr<CommandParam> &op2)
+    bool operator ()(const std::shared_ptr<CommandParam> &op1,
+                     const std::shared_ptr<CommandParam> &op2)
     {
-        boost::shared_ptr<CommandArg> arg1 =
-            boost::dynamic_pointer_cast<CommandArg>(op1);
-        boost::shared_ptr<CommandArg> arg2 =
-            boost::dynamic_pointer_cast<CommandArg>(op2);
+        std::shared_ptr<CommandArg> arg1 =
+            std::dynamic_pointer_cast<CommandArg>(op1);
+        std::shared_ptr<CommandArg> arg2 =
+            std::dynamic_pointer_cast<CommandArg>(op2);
 
         if (arg1.get() == NULL && arg2.get() != NULL)
             return true;
@@ -431,10 +431,10 @@ struct CommandParamCmp
 
         if (arg1.get() == NULL && arg2.get() == NULL)
         {
-            boost::shared_ptr<CommandOption> opt1 =
-                boost::dynamic_pointer_cast<CommandOption>(op1);
-            boost::shared_ptr<CommandOption> opt2 =
-                boost::dynamic_pointer_cast<CommandOption>(op2);
+            std::shared_ptr<CommandOption> opt1 =
+                std::dynamic_pointer_cast<CommandOption>(op1);
+            std::shared_ptr<CommandOption> opt2 =
+                std::dynamic_pointer_cast<CommandOption>(op2);
 
             char c1(opt1->get_short_opt());
             char c2(opt2->get_short_opt());
@@ -474,7 +474,7 @@ void Command::generate_valid_param_combinations()
             for (size_t i = 0; i < group.size(); ++i)
             {
                 CommandParams nco(co);
-                boost::shared_ptr<CommandParam> gco = group.at(i);
+                std::shared_ptr<CommandParam> gco = group.at(i);
 
                 /* check that this opt is not in a param group */
                 /* from a previously chosen param */
@@ -553,7 +553,7 @@ void Command::check_provided_params(const std::map<char, std::string> &opt_args,
         if (oit == _options.end())
             throw CommandException("Illegal option");
 
-        boost::shared_ptr<CommandOption> option(oit->second);
+        std::shared_ptr<CommandOption> option(oit->second);
         if (option->is_arg_expected() && it->second.empty())
         {
             std::stringstream msg;
@@ -592,7 +592,7 @@ void Command::check_provided_params(const std::map<char, std::string> &opt_args,
         if (ait == _args.end())
             throw CommandException("Unexpected extra argument '" + (*it) + "'.");
 
-        boost::shared_ptr<CommandArg> arg(ait->second);
+        std::shared_ptr<CommandArg> arg(ait->second);
         for (std::set<int>::const_iterator mit = arg->get_param_groups().begin();
              mit != arg->get_param_groups().end(); ++mit)
         {

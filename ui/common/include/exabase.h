@@ -8,11 +8,11 @@
 #ifndef  __EXABASE_H__
 #define  __EXABASE_H__
 
-#include <boost/shared_ptr.hpp>
 #include <boost/utility.hpp>
 #include <libxml/tree.h>
 
 #include "common/include/exa_error.h"
+#include <memory>
 #include <set>
 
 class ClusterCache;
@@ -65,7 +65,7 @@ public:
   const std::string &to_nodename(const std::string &hostname) const;
 
 private:
-  boost::shared_ptr<ClusterCache> cluster;
+  std::shared_ptr<ClusterCache> cluster;
 
   exa_error_code config_cache_save(std::string &error_msg);
 
