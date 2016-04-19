@@ -15,7 +15,7 @@
 #include "common/include/uuid.h"
 
 #include <boost/noncopyable.hpp>
-#include <boost/shared_ptr.hpp>
+#include <memory>
 #include <string>
 #include <sstream>
 #include <stdexcept>
@@ -29,7 +29,7 @@ class AdmindCommand: private boost::noncopyable
 {
 private:
     const std::string name;
-    boost::shared_ptr<xmlDoc> xml_cmd;
+    std::shared_ptr<xmlDoc> xml_cmd;
     xmlNodePtr params;
 
 public:

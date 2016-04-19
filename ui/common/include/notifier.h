@@ -8,19 +8,19 @@
 #ifndef __NOTIFIER_H__
 #define __NOTIFIER_H__
 
-#include <boost/function.hpp>
 #include <boost/noncopyable.hpp>
-#include <boost/weak_ptr.hpp>
+#include <functional>
 #include <list>
 #include <map>
+#include <memory>
 #include <queue>
 
 
 class Notifier: private boost::noncopyable
 {
 public:
-  typedef boost::function<void(int)> FdNotifyFunc;
-  typedef boost::function<void()> VoidFunc;
+  typedef std::function<void(int)> FdNotifyFunc;
+  typedef std::function<void()> VoidFunc;
 
   class Timer;
 
@@ -30,7 +30,7 @@ public:
   virtual void add_write(int fd, FdNotifyFunc func) = 0;
   virtual void del_write(int fd) = 0;
 
-  virtual boost::shared_ptr<Timer> get_timer(unsigned int msec,
+  virtual std::shared_ptr<Timer> get_timer(unsigned int msec,
 					     VoidFunc func) = 0;
 
   virtual bool done();
@@ -54,7 +54,7 @@ public:
   virtual void del_read(int fd);
   virtual void add_write(int fd, FdNotifyFunc func);
   virtual void del_write(int fd);
-  virtual boost::shared_ptr<Timer> get_timer(unsigned int msec, VoidFunc func);
+  virtual std::shared_ptr<Timer> get_timer(unsigned int msec, VoidFunc func);
   virtual bool done();
 
 private:
@@ -63,14 +63,14 @@ private:
   class TimerComparator
   {
   public:
-    bool operator()(const boost::shared_ptr<Timer> &lhs,
-		    boost::shared_ptr<Timer> &rhs) const;
+    bool operator()(const std::shared_ptr<Timer> &lhs,
+		    std::shared_ptr<Timer> &rhs) const;
   };
 
   std::map<int, FdNotifyFunc> watches_read;
   std::map<int, FdNotifyFunc> watches_write;
-  std::priority_queue<boost::shared_ptr<Timer>,
-		      std::vector<boost::shared_ptr<Timer> >,
+  std::priority_queue<std::shared_ptr<Timer>,
+		      std::vector<std::shared_ptr<Timer> >,
 		      TimerComparator> timers;
 };
 

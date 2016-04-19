@@ -58,7 +58,7 @@ struct clinit_filter : private boost::noncopyable
 
 
     void operator ()(const std::string &node, exa_error_code err_code,
-                     boost::shared_ptr<const AdmindMessage> message)
+                     std::shared_ptr<const AdmindMessage> message)
     {
         switch (err_code)
         {
@@ -150,7 +150,7 @@ void exa_clnodestart::run()
 
     clinit_filter myfilter;
     nr_errors = send_admind_by_node(command_init, nodelist,
-                                    boost::ref(myfilter));
+                                    std::ref(myfilter));
 
     if (nr_errors)
     {

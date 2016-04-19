@@ -33,7 +33,7 @@
 #define NAN _Nan._Double
 #endif
 
-using boost::shared_ptr;
+using std::shared_ptr;
 using std::string;
 using std::set;
 using std::vector;
@@ -1531,7 +1531,7 @@ void exa_clstats::run()
     AdmindCommand command("clstats", exa.get_cluster_uuid());
     command.add_param("reset", reset ? "TRUE" : "FALSE");
 
-    boost::shared_ptr<AdmindMessage> message(
+    std::shared_ptr<AdmindMessage> message(
         send_command(command, msg_str, error_code, error_msg));
 
     if (!message)

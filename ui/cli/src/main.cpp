@@ -63,7 +63,7 @@ int main(int argc, char *argv[])
             throw CommandException(EXA_ERR_CMD_PARSING);
         }
 
-        boost::shared_ptr<Command> cmd = (*factory)(argc, argv);
+        std::shared_ptr<Command> cmd = (*factory)(argc, argv);
         cmd->run();
     }
     catch (exa::Exception &e)

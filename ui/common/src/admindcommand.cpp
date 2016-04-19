@@ -9,7 +9,6 @@
 
 #include <assert.h>
 #include <boost/lexical_cast.hpp>
-#include <boost/shared_ptr.hpp>
 #include <sstream>
 
 #include <libxml/xpath.h>
@@ -17,8 +16,10 @@
 #include "common/include/exa_conversion.h"
 #include "admind/src/xml_proto/xml_protocol_version.h"
 
+#include <memory>
+
 using boost::lexical_cast;
-using boost::shared_ptr;
+using std::shared_ptr;
 using std::runtime_error;
 using std::string;
 

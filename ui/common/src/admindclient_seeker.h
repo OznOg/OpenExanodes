@@ -49,10 +49,10 @@ private:
   const WarningFunc warning;
   const ErrorFunc error;
 
-  boost::shared_ptr<Notifier::Timer> timeout;
+  std::shared_ptr<Notifier::Timer> timeout;
   std::map<std::string, int> connecting;
   std::map<std::string, int> connected;
-  boost::shared_ptr<RequestImpl> request;
+  std::shared_ptr<RequestImpl> request;
   bool finished;
   int err;
 };

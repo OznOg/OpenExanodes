@@ -74,21 +74,21 @@ public:
     bool iscsi_details;
 
     uint node_column_width;
-    boost::shared_ptr<xmlDoc> config_ptr;
+    std::shared_ptr<xmlDoc> config_ptr;
     std::string filter_only;
 
  protected:
-    void exa_display_clinfo(boost::shared_ptr<xmlDoc>);
+    void exa_display_clinfo(std::shared_ptr<xmlDoc>);
 
     void reset_all_info_flags();
 
-    boost::shared_ptr<xmlDoc> get_config(exa_error_code &error_code, bool &in_recovery);
+    std::shared_ptr<xmlDoc> get_config(exa_error_code &error_code, bool &in_recovery);
     void display_node_status(const std::set<std::string> &nodelist,
                              const std::string& color,
                              const std::string& status);
     std::string display_nodes(const std::set<std::string> &nodelist,
                               uint indent = 0);
-    std::set<std::string> get_downnodes(boost::shared_ptr<xmlDoc> config_doc_ptr,
+    std::set<std::string> get_downnodes(std::shared_ptr<xmlDoc> config_doc_ptr,
                                         std::set<xmlNodePtr, exa_cmp_xmlnode_lt> &);
     std::set<std::string> nodelist_remove(std::set<std::string> &list1,
                                           std::set<std::string> &list2);
@@ -96,39 +96,39 @@ public:
                                              std::set<std::string> &list2);
     std::set<std::string> nodestring_split(const char *instr);
 
-    void exa_display_softs(boost::shared_ptr<xmlDoc>,
+    void exa_display_softs(std::shared_ptr<xmlDoc>,
                            std::set<xmlNodePtr, exa_cmp_xmlnode_lt> &,
                            bool license_has_ha);
 #ifdef WITH_MONITORING
-    void exa_display_monitoring(boost::shared_ptr<xmlDoc>);
+    void exa_display_monitoring(std::shared_ptr<xmlDoc>);
 #endif
-    void exa_display_rdevs(boost::shared_ptr<xmlDoc>);
-    int  exa_display_modules(boost::shared_ptr<xmlDoc>,
+    void exa_display_rdevs(std::shared_ptr<xmlDoc>);
+    int  exa_display_modules(std::shared_ptr<xmlDoc>,
                              std::set<xmlNodePtr, exa_cmp_xmlnode_lt> &,
                              std::string &resultstring);
-    int  exa_display_daemons(boost::shared_ptr<xmlDoc>,
+    int  exa_display_daemons(std::shared_ptr<xmlDoc>,
                              std::set<xmlNodePtr, exa_cmp_xmlnode_lt> &,
                              std::string &resultstring);
-    void exa_display_token_manager(boost::shared_ptr<xmlDoc>,
+    void exa_display_token_manager(std::shared_ptr<xmlDoc>,
                                    std::set<xmlNodePtr, exa_cmp_xmlnode_lt> &);
 
-    void exa_display_groups(boost::shared_ptr<xmlDoc>,
+    void exa_display_groups(std::shared_ptr<xmlDoc>,
                             std::set<xmlNodePtr, exa_cmp_xmlnode_lt> &);
-    void exa_display_components_in_group(boost::shared_ptr<xmlDoc>,
+    void exa_display_components_in_group(std::shared_ptr<xmlDoc>,
                                          xmlNodePtr groupptr);
     void exa_display_group_configurations(std::set<xmlNodePtr, exa_cmp_xmlnode_lt> &grplist);
-    void exa_display_volume(boost::shared_ptr<xmlDoc> config_doc_ptr,
+    void exa_display_volume(std::shared_ptr<xmlDoc> config_doc_ptr,
                             xmlNodePtr &, const std::string &group_status);
-    void exa_display_volumes_status(boost::shared_ptr<xmlDoc> config_doc_ptr,
+    void exa_display_volumes_status(std::shared_ptr<xmlDoc> config_doc_ptr,
                                     std::set<xmlNodePtr, exa_cmp_xmlnode_lt> &nodelist);
 
     void exa_display_export_status(xmlNodePtr volume_node, xmlNodePtr export_node,
 				   const std::string& group_status);
 
-    void exa_display_one_fs_status(boost::shared_ptr<xmlDoc> config_doc_ptr,
+    void exa_display_one_fs_status(std::shared_ptr<xmlDoc> config_doc_ptr,
                                    xmlNodePtr fs, const std::string& name);
-    void exa_display_gulm_nodes(boost::shared_ptr<xmlDoc>config_doc_ptr);
-    void exa_display_fs_status(boost::shared_ptr<xmlDoc>,
+    void exa_display_gulm_nodes(std::shared_ptr<xmlDoc>config_doc_ptr);
+    void exa_display_fs_status(std::shared_ptr<xmlDoc>,
                                std::set<xmlNodePtr, exa_cmp_xmlnode_lt> &);
 
     bool summSize(xmlNodeSetPtr, uint64_t *, uint64_t *);
@@ -136,7 +136,7 @@ public:
 	                    uint rdevpath_maxlen);
     void display_total(uint64_t sizeT, uint disk_count,
 	               uint rdevpath_maxlen);
-    void init_column_width(boost::shared_ptr<xmlDoc> config_doc_ptr);
+    void init_column_width(std::shared_ptr<xmlDoc> config_doc_ptr);
     std::string exa_format_human_readable_string(const char* config_string, bool force_kilo);
 };
 

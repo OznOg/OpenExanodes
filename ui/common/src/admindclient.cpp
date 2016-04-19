@@ -7,7 +7,6 @@
  */
 #include "ui/common/include/admindclient.h"
 
-#include <boost/bind.hpp>
 #include <boost/lexical_cast.hpp>
 #include <errno.h>
 #include <fcntl.h>
@@ -21,9 +20,12 @@
 #include "ui/common/src/admindclient_request.h"
 #include "ui/common/src/admindclient_seeker.h"
 
-using boost::bind;
+#include <functional>
+
 using boost::lexical_cast;
+using std::bind;
 using std::exception;
+using std::placeholders::_1;
 using std::runtime_error;
 using std::set;
 using std::string;

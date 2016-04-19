@@ -11,7 +11,7 @@
 #include "ui/common/include/cli_log.h"
 #include "common/include/exa_config.h"
 #include "common/include/exa_constants.h"
-#include <boost/shared_ptr.hpp>
+#include <memory>
 #include <set>
 #include <string>
 #include <sstream>
@@ -104,7 +104,7 @@ extern std::stringstream __stdout;
 
 
 typedef
-void (exa_clinfo::*display_func_t)(boost::shared_ptr<xmlDoc>,
+void (exa_clinfo::*display_func_t)(std::shared_ptr<xmlDoc>,
         std::set<xmlNodePtr, exa_clinfo::exa_cmp_xmlnode_lt> &);
 
 /**
@@ -115,7 +115,7 @@ static void test_display_info(const std::string& expected_output,
                               display_func_t display_func)
 {
     // Build XML doc
-    boost::shared_ptr<xmlDoc> config(
+    std::shared_ptr<xmlDoc> config(
         xmlReadMemory(
         xml_input.c_str(), xml_input.size(),
         NULL, NULL, XML_PARSE_NOBLANKS | XML_PARSE_NOERROR | XML_PARSE_NOWARNING));

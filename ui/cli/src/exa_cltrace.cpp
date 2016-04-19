@@ -170,7 +170,7 @@ static void sort_components()
 struct cltrace_filter : private boost::noncopyable
 {
     void operator ()(const std::string &node, exa_error_code err_code,
-                     boost::shared_ptr<const AdmindMessage> message)
+                     std::shared_ptr<const AdmindMessage> message)
     {
         switch (err_code)
         {
@@ -231,7 +231,7 @@ void exa_cltrace::run()
 
     cltrace_filter myfilter;
     nr_errors = send_admind_by_node(command, nodelist,
-                                    boost::ref(myfilter));
+                                    std::ref(myfilter));
 
     if (nr_errors)
         exa_cli_error(

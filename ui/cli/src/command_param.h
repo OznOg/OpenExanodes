@@ -9,10 +9,10 @@
 #define __COMMAND_PARAM_H__
 
 
+#include <memory>
 #include <string>
 #include <set>
 #include <vector>
-#include <boost/shared_ptr.hpp>
 
 
 
@@ -49,7 +49,7 @@ public:
 };
 
 
-typedef std::vector<boost::shared_ptr<CommandParam> > CommandParams;
+typedef std::vector<std::shared_ptr<CommandParam> > CommandParams;
 
 std::ostream &operator << (std::ostream & os, const CommandParam &op);
 

@@ -226,7 +226,7 @@ void Command::dump_synopsis(std::ostream &out, bool show_hidden) const
         for (CommandParams::const_iterator it2 = it->begin();
              it2 != it->end(); ++it2)
         {
-            boost::shared_ptr<CommandOption> opt =
+            std::shared_ptr<CommandOption> opt =
                 boost::dynamic_pointer_cast<CommandOption>(*it2);
 
             if (opt.get() != NULL)
@@ -242,7 +242,7 @@ void Command::dump_synopsis(std::ostream &out, bool show_hidden) const
                 continue;
             }
 
-            boost::shared_ptr<CommandArg> arg =
+            std::shared_ptr<CommandArg> arg =
                 boost::dynamic_pointer_cast<CommandArg>(*it2);
 
             if (arg.get() != NULL)

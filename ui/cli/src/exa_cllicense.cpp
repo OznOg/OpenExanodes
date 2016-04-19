@@ -25,7 +25,7 @@
 #include <boost/lexical_cast.hpp>
 
 using boost::lexical_cast;
-using boost::shared_ptr;
+using std::shared_ptr;
 using std::string;
 
 const std::string exa_cllicense::OPT_ARG_FILENAME(Command::Boldify("FILENAME"));
@@ -82,7 +82,7 @@ struct getclustername_filter_t : private boost::noncopyable
      *
      */
     void operator ()(const std::string &node, exa_error_code error_code,
-                     boost::shared_ptr<const AdmindMessage> message)
+                     std::shared_ptr<const AdmindMessage> message)
     {
         switch (error_code)
         {
@@ -147,7 +147,7 @@ public:
      *
      */
     void operator ()(const std::string &node, exa_error_code error_code,
-                     boost::shared_ptr<const AdmindMessage> message)
+                     std::shared_ptr<const AdmindMessage> message)
     {
         switch (error_code)
         {
@@ -193,7 +193,7 @@ void exa_cllicense::run()
     getclustername_filter_t getclustername_filter(exa.get_cluster());
 
     send_admind_by_node(command_getname, exa.get_hostnames(),
-                        boost::ref(getclustername_filter));
+                        std::ref(getclustername_filter));
 
     /* Display the global status */
     if (getclustername_filter.got_error)
@@ -239,7 +239,7 @@ void exa_cllicense::run()
 
     /* Send the command and receive the response */
     send_admind_by_node(setlicense_command, exa.get_hostnames(),
-                        boost::ref(setlicense_filter));
+                        std::ref(setlicense_filter));
 
     if (setlicense_filter.got_error)
     {

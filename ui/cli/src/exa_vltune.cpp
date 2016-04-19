@@ -19,7 +19,7 @@
 #include "ui/common/include/common_utils.h"
 
 using std::string;
-using boost::shared_ptr;
+using std::shared_ptr;
 using boost::lexical_cast;
 
 const std::string exa_vltune::ARG_PARAMETER_PARAMETER(Command::Boldify(

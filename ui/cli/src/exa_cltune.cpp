@@ -24,7 +24,7 @@
 #include <boost/lexical_cast.hpp>
 
 using boost::lexical_cast;
-using boost::shared_ptr;
+using std::shared_ptr;
 using std::string;
 
 /* TODO : grep all these constants and see if should be moved at an */
@@ -102,7 +102,7 @@ public:
 
 
     void operator ()(const std::string &node, exa_error_code error_code,
-                     boost::shared_ptr<const AdmindMessage> message)
+                     std::shared_ptr<const AdmindMessage> message)
     {
         switch (error_code)
         {
@@ -242,7 +242,7 @@ exa_error_code exa_cltune::send_single_param(string param, string value)
     exa_cli_info("%-" exa_mkstr(FMT_TYPE_H1) "s ",
                  "Setting parameter:");
 
-    nb_error = send_admind_by_node(commandl, nodelist, boost::ref(myfilter));
+    nb_error = send_admind_by_node(commandl, nodelist, std::ref(myfilter));
 
     /* Display the global status */
     if (!myfilter.got_error)

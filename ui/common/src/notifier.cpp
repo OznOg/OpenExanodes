@@ -7,15 +7,16 @@
  */
 #include "ui/common/include/notifier.h"
 
-#include <boost/bind.hpp>
-#include <boost/bind/apply.hpp>
 #include <errno.h>
 
 #include "os/include/os_time.h"
 #include "os/include/os_network.h"
 
-using boost::apply;
-using boost::shared_ptr;
+#include <algorithm>
+#include <cassert>
+#include <cstring>
+
+using std::shared_ptr;
 using std::list;
 using std::map;
 
@@ -167,12 +168,13 @@ static void analyze_select(int &rv, fd_set *fds,
   {
     if (FD_ISSET(it->first, fds))
     {
-      callbacks.push_back(bind(it->second, it->first));
+      callbacks.push_back(std::bind(it->second, it->first));
       --rv;
     }
   }
 
-  for_each(callbacks.begin(), callbacks.end(), apply<void>());
+  for (auto callback : callbacks)
+    callback();
 }
 
 

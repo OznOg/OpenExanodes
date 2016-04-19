@@ -43,7 +43,7 @@ public:
 
 
 
-typedef std::map<int,boost::shared_ptr<CommandArg> > CommandArgs;
+typedef std::map<int,std::shared_ptr<CommandArg> > CommandArgs;
 
 
 #endif

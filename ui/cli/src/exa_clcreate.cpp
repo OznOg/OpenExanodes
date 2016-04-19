@@ -49,7 +49,7 @@
 #define ANY_DISKS_OF_NODE "any"
 
 using boost::lexical_cast;
-using boost::shared_ptr;
+using std::shared_ptr;
 using std::vector;
 using std::map;
 using std::set;
@@ -153,7 +153,7 @@ struct getnodedisks_filter : private boost::noncopyable
      *         EXA_SUCCESS to continue command processing to next nodes
      */
     void operator ()(const std::string &node, exa_error_code error_code,
-                     boost::shared_ptr<const AdmindMessage> message)
+                     std::shared_ptr<const AdmindMessage> message)
     {
         switch (error_code)
         {
@@ -208,7 +208,7 @@ struct getclustername_filter : private boost::noncopyable
 
 
     void operator ()(const std::string &node, exa_error_code error_code,
-                     boost::shared_ptr<const AdmindMessage> message)
+                     std::shared_ptr<const AdmindMessage> message)
     {
         switch (error_code)
         {
@@ -276,7 +276,7 @@ struct clcreate_filter : private boost::noncopyable
 
 
     void operator ()(const std::string &node, exa_error_code error_code,
-                     boost::shared_ptr<const AdmindMessage> message)
+                     std::shared_ptr<const AdmindMessage> message)
     {
         switch (error_code)
         {
@@ -681,7 +681,7 @@ void exa_clcreate::run()
         struct getnodedisks_filter command_filter;
 
         send_admind_by_node(command_getdisks, node_set,
-                            boost::ref(command_filter));
+                            std::ref(command_filter));
         if (command_filter.got_error)
             throw CommandException("Can't retrieve available disks.");
 
@@ -876,7 +876,7 @@ void exa_clcreate::run()
     getclustername_filter mygetclusternamefilter;
 
     send_admind_by_node(command_getname, nodelist,
-                        boost::ref(mygetclusternamefilter));
+                        std::ref(mygetclusternamefilter));
 
     /* Display the global status */
     if (!mygetclusternamefilter.filter_got_error)
@@ -922,7 +922,7 @@ void exa_clcreate::run()
     clcreate_filter myclcreatefilter(*line);
 
     unsigned int nb_error(send_admind_by_node(command_create, nodelist,
-                                              boost::ref(
+                                              std::ref(
                                                   myclcreatefilter),
                                               set_hostname_override));
 

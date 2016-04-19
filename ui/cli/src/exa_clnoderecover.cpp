@@ -20,7 +20,7 @@
 #include <fstream>
 
 using std::string;
-using boost::shared_ptr;
+using std::shared_ptr;
 
 const std::string exa_clnoderecover::OPT_ARG_NODE_HOSTNAMES(Command::Boldify(
                                                                 "HOSTNAMES"));

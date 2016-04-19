@@ -13,6 +13,7 @@
 #include "ui/cli/src/command_arg.h"
 #include "ui/common/include/exabase.h"
 #include "ui/common/include/notifier.h"
+#include <functional>
 
 
 
@@ -63,34 +64,34 @@ class Command
 {
 public:
 
-    typedef boost::shared_ptr<Command>(*factory_t)(int argc, char *argv[]);
+    typedef std::shared_ptr<Command>(*factory_t)(int argc, char *argv[]);
 
     Command(int argc, char *argv[]);
 
     virtual ~Command();
 
 
-    typedef boost::function < void (const std::string & node,
+    typedef std::function < void (const std::string & node,
                                     exa_error_code error_code,
-                                    boost::shared_ptr<const AdmindMessage>)
+                                    std::shared_ptr<const AdmindMessage>)
 	> by_node_func;
 
-    typedef boost::function < void (const std::string & node,
+    typedef std::function < void (const std::string & node,
                                     AdmindCommand & command) >
     per_node_modify_func;
 
 
-    exa_error_code get_param(boost::shared_ptr<xmlDoc> &cfg);
-    exa_error_code get_configclustered(boost::shared_ptr<xmlDoc> &cfg);
+    exa_error_code get_param(std::shared_ptr<xmlDoc> &cfg);
+    exa_error_code get_configclustered(std::shared_ptr<xmlDoc> &cfg);
 
     void display_usage_from_pod(std::string &msg);
 
-    boost::shared_ptr<AdmindMessage> send_command(const AdmindCommand &command,
+    std::shared_ptr<AdmindMessage> send_command(const AdmindCommand &command,
                                                   const std::string &summary,
                                                   exa_error_code &error_code,
                                                   std::string &error_message);
 
-    boost::shared_ptr<AdmindMessage> send_admind_to_node(const std::string &node,
+    std::shared_ptr<AdmindMessage> send_admind_to_node(const std::string &node,
                                                          AdmindCommand &command,
                                                          exa_error_code &error_code);
 
@@ -228,7 +229,7 @@ protected:
 
 private:
 
-    void add_to_param_groups(const boost::shared_ptr<CommandParam>& param);
+    void add_to_param_groups(const std::shared_ptr<CommandParam>& param);
     void generate_valid_param_combinations();
     void check_provided_params(const std::map<char, std::string> &opt_args,
 			       const std::vector<std::string> &non_opt_args) const;
@@ -262,7 +263,7 @@ private:
     bool _in_progress_hidden;  //!< whether or not to display in progress messages
 
     SelectNotifier notifier;
-    boost::shared_ptr<Line>line;
+    std::shared_ptr<Line>line;
     std::string in_progress_source;
 
 };
@@ -272,10 +273,10 @@ private:
 EXA_BASIC_EXCEPTION_DECL(CommandException, exa::Exception);
 
 
-template<class T>boost::shared_ptr<Command>
+template<class T>std::shared_ptr<Command>
 command_factory(int argc, char *argv[])
 {
-    boost::shared_ptr<Command> inst(new T(argc, argv));
+    std::shared_ptr<Command> inst(new T(argc, argv));
     inst->init_options();
     inst->init_see_alsos();
     inst->parse ();
