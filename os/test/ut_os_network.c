@@ -10,6 +10,7 @@
 #include "os/include/os_error.h"
 #include "os/include/os_stdio.h"
 #include "os/include/strlcpy.h"
+#include "os/include/os_time.h"
 #include "common/include/exa_constants.h"
 
 #include <unit_testing.h>
@@ -246,27 +247,33 @@ ut_test(setsockopt)
 ut_test(get_set_sockopt_sndtimeo_works_correctly_on_w32)
 {
     int sock;
-    struct timeval time_out;
-    int len = sizeof(time_out);
+    struct timeval set_time_out;
+    struct timeval get_time_out;
+    struct timeval diff_time_out;
+    int len = sizeof(struct timeval);
 
     sock = os_socket(AF_INET, SOCK_STREAM, 0);
     UT_ASSERT(sock >= 0);
 
-    UT_ASSERT_EQUAL(0, os_getsockopt(sock, SOL_SOCKET, SO_SNDTIMEO, &time_out, &len));
-    UT_ASSERT_EQUAL(sizeof(time_out), len);
-    UT_ASSERT_EQUAL(0, time_out.tv_sec);
-    UT_ASSERT_EQUAL(0, time_out.tv_usec);
-    time_out.tv_sec = 4;
-    time_out.tv_usec = 10000;   /* Using 10000 here because it seems to be the minimum
+    UT_ASSERT_EQUAL(0, os_getsockopt(sock, SOL_SOCKET, SO_SNDTIMEO, &get_time_out, &len));
+    UT_ASSERT_EQUAL(sizeof(get_time_out), len);
+    UT_ASSERT_EQUAL(0, get_time_out.tv_sec);
+    UT_ASSERT_EQUAL(0, get_time_out.tv_usec);
+    set_time_out.tv_sec = 4;
+    set_time_out.tv_usec = 10000;   /* Using 10000 here because it seems to be the minimum
                                  * resolution under Linux. */
-    UT_ASSERT_EQUAL(0, os_setsockopt(sock, SOL_SOCKET, SO_SNDTIMEO, &time_out, sizeof(time_out)));
+    UT_ASSERT_EQUAL(0, os_setsockopt(sock, SOL_SOCKET, SO_SNDTIMEO, &set_time_out, sizeof(set_time_out)));
 
-    time_out.tv_sec = 0;
-    time_out.tv_usec = 0;
-    UT_ASSERT_EQUAL(0, os_getsockopt(sock, SOL_SOCKET, SO_SNDTIMEO, &time_out, &len));
-    UT_ASSERT_EQUAL(sizeof(time_out), len);
-    UT_ASSERT_EQUAL(4, time_out.tv_sec);
-    UT_ASSERT_EQUAL(10000, time_out.tv_usec);
+    get_time_out.tv_sec = 0;
+    get_time_out.tv_usec = 0;
+    UT_ASSERT_EQUAL(0, os_getsockopt(sock, SOL_SOCKET, SO_SNDTIMEO, &get_time_out, &len));
+    UT_ASSERT_EQUAL(sizeof(get_time_out), len);
+
+    diff_time_out = os_timeval_diff(&get_time_out, &set_time_out);
+
+    /* just check the diff is >= 0 as the kernel may round the value to match
+     * some HZ constraints, so no mean to know the exact value we may get here. */
+    UT_ASSERT(diff_time_out.tv_sec + diff_time_out.tv_usec >= 0);
 
     os_closesocket(sock);
 }
