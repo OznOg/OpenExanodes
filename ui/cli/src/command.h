@@ -146,7 +146,7 @@ protected:
 		     const std::string &description,
 		     int param_group,
 		     bool hidden,
-		     bool arg_expected = false,
+		     bool arg_expected,
 		     const std::string &arg_name = "ARG",
 		     const std::string &default_value = "");
 
@@ -174,7 +174,7 @@ protected:
 		     const std::string &description,
 		     const std::set<int>& param_groups/* = std::set<int>()*/,
 		     bool hidden,
-		     bool arg_expected = false,
+		     bool arg_expected,
 		     const std::string &arg_name = "ARG",
 		     const std::string &default_value = "");
 
