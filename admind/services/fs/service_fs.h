@@ -18,7 +18,7 @@ struct fs_info_reply
   uint64_t mounted;                          /**< boolean, is the filesystem mounted on this node */
 };
 
-exa_error_code fs_update_tree(int thr_nb, fs_data_t*);
+exa_error_code fs_update_tree(admwrk_ctx_t *ctx, fs_data_t*);
 
 /**
  *  Define a FS specific iterator

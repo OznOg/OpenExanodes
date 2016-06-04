@@ -34,7 +34,7 @@
 #include "log/include/log.h"
 
 
-int cluster_clinfo_filesystem(int thr_nb, xmlNodePtr fs_node,
+int cluster_clinfo_filesystem(admwrk_ctx_t *ctx, xmlNodePtr fs_node,
 			      fs_data_t* fs, bool get_fs_size)
 {
   exa_nodeid_t nodeid;
@@ -55,7 +55,7 @@ int cluster_clinfo_filesystem(int thr_nb, xmlNodePtr fs_node,
       strlcpy(request.devpath, fs->devpath, sizeof(request.devpath));
       exa_nodeset_reset(&request.nodeliststatfs);
       exalog_debug("RPC_ADM_CLINFO_FS1(%s)", fs_get_name(fs));
-      admwrk_run_command(thr_nb, &adm_service_fs, &rpc, RPC_ADM_CLINFO_FS,
+      admwrk_run_command(ctx, &adm_service_fs, &rpc, RPC_ADM_CLINFO_FS,
 			 &request, sizeof(request));
       while (admwrk_get_reply(&rpc, &nodeid, &reply, sizeof(reply), &ret))
 	{
@@ -78,7 +78,7 @@ int cluster_clinfo_filesystem(int thr_nb, xmlNodePtr fs_node,
           exalog_debug("RPC_ADM_CLINFO_FS2(%s)",
 		       fs_get_name(fs));
 
-	  admwrk_run_command(thr_nb, &adm_service_fs, &rpc, RPC_ADM_CLINFO_FS, &request, sizeof(request));
+	  admwrk_run_command(ctx, &adm_service_fs, &rpc, RPC_ADM_CLINFO_FS, &request, sizeof(request));
 
 	  while (admwrk_get_reply(&rpc, &nodeid, &reply, sizeof(reply), &ret))
 	    {
@@ -117,7 +117,7 @@ int cluster_clinfo_filesystem(int thr_nb, xmlNodePtr fs_node,
   return ret;
 }
 
-void local_clinfo_fs(int thr_nb, void *msg)
+void local_clinfo_fs(admwrk_ctx_t *ctx, void *msg)
 {
   struct fs_info_reply reply;
   fs_request_t *request;
@@ -152,7 +152,7 @@ void local_clinfo_fs(int thr_nb, void *msg)
   }
 
   COMPILE_TIME_ASSERT(sizeof(reply) <= ADM_MAILBOX_PAYLOAD_PER_NODE);
-  admwrk_reply(thr_nb, &reply, sizeof(reply));
+  admwrk_reply(ctx, &reply, sizeof(reply));
 }
 
 #endif

@@ -50,7 +50,7 @@ __export(EXA_ADM_DGDELETE) struct dgdelete_params
 /**
  * dgdelete cluster command
  */
-static void cluster_dgdelete(int thr_nb, void *data, cl_error_desc_t *err_desc)
+static void cluster_dgdelete(admwrk_ctx_t *ctx, void *data, cl_error_desc_t *err_desc)
 {
   const struct dgdelete_params *params = data;
   struct adm_group *group;
@@ -90,7 +90,7 @@ static void cluster_dgdelete(int thr_nb, void *data, cl_error_desc_t *err_desc)
   uuid_copy(& info.group_uuid, & group->uuid);
   info.force             = params->force;
 
-  error_val = admwrk_exec_command(thr_nb, &adm_service_admin, RPC_ADM_DGDELETE,
+  error_val = admwrk_exec_command(ctx, &adm_service_admin, RPC_ADM_DGDELETE,
 				  &info, sizeof(info));
   if (error_val != EXA_SUCCESS)
     {
@@ -121,7 +121,7 @@ static void remove_exports_in_group(const struct adm_group *group)
 }
 
 static void
-local_exa_dgdelete (int thr_nb, void *msg)
+local_exa_dgdelete (admwrk_ctx_t *ctx, void *msg)
 {
   int ret, barrier_ret;
   struct adm_group *group;
@@ -134,7 +134,7 @@ local_exa_dgdelete (int thr_nb, void *msg)
   group->committed = false;
 
   ret = conf_save_synchronous();
-  barrier_ret = admwrk_barrier(thr_nb, ret, "Saving configuration file");
+  barrier_ret = admwrk_barrier(ctx, ret, "Saving configuration file");
   if (barrier_ret == -ADMIND_ERR_NODE_DOWN)
     goto metadata_corruption;
   else if (barrier_ret != EXA_SUCCESS)
@@ -152,7 +152,7 @@ local_exa_dgdelete (int thr_nb, void *msg)
 
   ret = conf_save_synchronous();
   EXA_ASSERT(ret == EXA_SUCCESS);
-  barrier_ret = admwrk_barrier(thr_nb, ret, "Saving configuration file group");
+  barrier_ret = admwrk_barrier(ctx, ret, "Saving configuration file group");
   if (barrier_ret != EXA_SUCCESS)
     goto local_exa_dgdelete_end;
 
@@ -162,7 +162,7 @@ metadata_corruption:
   ret = -ADMIND_ERR_METADATA_CORRUPTION;
 
  local_exa_dgdelete_end:
-  admwrk_ack(thr_nb, ret);
+  admwrk_ack(ctx, ret);
 }
 
 /**

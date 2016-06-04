@@ -46,7 +46,7 @@ static void local_fill_data_from_config(fs_data_t* generic_fs, struct adm_fs *fs
  *
  * \return 0 on success or an error code.
  */
-static exa_error_code local_check_before_start(int thr_nb, fs_data_t* fs)
+static exa_error_code local_check_before_start(admwrk_ctx_t *ctx, fs_data_t* fs)
 {
   struct adm_group *group = fs_get_volume(fs)->group;
   if (group->started)
@@ -62,7 +62,7 @@ static exa_error_code local_check_before_start(int thr_nb, fs_data_t* fs)
  *
  * \return 0 on success or an error code.
  */
-static exa_error_code local_create_fs(int thr_nb, fs_data_t* fs)
+static exa_error_code local_create_fs(admwrk_ctx_t *ctx, fs_data_t* fs)
 {
   int ret_mkfs;
 
@@ -102,7 +102,7 @@ static exa_error_code local_create_fs(int thr_nb, fs_data_t* fs)
  *
  * \return 0 on success or an error code.
  */
-static exa_error_code local_start_fs(int thr_nb, const exa_nodeset_t* nodes,
+static exa_error_code local_start_fs(admwrk_ctx_t *ctx, const exa_nodeset_t* nodes,
 				     const exa_nodeset_t* nodes_read_only,
 				     fs_data_t* fs, exa_nodeset_t* start_succeeded,
 				     int recovery)
@@ -117,7 +117,7 @@ static exa_error_code local_start_fs(int thr_nb, const exa_nodeset_t* nodes,
   if (!exa_nodeset_is_empty(nodes_read_only))
     {
       int ret;
-      ret = clustered_start_fs(thr_nb, nodes, nodes_read_only, fs,
+      ret = clustered_start_fs(ctx, nodes, nodes_read_only, fs,
                                start_succeeded, recovery);
       if (ret == -VRT_ERR_VOLUME_IS_PRIVATE)
 	{
@@ -140,7 +140,7 @@ static exa_error_code local_start_fs(int thr_nb, const exa_nodeset_t* nodes,
   if (!recovery)
     {
       /* Start the volume on nodes */
-      ret = fs_data_device_start(thr_nb, fs, nodes, false);
+      ret = fs_data_device_start(ctx, fs, nodes, false);
       if (ret)
       {
           exa_nodeset_reset(start_succeeded);
@@ -155,7 +155,7 @@ static exa_error_code local_start_fs(int thr_nb, const exa_nodeset_t* nodes,
   info.recovery = recovery;
   memcpy(&info.fs, fs, sizeof(info.fs));
   exa_nodeset_copy(&info.nodes, nodes);
-  ret = admwrk_exec_command(thr_nb, MY_SERVICE_ID, RPC_SERVICE_FS_STARTSTOP,
+  ret = admwrk_exec_command(ctx, MY_SERVICE_ID, RPC_SERVICE_FS_STARTSTOP,
                             &info, sizeof(info));
   if (ret && ret != -FS_WARN_MOUNTED_READONLY)
     {
@@ -163,7 +163,7 @@ static exa_error_code local_start_fs(int thr_nb, const exa_nodeset_t* nodes,
       /* Try to stop the volume on the failed node */
       if (!recovery)
 	{
-          fs_data_device_stop(thr_nb, fs, nodes, false /* force */,
+          fs_data_device_stop(ctx, fs, nodes, false /* force */,
                               ADM_GOAL_CHANGE_VOLUME);
 	}
       return ret;
@@ -188,7 +188,7 @@ static exa_error_code local_start_fs(int thr_nb, const exa_nodeset_t* nodes,
  *
  * \return 0 on success or an error code.
  */
-static exa_error_code local_stop_fs(int thr_nb, const exa_nodeset_t *nodes,
+static exa_error_code local_stop_fs(admwrk_ctx_t *ctx, const exa_nodeset_t *nodes,
                                     fs_data_t *fs, bool force,
                                     adm_goal_change_t goal_change,
                                     exa_nodeset_t* stop_succeeded)
@@ -200,7 +200,7 @@ static exa_error_code local_stop_fs(int thr_nb, const exa_nodeset_t *nodes,
   /* If read-only, bypass one-node checking and go in clustered mode */
   if (!exa_nodeset_is_empty(&fs->goal_started_ro))
     {
-      return clustered_stop_fs(thr_nb, nodes, fs, force, goal_change,
+      return clustered_stop_fs(ctx, nodes, fs, force, goal_change,
                                stop_succeeded);
     }
 
@@ -215,7 +215,7 @@ static exa_error_code local_stop_fs(int thr_nb, const exa_nodeset_t *nodes,
   info.action = startstop_action_umount;
   memcpy(&info.fs, fs, sizeof(info.fs));
   exa_nodeset_copy(&info.nodes, nodes);
-  ret = admwrk_exec_command(thr_nb, MY_SERVICE_ID, RPC_SERVICE_FS_STARTSTOP, &info, sizeof(info));
+  ret = admwrk_exec_command(ctx, MY_SERVICE_ID, RPC_SERVICE_FS_STARTSTOP, &info, sizeof(info));
   /* Stopping node failed. */
   if (! force && (ret != EXA_SUCCESS))
     {
@@ -225,7 +225,7 @@ static exa_error_code local_stop_fs(int thr_nb, const exa_nodeset_t *nodes,
 
 vlstop:
   /* Stop the volume */
-  ret = fs_data_device_stop(thr_nb, fs, nodes, force, goal_change);
+  ret = fs_data_device_stop(ctx, fs, nodes, force, goal_change);
 
   if ( (! force) &&
        (ret != -ADMIND_ERR_NODE_DOWN) ) return ret;
@@ -239,7 +239,7 @@ vlstop:
  *
  * \return 0 on success or an error code.
  */
-static exa_error_code local_resize_fs(int thr_nb, fs_data_t* fs, int64_t sizeKB)
+static exa_error_code local_resize_fs(admwrk_ctx_t *ctx, fs_data_t* fs, int64_t sizeKB)
 {
   int ret,ret_stop, ret_finalize = EXA_SUCCESS;
   exa_nodeset_t list;
@@ -250,7 +250,7 @@ static exa_error_code local_resize_fs(int thr_nb, fs_data_t* fs, int64_t sizeKB)
 
   if (!strcmp(FS_NAME_XFS, fs->fstype))
     {
-      return generic_fs_mounted_grow(thr_nb, fs, sizeKB);
+      return generic_fs_mounted_grow(ctx, fs, sizeKB);
     }
 
   /* Now, only the ext3 case */
@@ -262,7 +262,7 @@ static exa_error_code local_resize_fs(int thr_nb, fs_data_t* fs, int64_t sizeKB)
   exa_nodeset_add(&list, adm_my_id);
 
   /* Start the data volume (this must fails if the volume is already started) */
-  ret = fs_data_device_start(thr_nb, fs, &list, false);
+  ret = fs_data_device_start(ctx, fs, &list, false);
   if (ret)
       goto stop_and_exit;
 
@@ -276,7 +276,7 @@ static exa_error_code local_resize_fs(int thr_nb, fs_data_t* fs, int64_t sizeKB)
   if (sizeKB == 0 || sizeKB >= fs->sizeKB) /* grow */
     {
       /* resize the volume */
-      ret = vrt_master_volume_resize(thr_nb, volume, sizeKB);
+      ret = vrt_master_volume_resize(ctx, volume, sizeKB);
       if (ret) goto finalize_stop_and_exit;
 
       /* print a nice message and resize the filesystem */
@@ -300,7 +300,7 @@ static exa_error_code local_resize_fs(int thr_nb, fs_data_t* fs, int64_t sizeKB)
       if (ret) goto finalize_stop_and_exit;
 
       /* resize the volume */
-      ret = vrt_master_volume_resize(thr_nb, volume, sizeKB);
+      ret = vrt_master_volume_resize(ctx, volume, sizeKB);
       if (ret) goto finalize_stop_and_exit;
     }
 
@@ -320,7 +320,7 @@ static exa_error_code local_resize_fs(int thr_nb, fs_data_t* fs, int64_t sizeKB)
 
  stop_and_exit:
   /* Stop the data volume */
-  ret_stop = fs_data_device_stop(thr_nb, fs, &list, false /* force */,
+  ret_stop = fs_data_device_stop(ctx, fs, &list, false /* force */,
                                  ADM_GOAL_CHANGE_VOLUME);
   if (ret) return ret;
   if (ret_finalize) return ret_finalize;
@@ -333,11 +333,11 @@ static exa_error_code local_resize_fs(int thr_nb, fs_data_t* fs, int64_t sizeKB)
  *
  * \return 0 on success or an error code.
  */
-static exa_error_code local_specific_fs_recovery(int thr_nb, fs_data_t* fs)
+static exa_error_code local_specific_fs_recovery(admwrk_ctx_t *ctx, fs_data_t* fs)
 {
   exa_nodeset_t start_succeed;
 
-  exa_error_code error = local_start_fs(thr_nb, &fs->goal_started, &fs->goal_started_ro,
+  exa_error_code error = local_start_fs(ctx, &fs->goal_started, &fs->goal_started_ro,
 					fs, &start_succeed, true);
   if (error != EXA_SUCCESS)
     {
@@ -366,7 +366,7 @@ static bool local_is_volume_private(void)
  *
  * \return 0 on success or an error code.
  */
-static exa_error_code local_tune(int thr_nb, fs_data_t* fs,
+static exa_error_code local_tune(admwrk_ctx_t *ctx, fs_data_t* fs,
 				 const char* parameter, const char* value)
 {
   if (!strcmp(parameter, EXA_FSTUNE_READAHEAD))
@@ -377,10 +377,10 @@ static exa_error_code local_tune(int thr_nb, fs_data_t* fs,
       if (ret != EXA_SUCCESS) {
 	  return ret;
       }
-      return vrt_master_volume_tune_readahead(thr_nb, fs_get_volume(fs),
+      return vrt_master_volume_tune_readahead(ctx, fs_get_volume(fs),
 					      ra_value);
     }
-  return generic_fs_tune(thr_nb, fs, parameter, value);
+  return generic_fs_tune(ctx, fs, parameter, value);
 }
 
 /**
@@ -393,7 +393,7 @@ static exa_error_code local_tune(int thr_nb, fs_data_t* fs,
  * \return false if it was the last name or an error occurred, true instead
  *         and fill tune_name_value
  */
-static bool local_gettune(int thr_nb, fs_data_t* fs,
+static bool local_gettune(admwrk_ctx_t *ctx, fs_data_t* fs,
 				struct tune_t* tune, int* error)
 {
   *error = EXA_SUCCESS;
@@ -418,7 +418,7 @@ static bool local_gettune(int thr_nb, fs_data_t* fs,
     {
       tune_set_name(tune, "");
     }
-  return generic_fs_gettune(thr_nb, fs, tune, error);
+  return generic_fs_gettune(ctx, fs, tune, error);
 }
 
 /**

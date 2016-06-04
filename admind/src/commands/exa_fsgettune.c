@@ -35,7 +35,7 @@ __export(EXA_ADM_FSGETTUNE) struct fsgettune_params
  * - call the gettune callback for this type of FS, as many times as required.
  */
 static void
-cluster_fsgettune(int thr_nb, void *data, cl_error_desc_t *err_desc)
+cluster_fsgettune(admwrk_ctx_t *ctx, void *data, cl_error_desc_t *err_desc)
 {
   const struct fsgettune_params *params = data;
   fs_data_t fs;
@@ -76,7 +76,7 @@ cluster_fsgettune(int thr_nb, void *data, cl_error_desc_t *err_desc)
     goto error_tunelist_create;
 
   /* get first */
-  while (fs_definition->gettune(thr_nb, &fs, tune_value, &error_val))
+  while (fs_definition->gettune(ctx, &fs, tune_value, &error_val))
     {
       error_val = tunelist_add_tune(tunelist,
 				    tune_value);

@@ -61,7 +61,7 @@ struct vlresize_info
 /** \brief Implements the vlresize command
  */
 static void
-cluster_vlresize(int thr_nb, void *data, cl_error_desc_t *err_desc)
+cluster_vlresize(admwrk_ctx_t *ctx, void *data, cl_error_desc_t *err_desc)
 {
     const struct vlresize_params *params = data;
     struct adm_group *group;
@@ -104,11 +104,11 @@ cluster_vlresize(int thr_nb, void *data, cl_error_desc_t *err_desc)
     }
 
     /* ask to start volume */
-    error_val = vrt_master_volume_resize(thr_nb, volume, params->size);
+    error_val = vrt_master_volume_resize(ctx, volume, params->size);
     set_error(err_desc, error_val, NULL);
 }
 
-int vrt_master_volume_resize(int thr_nb, struct adm_volume *volume,
+int vrt_master_volume_resize(admwrk_ctx_t *ctx, struct adm_volume *volume,
                              uint64_t sizeKB)
 {
     int error_val;
@@ -174,7 +174,7 @@ int vrt_master_volume_resize(int thr_nb, struct adm_volume *volume,
         return -ADMIND_ERR_LICENSE;
     }
 
-    error_val = admwrk_exec_command(thr_nb, &adm_service_admin,
+    error_val = admwrk_exec_command(ctx, &adm_service_admin,
                                     RPC_ADM_VLRESIZE, &info, sizeof(info));
     if(error_val != EXA_SUCCESS)
 	exalog_error("Failed to resize volume '%s': %s (%d)",
@@ -183,7 +183,7 @@ int vrt_master_volume_resize(int thr_nb, struct adm_volume *volume,
     return error_val;
 }
 
-static void local_exa_vlresize (int thr_nb, void *msg)
+static void local_exa_vlresize (admwrk_ctx_t *ctx, void *msg)
 {
     struct adm_group *group;
     struct adm_volume *volume = NULL;
@@ -224,12 +224,12 @@ static void local_exa_vlresize (int thr_nb, void *msg)
     is_growing = info->size > old_size;
 
 check_barrier:
-    barrier_ret = admwrk_barrier(thr_nb, ret, "Resizing - step 0 : "
+    barrier_ret = admwrk_barrier(ctx, ret, "Resizing - step 0 : "
                                  "Checking XML configuration");
     if (barrier_ret != EXA_SUCCESS)
         goto local_exa_vlresize_end_no_resume; /* Nothing to undo */
 
-    ret = vrt_group_suspend_threads_barrier(thr_nb, &group->uuid);
+    ret = vrt_group_suspend_threads_barrier(ctx, &group->uuid);
     if (ret != EXA_SUCCESS)
         goto local_exa_vlresize_end;
 
@@ -255,7 +255,7 @@ check_barrier:
 
     }
 
-    barrier_ret = admwrk_barrier(thr_nb, ret, "Resizing - step 1 : "
+    barrier_ret = admwrk_barrier(ctx, ret, "Resizing - step 1 : "
                                  "export shrinks or volume grows");
     if (barrier_ret == -ADMIND_ERR_NODE_DOWN)
         goto metadata_corruption;
@@ -266,9 +266,9 @@ check_barrier:
     if (is_growing)
     {
         /* Synchronize the group SBs */
-        ret = adm_vrt_group_sync_sb(thr_nb, group);
+        ret = adm_vrt_group_sync_sb(ctx, group);
 
-        barrier_ret = admwrk_barrier(thr_nb, ret, "Resizing - step 1.1 : "
+        barrier_ret = admwrk_barrier(ctx, ret, "Resizing - step 1.1 : "
                                      "synchronize the group SBs");
         if (barrier_ret == -ADMIND_ERR_NODE_DOWN)
             goto metadata_corruption;
@@ -281,7 +281,7 @@ check_barrier:
     volume->size = info->size;
     ret = conf_save_synchronous();
 
-    barrier_ret = admwrk_barrier(thr_nb, ret, "Resizing - step 2 : "
+    barrier_ret = admwrk_barrier(ctx, ret, "Resizing - step 2 : "
                                  "save config file");
     if (barrier_ret == -ADMIND_ERR_NODE_DOWN)
         goto metadata_corruption;
@@ -303,7 +303,7 @@ check_barrier:
                                        info->size);
     }
 
-    barrier_ret = admwrk_barrier(thr_nb, ret, "Resizing - step 3 : "
+    barrier_ret = admwrk_barrier(ctx, ret, "Resizing - step 3 : "
                                  "export grows or volume shrinks");
     if (barrier_ret == -ADMIND_ERR_NODE_DOWN)
         goto metadata_corruption;
@@ -314,9 +314,9 @@ check_barrier:
     if (!is_growing)
     {
         /* Synchronize the group SBs */
-        ret = adm_vrt_group_sync_sb(thr_nb, group);
+        ret = adm_vrt_group_sync_sb(ctx, group);
 
-        barrier_ret = admwrk_barrier(thr_nb, ret, "Resizing - step 3.1 : "
+        barrier_ret = admwrk_barrier(ctx, ret, "Resizing - step 3.1 : "
                                      "synchronyse the group SBs");
         if (barrier_ret == -ADMIND_ERR_NODE_DOWN)
             goto metadata_corruption;
@@ -332,14 +332,14 @@ metadata_corruption:
     ret = -ADMIND_ERR_METADATA_CORRUPTION;
 
 local_exa_vlresize_end:
-    barrier_ret = vrt_group_resume_threads_barrier(thr_nb, &group->uuid);
+    barrier_ret = vrt_group_resume_threads_barrier(ctx, &group->uuid);
     /* What to do if that fails... I don't know. */
     if (barrier_ret != 0)
         ret = barrier_ret;
 
 local_exa_vlresize_end_no_resume:
     exalog_debug("Local volume resize command is complete");
-    admwrk_ack(thr_nb, ret);
+    admwrk_ack(ctx, ret);
 }
 
 /**

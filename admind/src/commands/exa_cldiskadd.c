@@ -42,7 +42,7 @@ struct msg_diskadd
 };
 
 static void
-cluster_cldiskadd(int thr_nb, void *data, cl_error_desc_t *err_desc)
+cluster_cldiskadd(admwrk_ctx_t *ctx, void *data, cl_error_desc_t *err_desc)
 {
   const struct cldiskadd_params *params = data;
   exa_nodeset_t nodes_up;
@@ -107,7 +107,7 @@ cluster_cldiskadd(int thr_nb, void *data, cl_error_desc_t *err_desc)
 
   uuid_generate(&msg.uuid);
 
-  ret = admwrk_exec_command(thr_nb, &adm_service_rdev,
+  ret = admwrk_exec_command(ctx, &adm_service_rdev,
 			    RPC_ADM_CLDISKADD, &msg, sizeof(msg));
 
   set_error(err_desc, ret, NULL);
@@ -115,7 +115,7 @@ cluster_cldiskadd(int thr_nb, void *data, cl_error_desc_t *err_desc)
 
 
 static void
-local_diskadd(int thr_nb, void *msg)
+local_diskadd(admwrk_ctx_t *ctx, void *msg)
 {
   struct msg_diskadd *request = msg;
   char step[EXA_MAXSIZE_LINE + 1] = "";
@@ -139,7 +139,7 @@ local_diskadd(int thr_nb, void *msg)
 
   os_snprintf(step, EXA_MAXSIZE_LINE + 1, "Get info about %s", disk->path);
 
-  rv = admwrk_barrier(thr_nb, rv, step);
+  rv = admwrk_barrier(ctx, rv, step);
 
   if (rv != EXA_SUCCESS)
   {
@@ -154,7 +154,7 @@ local_diskadd(int thr_nb, void *msg)
 
   os_snprintf(step, EXA_MAXSIZE_LINE + 1, "Initialize %s", disk->path);
 
-  rv = admwrk_barrier(thr_nb, rv, step);
+  rv = admwrk_barrier(ctx, rv, step);
 
   if (rv != EXA_SUCCESS)
   {
@@ -176,11 +176,11 @@ local_diskadd(int thr_nb, void *msg)
   /* FIXME: Some error handling would be nice. */
   EXA_ASSERT(rv == EXA_SUCCESS);
 
-  admwrk_barrier(thr_nb, rv, "Save the configuration");
+  admwrk_barrier(ctx, rv, "Save the configuration");
 
-  rv = adm_service_rdev.diskadd(thr_nb, node, disk, request->path);
+  rv = adm_service_rdev.diskadd(ctx, node, disk, request->path);
 
-  rv = admwrk_barrier(thr_nb, rv, "Start the disk");
+  rv = admwrk_barrier(ctx, rv, "Start the disk");
   if (rv != EXA_SUCCESS)
     goto end;
 
@@ -209,7 +209,7 @@ local_diskadd(int thr_nb, void *msg)
   exalog_debug("added disk %s:%s ", disk_node->name, disk->path);
 
 end:
-  admwrk_ack(thr_nb, rv);
+  admwrk_ack(ctx, rv);
 }
 
 

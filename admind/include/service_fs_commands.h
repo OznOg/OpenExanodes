@@ -12,6 +12,7 @@
 #define __SERVICE_FS_COMMANDS_H__
 
 #include "admind/src/admind.h"
+#include "admind/src/rpc.h"
 #include "common/include/exa_nodeset.h"
 #include "os/include/os_inttypes.h"
 #include "fs/include/fs_data.h"
@@ -19,9 +20,9 @@
 struct adm_group;
 struct adm_fs;
 
-int fs_start_all_fs(int thr_nb, const struct adm_group *group);
+int fs_start_all_fs(admwrk_ctx_t *ctx, const struct adm_group *group);
 
-int fs_stop_all_fs(int thr_nb, struct adm_group *group,
+int fs_stop_all_fs(admwrk_ctx_t *ctx, struct adm_group *group,
 		   const exa_nodeset_t *nodelist,
 		   int force, adm_goal_change_t goal_change);
 

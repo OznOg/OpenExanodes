@@ -15,9 +15,9 @@
 
 #include "fs/include/exa_fsd.h"
 
-int cluster_clinfo_filesystem(int thr_nb, xmlNodePtr fs_node,
+int cluster_clinfo_filesystem(admwrk_ctx_t *ctx, xmlNodePtr fs_node,
 			      fs_data_t* fs, bool get_fs_size);
-void local_clinfo_fs(int thr_nb, void *msg);
+void local_clinfo_fs(admwrk_ctx_t *ctx, void *msg);
 
 #endif
 #endif

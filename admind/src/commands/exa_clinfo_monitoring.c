@@ -34,7 +34,7 @@ struct monitoring_reply
     md_service_status_t status;
 };
 
-void local_clinfo_monitoring(int thr_nb, void *msg)
+void local_clinfo_monitoring(admwrk_ctx_t *ctx, void *msg)
 {
     struct monitoring_reply reply;
     memset(&reply, 0, sizeof(reply));
@@ -42,11 +42,11 @@ void local_clinfo_monitoring(int thr_nb, void *msg)
     /* ask for agentx status */
     md_client_control_status(adm_wt_get_localmb(), &reply.status);
 
-    admwrk_reply(thr_nb, &reply, sizeof(reply));
+    admwrk_reply(ctx, &reply, sizeof(reply));
 }
 
 
-int cluster_clinfo_monitoring(int thr_nb, xmlNodePtr cluster_node)
+int cluster_clinfo_monitoring(admwrk_ctx_t *ctx, xmlNodePtr cluster_node)
 {
   struct monitoring_reply reply;
   exa_nodeid_t nodeid;
@@ -60,7 +60,7 @@ int cluster_clinfo_monitoring(int thr_nb, xmlNodePtr cluster_node)
   if (!adm_cluster.monitoring_parameters.started)
       return EXA_SUCCESS;
 
-  inst_get_current_membership(thr_nb, &adm_service_monitor, &monitoring_started_nodes);
+  inst_get_current_membership(ctx, &adm_service_monitor, &monitoring_started_nodes);
   adm_nodeset_set_all(&monitoring_stopped_nodes);
 
   monitoring_node = xmlNewChild(cluster_node, NULL, BAD_CAST(EXA_CONF_MONITORING), NULL);
@@ -73,7 +73,7 @@ int cluster_clinfo_monitoring(int thr_nb, xmlNodePtr cluster_node)
 				 adm_cluster.monitoring_parameters.snmpd_port);
 
   exalog_debug("RPC_ADM_CLINFO_MONITORING");
-  admwrk_run_command(thr_nb, &adm_service_monitor, &rpc, RPC_ADM_CLINFO_MONITORING, NULL, 0);
+  admwrk_run_command(ctx, &adm_service_monitor, &rpc, RPC_ADM_CLINFO_MONITORING, NULL, 0);
   while (admwrk_get_reply(&rpc, &nodeid, &reply, sizeof(reply), &ret))
   {
       if ((ret == -ADMIND_ERR_NODE_DOWN) || (reply.status == MD_SERVICE_STOPPED))

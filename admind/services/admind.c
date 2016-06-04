@@ -47,7 +47,7 @@ static exa_nodeset_t examsg_nodeset;
 
 
 static int
-admin_init(int thr_nb)
+admin_init(admwrk_ctx_t *ctx)
 {
   struct adm_node *node;
 
@@ -103,14 +103,14 @@ admin_init(int thr_nb)
 }
 
 static void
-admin_verify_license_unicity(int thr_nb)
+admin_verify_license_unicity(admwrk_ctx_t *ctx)
 {
   exa_nodeid_t nodeid;
   admwrk_request_t handle;
   int err;
   const exa_uuid_t *license_uuid = adm_license_get_uuid(exanodes_license);
 
-  admwrk_run_command(thr_nb, &adm_service_admin, &handle,
+  admwrk_run_command(ctx, &adm_service_admin, &handle,
 		     RPC_SERVICE_ADMIND_CHECK_LICENSE, license_uuid,
 		     sizeof(exa_uuid_t));
 
@@ -138,7 +138,7 @@ admin_verify_license_unicity(int thr_nb)
 }
 
 static void
-admin_check_license_local(int thr_nb, void *msg)
+admin_check_license_local(admwrk_ctx_t *ctx, void *msg)
 {
   const exa_uuid_t *leader_license_uuid = (exa_uuid_t *)msg;
   const exa_uuid_t *my_license_uuid = adm_license_get_uuid(exanodes_license);
@@ -148,7 +148,7 @@ admin_check_license_local(int thr_nb, void *msg)
 
   if (uuid_is_equal(leader_license_uuid, my_license_uuid))
   {
-    admwrk_ack(thr_nb, EXA_SUCCESS);
+    admwrk_ack(ctx, EXA_SUCCESS);
   }
   else
   {
@@ -160,7 +160,7 @@ admin_check_license_local(int thr_nb, void *msg)
     /* FIXME: admwrk_ack only sets the reply, which is sent only after
      * returning from this function. We won't return as we'll assert...
      */
-    admwrk_ack(thr_nb, -ADMIND_ERR_LICENSE);
+    admwrk_ack(ctx, -ADMIND_ERR_LICENSE);
     exalog_error("Wrong license UUID " UUID_FMT ", expected " UUID_FMT,
 		    UUID_VAL(my_license_uuid), UUID_VAL(leader_license_uuid));
     EXA_ASSERT_VERBOSE(false, "Wrong license UUID " UUID_FMT
@@ -170,20 +170,18 @@ admin_check_license_local(int thr_nb, void *msg)
 }
 
 static int
-admin_recover(int thr_nb)
+admin_recover(admwrk_ctx_t *ctx)
 {
   EXA_ASSERT_VERBOSE(adm_is_leader(), "the clustered command must run on the master");
-  EXA_ASSERT_VERBOSE(thr_nb == RECOVERY_THR_ID,
-                     "the recovery must use working thread %d", RECOVERY_THR_ID);
 
-  admin_verify_license_unicity(thr_nb);
+  admin_verify_license_unicity(ctx);
 
-  return admwrk_exec_command(thr_nb, &adm_service_admin, RPC_SERVICE_ADMIND_RECOVER, NULL, 0);
+  return admwrk_exec_command(ctx, &adm_service_admin, RPC_SERVICE_ADMIND_RECOVER, NULL, 0);
 }
 
 
 static int
-save_config(int thr_nb, const char *buffer, int size, char *error_msg)
+save_config(admwrk_ctx_t *ctx, const char *buffer, int size, char *error_msg)
 {
   int ret;
 
@@ -232,7 +230,7 @@ static void update_examsgd_node_list(void)
 }
 
 static void
-admin_recover_local(int thr_nb, void *msg)
+admin_recover_local(admwrk_ctx_t *ctx, void *msg)
 {
   char error_msg[EXA_MAXSIZE_LINE] = "\0";
   struct config_version_info info;
@@ -265,7 +263,7 @@ admin_recover_local(int thr_nb, void *msg)
       && !evmgr_mship_token_manager_is_connected())
       tm_err = -ADMIND_WARN_TOKEN_MANAGER_DISCONNECTED;
 
-  ret = admwrk_barrier(thr_nb, tm_err, "Sending token manager status");
+  ret = admwrk_barrier(ctx, tm_err, "Sending token manager status");
 
   admwrk_bcast(admwrk_ctx(), &rpc, EXAMSG_SERVICE_ADMIND_VERSION_ID,
 	       &info, sizeof(info));
@@ -365,7 +363,7 @@ admin_recover_local(int thr_nb, void *msg)
   {
     exalog_debug("Save the new config");
 
-    ret = save_config(thr_nb, buffer, size, error_msg);
+    ret = save_config(ctx, buffer, size, error_msg);
     EXA_ASSERT_VERBOSE(ret == EXA_SUCCESS, "save_config(): %s", exa_error_msg(ret));
 
     os_free(adm_config_buffer);
@@ -373,20 +371,20 @@ admin_recover_local(int thr_nb, void *msg)
     adm_config_size = size;
   }
 
-  ret = admwrk_barrier_msg(thr_nb, ret, "ADMIND: Save the config file",
+  ret = admwrk_barrier_msg(ctx, ret, "ADMIND: Save the config file",
 			   "Failed to parse the config file: %s", error_msg);
 
   update_examsgd_node_list();
 
 ack:
 
-  admwrk_ack(thr_nb, ret);
+  admwrk_ack(ctx, ret);
 
 }
 
 
 static int
-admin_nodestop(int thr_nb, const exa_nodeset_t *nodes_to_stop)
+admin_nodestop(admwrk_ctx_t *ctx, const exa_nodeset_t *nodes_to_stop)
 {
   if (!adm_nodeset_contains_me(nodes_to_stop))
     return EXA_SUCCESS;
@@ -406,22 +404,22 @@ admin_nodestop(int thr_nb, const exa_nodeset_t *nodes_to_stop)
 
 
 static void
-admin_stop_local(int thr_nb, void *msg)
+admin_stop_local(admwrk_ctx_t *ctx, void *msg)
 {
   exa_nodeset_t *nodes_to_stop = &((stop_data_t *)msg)->nodes_to_stop;
 
-  admin_nodestop(thr_nb, nodes_to_stop);
-  admwrk_ack(thr_nb, EXA_SUCCESS);
+  admin_nodestop(ctx, nodes_to_stop);
+  admwrk_ack(ctx, EXA_SUCCESS);
 }
 
 
 static int
-admin_stop(int thr_nb, const stop_data_t *stop_data)
+admin_stop(admwrk_ctx_t *ctx, const stop_data_t *stop_data)
 {
   int error_val;
   exalog_debug("admind stop");
 
-  error_val = admwrk_exec_command(thr_nb, &adm_service_admin, RPC_SERVICE_ADMIND_STOP,
+  error_val = admwrk_exec_command(ctx, &adm_service_admin, RPC_SERVICE_ADMIND_STOP,
                                   stop_data, sizeof(*stop_data));
 
   return error_val;
@@ -429,7 +427,7 @@ admin_stop(int thr_nb, const stop_data_t *stop_data)
 
 
 static int
-admin_shutdown(int thr_nb)
+admin_shutdown(admwrk_ctx_t *ctx)
 {
   exa_nodeid_t nodeid;
 

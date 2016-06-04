@@ -104,7 +104,7 @@ static bool vrt_group_is_administrable(const struct adm_group *group)
                   >= quotient_ceil64(exa_nodeset_count(&nodes_with_disks), 2);
 }
 
-void local_clinfo_group_disk(int thr_nb, void *msg)
+void local_clinfo_group_disk(admwrk_ctx_t *ctx, void *msg)
 {
   disk_rebuild_info_reply_t reply;
   disk_rebuild_info_request_t *request;
@@ -116,11 +116,11 @@ void local_clinfo_group_disk(int thr_nb, void *msg)
                                            &reply.info);
 
   COMPILE_TIME_ASSERT(sizeof(reply) <= ADM_MAILBOX_PAYLOAD_PER_NODE);
-  admwrk_reply(thr_nb, &reply, sizeof(reply));
+  admwrk_reply(ctx, &reply, sizeof(reply));
 }
 
 
-int cluster_clinfo_group_disks(int thr_nb, xmlNodePtr group_node, struct adm_group *group)
+int cluster_clinfo_group_disks(admwrk_ctx_t *ctx, xmlNodePtr group_node, struct adm_group *group)
 {
   xmlNodePtr physical_node;
   xmlNodePtr disk_node;
@@ -190,7 +190,7 @@ int cluster_clinfo_group_disks(int thr_nb, xmlNodePtr group_node, struct adm_gro
       strlcpy(request.node_name, node->name, sizeof(request.node_name));
       uuid_copy(&request.device_uuid, &disk->vrt_uuid);
 
-      admwrk_run_command(thr_nb, &adm_service_vrt, &rpc,
+      admwrk_run_command(ctx, &adm_service_vrt, &rpc,
                          RPC_ADM_CLINFO_GROUP_DISK, &request, sizeof(request));
 
       while (admwrk_get_reply(&rpc, &nodeid, &reply, sizeof(reply), &ret))
@@ -248,7 +248,7 @@ int cluster_clinfo_group_disks(int thr_nb, xmlNodePtr group_node, struct adm_gro
 }
 
 
-int cluster_clinfo_groups(int thr_nb, xmlNodePtr exanodes_node,
+int cluster_clinfo_groups(admwrk_ctx_t *ctx, xmlNodePtr exanodes_node,
 			  bool get_disks_info, bool get_vl_info,
 			  bool get_fs_info, bool get_fs_size)
 {
@@ -328,7 +328,7 @@ int cluster_clinfo_groups(int thr_nb, xmlNodePtr exanodes_node,
     /* Get disks */
     if (get_disks_info)
     {
-      ret = cluster_clinfo_group_disks(thr_nb, group_node, group);
+      ret = cluster_clinfo_group_disks(ctx, group_node, group);
       if (ret != EXA_SUCCESS)
 	return ret;
     }
@@ -336,7 +336,7 @@ int cluster_clinfo_groups(int thr_nb, xmlNodePtr exanodes_node,
     /* Get volumes */
     if (get_vl_info || get_fs_info)
     {
-	ret = cluster_clinfo_volumes(thr_nb, group_node, group,
+	ret = cluster_clinfo_volumes(ctx, group_node, group,
 				     get_fs_info, get_fs_size);
       if (ret != EXA_SUCCESS)
 	return ret;

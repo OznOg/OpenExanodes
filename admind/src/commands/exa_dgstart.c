@@ -37,21 +37,21 @@ __export(EXA_ADM_DGSTART) struct dgstart_params
     char groupname[EXA_MAXSIZE_GROUPNAME + 1];
   };
 
-static int vrt_master_group_start(int thr_nb, struct adm_group *group)
+static int vrt_master_group_start(admwrk_ctx_t *ctx, struct adm_group *group)
 {
   int ret;
 
   /* Start the disk group. */
-  ret = admwrk_exec_command(thr_nb, &adm_service_admin, RPC_ADM_DGSTART,
+  ret = admwrk_exec_command(ctx, &adm_service_admin, RPC_ADM_DGSTART,
                             &group->uuid, sizeof(exa_uuid_t));
   if (ret == EXA_SUCCESS)
     {
       /* Start all volumes in the group whose goal is STARTED. */
-      ret = vrt_master_volume_start_all(thr_nb, group);
+      ret = vrt_master_volume_start_all(ctx, group);
 
 #ifdef WITH_FS
       /* Start all file systems in the group whose goal is STARTED. */
-      ret = fs_start_all_fs(thr_nb, group);
+      ret = fs_start_all_fs(ctx, group);
 #endif
     }
 
@@ -59,7 +59,7 @@ static int vrt_master_group_start(int thr_nb, struct adm_group *group)
 }
 
 static void
-cluster_dgstart(int thr_nb, void *data, cl_error_desc_t *err_desc)
+cluster_dgstart(admwrk_ctx_t *ctx, void *data, cl_error_desc_t *err_desc)
 {
   const struct dgstart_params *params = data;
   struct adm_group *group;
@@ -86,7 +86,7 @@ cluster_dgstart(int thr_nb, void *data, cl_error_desc_t *err_desc)
     return;
   }
 
-  error_val = vrt_master_group_start(thr_nb, group);
+  error_val = vrt_master_group_start(ctx, group);
 
   if (error_val != EXA_SUCCESS)
     {
@@ -100,7 +100,7 @@ cluster_dgstart(int thr_nb, void *data, cl_error_desc_t *err_desc)
 }
 
 static void
-local_exa_dgstart (int thr_nb, void *msg)
+local_exa_dgstart (admwrk_ctx_t *ctx, void *msg)
 {
   int ret, barrier_ret;
   exa_uuid_t *group_uuid = msg;
@@ -115,13 +115,13 @@ local_exa_dgstart (int thr_nb, void *msg)
     ret = -ADMIND_ERR_RESOURCE_IS_INVALID;
   else
     ret = EXA_SUCCESS;
-  barrier_ret = admwrk_barrier(thr_nb, ret, "Checking if group is valid");
+  barrier_ret = admwrk_barrier(ctx, ret, "Checking if group is valid");
   if (barrier_ret != EXA_SUCCESS)
     goto local_exa_dgstart_end;
 
   group->goal = ADM_GROUP_GOAL_STARTED;
   ret = conf_save_synchronous();
-  barrier_ret = admwrk_barrier(thr_nb, ret, "Saving configuration");
+  barrier_ret = admwrk_barrier(ctx, ret, "Saving configuration");
   if (barrier_ret != EXA_SUCCESS)
   {
     group->goal = ADM_GROUP_GOAL_STOPPED;
@@ -129,7 +129,7 @@ local_exa_dgstart (int thr_nb, void *msg)
   }
 
   ret = local_exa_dgstart_vrt_start(group);
-  barrier_ret = admwrk_barrier(thr_nb, ret, "Starting group");
+  barrier_ret = admwrk_barrier(ctx, ret, "Starting group");
   if (barrier_ret == -VRT_INFO_GROUP_ALREADY_STARTED)
   {
     barrier_ret = EXA_SUCCESS;
@@ -144,7 +144,7 @@ local_exa_dgstart (int thr_nb, void *msg)
     group->offline = true;
     ret = EXA_SUCCESS;
   }
-  barrier_ret = admwrk_barrier(thr_nb, ret, "Compute status");
+  barrier_ret = admwrk_barrier(ctx, ret, "Compute status");
   if (barrier_ret != EXA_SUCCESS)
     goto local_exa_dgstart_end;
 
@@ -154,23 +154,23 @@ local_exa_dgstart (int thr_nb, void *msg)
       adm_nodeset_set_all(&all_nodes);
 
       ret = vrt_client_group_resync(adm_wt_get_localmb(), &group->uuid, &all_nodes);
-      barrier_ret = admwrk_barrier(thr_nb, ret, "Resyncing group");
+      barrier_ret = admwrk_barrier(ctx, ret, "Resyncing group");
       if (barrier_ret != EXA_SUCCESS)
           goto local_exa_dgstart_end;
 
       ret = vrt_client_group_post_resync(adm_wt_get_localmb(), group_uuid);
-      barrier_ret = admwrk_barrier(thr_nb, ret, "Post-resyncing group");
+      barrier_ret = admwrk_barrier(ctx, ret, "Post-resyncing group");
       if (barrier_ret != EXA_SUCCESS)
           goto local_exa_dgstart_end;
 
-      ret = adm_vrt_group_sync_sb(thr_nb, group);
-      barrier_ret = admwrk_barrier(thr_nb, ret, "Syncing superblocks");
+      ret = adm_vrt_group_sync_sb(ctx, group);
+      barrier_ret = admwrk_barrier(ctx, ret, "Syncing superblocks");
       if (barrier_ret != EXA_SUCCESS)
           goto local_exa_dgstart_end;
   }
 
   ret = vrt_client_group_resume(adm_wt_get_localmb(), group_uuid);
-  barrier_ret = admwrk_barrier(thr_nb, ret, "Resuming group");
+  barrier_ret = admwrk_barrier(ctx, ret, "Resuming group");
   if (barrier_ret != EXA_SUCCESS)
     goto local_exa_dgstart_end;
 
@@ -183,7 +183,7 @@ local_exa_dgstart (int thr_nb, void *msg)
       group->synched = true;
 
  local_exa_dgstart_end:
-  admwrk_ack(thr_nb, barrier_ret);
+  admwrk_ack(ctx, barrier_ret);
 }
 
 /**

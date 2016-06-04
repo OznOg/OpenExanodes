@@ -75,7 +75,7 @@ typedef struct
  * @brief Globally tune the lun parameter
  */
 static void
-cluster_tune_lun(int thr_nb, const struct adm_volume *volume, vltune_operation_t operation,
+cluster_tune_lun(admwrk_ctx_t *ctx, const struct adm_volume *volume, vltune_operation_t operation,
                  const char *lun_str, cl_error_desc_t *err_desc)
 {
     int ret = EXA_SUCCESS;
@@ -148,7 +148,7 @@ cluster_tune_lun(int thr_nb, const struct adm_volume *volume, vltune_operation_t
         cmd.lun = lun;
         uuid_copy(&cmd.volume_uuid, &volume->uuid);
 
-        ret =  admwrk_exec_command(thr_nb, &adm_service_admin,
+        ret =  admwrk_exec_command(ctx, &adm_service_admin,
                                    RPC_ADM_VLTUNE_LUN, &cmd, sizeof(cmd));
         if (ret != EXA_SUCCESS)
             goto error;
@@ -197,7 +197,7 @@ error:
  *
  * @return EXA_SUCCESS upon success. Otherwise an error code
  */
-void local_vltune_lun(int thr_nb, void *msg)
+void local_vltune_lun(admwrk_ctx_t *ctx, void *msg)
 {
     vltune_lun_cmd_t *cmd = msg;
     struct adm_volume *volume;
@@ -208,13 +208,13 @@ void local_vltune_lun(int thr_nb, void *msg)
     volume = adm_cluster_get_volume_by_uuid(&cmd->volume_uuid);
     if (volume == NULL)
     {
-        admwrk_ack(thr_nb, -ADMIND_ERR_UNKNOWN_VOLUMENAME);
+        admwrk_ack(ctx, -ADMIND_ERR_UNKNOWN_VOLUMENAME);
         return;
     }
 
     if (lum_exports_get_type_by_uuid(&cmd->volume_uuid) != EXPORT_ISCSI)
     {
-        admwrk_ack(thr_nb, -EXA_ERR_EXPORT_WRONG_METHOD);
+        admwrk_ack(ctx, -EXA_ERR_EXPORT_WRONG_METHOD);
         return;
     }
 
@@ -222,7 +222,7 @@ void local_vltune_lun(int thr_nb, void *msg)
 
     err = lum_exports_iscsi_set_lun_by_uuid(&volume->uuid, cmd->lun);
 
-    admwrk_ack(thr_nb, err);
+    admwrk_ack(ctx, err);
 }
 
 /*******************************************************************************/
@@ -252,7 +252,7 @@ typedef struct
  * @brief Globally tune the allowed IQN authorization parameters
  */
 static void
-cluster_tune_iqnauth(int thr_nb, const struct adm_volume *volume,
+cluster_tune_iqnauth(admwrk_ctx_t *ctx, const struct adm_volume *volume,
 		     vltune_operation_t operation, vltune_iqnauth_param_t param,
 		     const char *param_value, cl_error_desc_t *err_desc)
 {
@@ -306,7 +306,7 @@ cluster_tune_iqnauth(int thr_nb, const struct adm_volume *volume,
     if (operation != VLTUNE_OPERATION_GET)
     {
         /* Send the command to the nodes */
-        ret = admwrk_exec_command(thr_nb, &adm_service_admin,
+        ret = admwrk_exec_command(ctx, &adm_service_admin,
 			      RPC_ADM_VLTUNE_IQNAUTH, &cmd, sizeof(cmd));
 
         if (ret != EXA_SUCCESS)
@@ -350,7 +350,7 @@ error:
 /**
  * @brief Locally tune the allowed IQN authorization parameters
  */
-void local_tune_iqnauth(int thr_nb, void *msg)
+void local_tune_iqnauth(admwrk_ctx_t *ctx, void *msg)
 {
     vltune_iqnauth_cmd_t *cmd = msg;
     const exa_uuid_t *volume_uuid = &cmd->volume_uuid;
@@ -358,17 +358,17 @@ void local_tune_iqnauth(int thr_nb, void *msg)
 
     if (adm_cluster_get_volume_by_uuid(volume_uuid) == NULL)
     {
-	admwrk_ack(thr_nb, -ADMIND_ERR_UNKNOWN_VOLUMENAME);
+	admwrk_ack(ctx, -ADMIND_ERR_UNKNOWN_VOLUMENAME);
 	return;
     }
 
     if (lum_exports_get_type_by_uuid(&cmd->volume_uuid) != EXPORT_ISCSI)
     {
-        admwrk_ack(thr_nb, -EXA_ERR_EXPORT_WRONG_METHOD);
+        admwrk_ack(ctx, -EXA_ERR_EXPORT_WRONG_METHOD);
         return;
     }
 
-    ret = admwrk_barrier(thr_nb, ret, "Setting IQN authorization parameters");
+    ret = admwrk_barrier(ctx, ret, "Setting IQN authorization parameters");
 
     switch(cmd->param)
     {
@@ -430,7 +430,7 @@ void local_tune_iqnauth(int thr_nb, void *msg)
                                                        buf, buf_size);
     }
 
-    admwrk_ack(thr_nb, ret);
+    admwrk_ack(ctx, ret);
 }
 
 /*******************************************************************************/
@@ -451,7 +451,7 @@ typedef struct
  *
  * @return error code
  */
-int vrt_master_volume_tune_readahead(int thr_nb, const struct adm_volume *volume,
+int vrt_master_volume_tune_readahead(admwrk_ctx_t *ctx, const struct adm_volume *volume,
                                      uint32_t read_ahead)
 {
     vltune_readahead_cmd_t cmd;
@@ -461,7 +461,7 @@ int vrt_master_volume_tune_readahead(int thr_nb, const struct adm_volume *volume
     cmd.readahead = read_ahead;
     uuid_copy(&cmd.volume_uuid, &volume->uuid);
 
-    return admwrk_exec_command(thr_nb, &adm_service_admin,
+    return admwrk_exec_command(ctx, &adm_service_admin,
                                RPC_ADM_VLTUNE_READAHEAD, &cmd, sizeof(cmd));
 }
 
@@ -470,7 +470,7 @@ int vrt_master_volume_tune_readahead(int thr_nb, const struct adm_volume *volume
  * @brief Globally tune the readahead parameter
  */
 static void
-cluster_tune_readahead(int thr_nb, const struct adm_volume *volume, vltune_operation_t operation,
+cluster_tune_readahead(admwrk_ctx_t *ctx, const struct adm_volume *volume, vltune_operation_t operation,
                        const char *readahead_str, cl_error_desc_t *err_desc)
 {
     int ret = EXA_SUCCESS;
@@ -529,7 +529,7 @@ cluster_tune_readahead(int thr_nb, const struct adm_volume *volume, vltune_opera
         return;
     }
 
-    ret = vrt_master_volume_tune_readahead(thr_nb, volume, (uint32_t)readahead);
+    ret = vrt_master_volume_tune_readahead(ctx, volume, (uint32_t)readahead);
     if (ret != EXA_SUCCESS)
         goto error;
 
@@ -571,7 +571,7 @@ error:
  *
  * @return EXA_SUCCESS upon success. Otherwise an error code
  */
-void local_vltune_readahead(int thr_nb, void *msg)
+void local_vltune_readahead(admwrk_ctx_t *ctx, void *msg)
 {
     vltune_readahead_cmd_t *cmd = msg;
     uint32_t readahead = cmd->readahead;
@@ -581,13 +581,13 @@ void local_vltune_readahead(int thr_nb, void *msg)
     volume = adm_cluster_get_volume_by_uuid(&cmd->volume_uuid);
     if (volume == NULL)
     {
-	admwrk_ack(thr_nb, -ADMIND_ERR_UNKNOWN_VOLUMENAME);
+	admwrk_ack(ctx, -ADMIND_ERR_UNKNOWN_VOLUMENAME);
 	return;
     }
 
     if (lum_exports_get_type_by_uuid(&cmd->volume_uuid) != EXPORT_BDEV)
     {
-        admwrk_ack(thr_nb, -EXA_ERR_EXPORT_WRONG_METHOD);
+        admwrk_ack(ctx, -EXA_ERR_EXPORT_WRONG_METHOD);
         return;
     }
 
@@ -601,7 +601,7 @@ void local_vltune_readahead(int thr_nb, void *msg)
                            volume->group->name, volume->name);
     }
 
-    ret = admwrk_barrier(thr_nb, ret, "Setting readahead");
+    ret = admwrk_barrier(ctx, ret, "Setting readahead");
     if (ret == EXA_SUCCESS)
         volume->readahead = readahead;
 
@@ -610,7 +610,7 @@ void local_vltune_readahead(int thr_nb, void *msg)
              revert the readahead to its previous value. Should we do this?
              But then, what if that fails? */
 
-    admwrk_ack(thr_nb, ret);
+    admwrk_ack(ctx, ret);
 }
 
 
@@ -618,7 +618,7 @@ void local_vltune_readahead(int thr_nb, void *msg)
  * Returns the list of volume tunable parameters
  */
 static void
-cluster_vltune(int thr_nb, void *data, cl_error_desc_t *err_desc)
+cluster_vltune(admwrk_ctx_t *ctx, void *data, cl_error_desc_t *err_desc)
 {
     const struct vltune_params *params = data;
     struct adm_group *group;
@@ -686,23 +686,23 @@ cluster_vltune(int thr_nb, void *data, cl_error_desc_t *err_desc)
     /* Determine the parameter to tune */
     if (strncmp(VLTUNE_PARAM_LUN, params->param_name,
                 EXA_MAXSIZE_PARAM_NAME) == 0)
-        cluster_tune_lun(thr_nb, volume, operation, params->param_value,
+        cluster_tune_lun(ctx, volume, operation, params->param_value,
                          err_desc);
     else if (strncmp(VLTUNE_PARAM_IQN_AUTH_ACCEPT, params->param_name,
                      EXA_MAXSIZE_PARAM_NAME) == 0)
-        cluster_tune_iqnauth(thr_nb, volume, operation, VLTUNE_IQN_ACCEPT,
+        cluster_tune_iqnauth(ctx, volume, operation, VLTUNE_IQN_ACCEPT,
 			                 params->param_value, err_desc);
     else if (strncmp(VLTUNE_PARAM_IQN_AUTH_REJECT, params->param_name,
                      EXA_MAXSIZE_PARAM_NAME) == 0)
-        cluster_tune_iqnauth(thr_nb, volume, operation, VLTUNE_IQN_REJECT,
+        cluster_tune_iqnauth(ctx, volume, operation, VLTUNE_IQN_REJECT,
 			                 params->param_value, err_desc);
     else if (strncmp(VLTUNE_PARAM_IQN_AUTH_MODE, params->param_name,
                      EXA_MAXSIZE_PARAM_NAME) == 0)
-        cluster_tune_iqnauth(thr_nb, volume, operation, VLTUNE_IQN_MODE,
+        cluster_tune_iqnauth(ctx, volume, operation, VLTUNE_IQN_MODE,
 			                 params->param_value, err_desc);
     else if (strncmp(VLTUNE_PARAM_READAHEAD, params->param_name,
                 EXA_MAXSIZE_PARAM_NAME) == 0)
-        cluster_tune_readahead(thr_nb, volume, operation,
+        cluster_tune_readahead(ctx, volume, operation,
                                params->param_value, err_desc);
     else
         set_error(err_desc, -EXA_ERR_CMD_PARSING,

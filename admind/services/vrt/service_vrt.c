@@ -57,14 +57,14 @@ struct vrt_reintegrate_info
  * As a result, its initialization is performed within exa_clientd.
  */
 static int
-vrt_init (int thr_nb)
+vrt_init (admwrk_ctx_t *ctx)
 {
   return EXA_SUCCESS;
 }
 
-static int vrt_suspend(int thr_nb)
+static int vrt_suspend(admwrk_ctx_t *ctx)
 {
-  return admwrk_exec_command(thr_nb, &adm_service_vrt,
+  return admwrk_exec_command(ctx, &adm_service_vrt,
 			     RPC_SERVICE_VRT_SUSPEND, NULL, 0);
 }
 
@@ -94,18 +94,18 @@ static int vrt_suspend_groups(void)
 }
 
 static void
-local_vrt_suspend(int thr_nb, void *msg)
+local_vrt_suspend(admwrk_ctx_t *ctx, void *msg)
 {
   int ret;
 
   ret = vrt_suspend_groups();
 
-  admwrk_ack(thr_nb, ret);
+  admwrk_ack(ctx, ret);
 }
 
-static int vrt_resume(int thr_nb)
+static int vrt_resume(admwrk_ctx_t *ctx)
 {
-   return admwrk_exec_command(thr_nb, &adm_service_vrt, RPC_SERVICE_VRT_RESUME,
+   return admwrk_exec_command(ctx, &adm_service_vrt, RPC_SERVICE_VRT_RESUME,
 			      NULL, 0);
 }
 
@@ -136,19 +136,19 @@ static int vrt_resume_groups(void)
 }
 
 static void
-local_vrt_resume (int thr_nb, void *msg)
+local_vrt_resume (admwrk_ctx_t *ctx, void *msg)
 {
   int ret;
 
   ret = vrt_resume_groups();
 
-  admwrk_ack(thr_nb, ret);
+  admwrk_ack(ctx, ret);
 }
 
 static int
-vrt_recover (int thr_nb)
+vrt_recover (admwrk_ctx_t *ctx)
 {
-  return admwrk_exec_command(thr_nb, &adm_service_vrt,
+  return admwrk_exec_command(ctx, &adm_service_vrt,
 			     RPC_SERVICE_VRT_RECOVER, NULL, 0);
 }
 
@@ -394,7 +394,7 @@ static int local_vrt_recover_restart_group_volumes(struct adm_group *group)
     return EXA_SUCCESS;
 }
 
-static int local_vrt_resync_group(int thr_nb, struct adm_group *group)
+static int local_vrt_resync_group(admwrk_ctx_t *ctx, struct adm_group *group)
 {
     exa_nodeid_t nodeid;
     admwrk_request_t handle;
@@ -461,7 +461,7 @@ static int local_vrt_resync_group(int thr_nb, struct adm_group *group)
 
     EXA_ASSERT(err == EXA_SUCCESS || err == -VRT_ERR_GROUP_OFFLINE
                || err == -ADMIND_ERR_NODE_DOWN);
-    barrier_err = admwrk_barrier(thr_nb, err, "VRT: Resynchronize");
+    barrier_err = admwrk_barrier(ctx, err, "VRT: Resynchronize");
 
     /* Swallow the error when group is offline. the resync and post resync
      * will be done when group is not offline anymore.
@@ -487,7 +487,7 @@ static int local_vrt_resync_group(int thr_nb, struct adm_group *group)
             err = vrt_client_group_post_resync(adm_wt_get_localmb(), &group->uuid);
     }
 
-    barrier_err = admwrk_barrier(thr_nb, err, "VRT: Post-resynchronize");
+    barrier_err = admwrk_barrier(ctx, err, "VRT: Post-resynchronize");
     if (barrier_err == EXA_SUCCESS)
         group->synched = true;
 
@@ -502,7 +502,7 @@ static int local_vrt_resync_group(int thr_nb, struct adm_group *group)
 }
 
 static void
-local_vrt_recover (int thr_nb, void *msg)
+local_vrt_recover (admwrk_ctx_t *ctx, void *msg)
 {
   struct adm_group *group;
   exa_nodeset_t nodes_up, nodes_going_up, nodes_going_down;
@@ -531,8 +531,8 @@ local_vrt_recover (int thr_nb, void *msg)
 
   adm_group_for_each_group(group)
   {
-      ret = vrt_group_sync_sb_versions(thr_nb, group);
-      barrier_ret = admwrk_barrier(thr_nb, ret,
+      ret = vrt_group_sync_sb_versions(ctx, group);
+      barrier_ret = admwrk_barrier(ctx, ret,
                                    "Synchronizing groups superblock versions.");
       if (barrier_ret != EXA_SUCCESS)
           goto local_vrt_recover_end;
@@ -542,7 +542,7 @@ local_vrt_recover (int thr_nb, void *msg)
 
   ret = vrt_restart_groups();
   EXA_ASSERT(ret == EXA_SUCCESS || ret == -ADMIND_ERR_NODE_DOWN);
-  barrier_ret = admwrk_barrier(thr_nb, ret, "VRT: Restart the group(s)");
+  barrier_ret = admwrk_barrier(ctx, ret, "VRT: Restart the group(s)");
   if (barrier_ret != EXA_SUCCESS)
     goto local_vrt_recover_end;
 
@@ -562,7 +562,7 @@ local_vrt_recover (int thr_nb, void *msg)
     }
     EXA_ASSERT(ret == EXA_SUCCESS);
   }
-  barrier_ret = admwrk_barrier(thr_nb, ret, "VRT: Stop the rebuilding");
+  barrier_ret = admwrk_barrier(ctx, ret, "VRT: Stop the rebuilding");
   if (barrier_ret != EXA_SUCCESS)
     goto local_vrt_recover_end;
 
@@ -570,7 +570,7 @@ local_vrt_recover (int thr_nb, void *msg)
 
   ret = vrt_client_nodes_status(adm_wt_get_localmb(), &nodes_up);
   EXA_ASSERT(ret == EXA_SUCCESS);
-  barrier_ret = admwrk_barrier(thr_nb, ret, "VRT: Set nodes state");
+  barrier_ret = admwrk_barrier(ctx, ret, "VRT: Set nodes state");
   if (barrier_ret != EXA_SUCCESS)
     goto local_vrt_recover_end;
 
@@ -585,7 +585,7 @@ local_vrt_recover (int thr_nb, void *msg)
       break;
     EXA_ASSERT(ret == EXA_SUCCESS);
   }
-  barrier_ret = admwrk_barrier(thr_nb, ret, "VRT: Notify disks' changes");
+  barrier_ret = admwrk_barrier(ctx, ret, "VRT: Notify disks' changes");
   if (barrier_ret != EXA_SUCCESS)
     goto local_vrt_recover_end;
 
@@ -614,7 +614,7 @@ local_vrt_recover (int thr_nb, void *msg)
 
     EXA_ASSERT(ret == EXA_SUCCESS);
   }
-  barrier_ret = admwrk_barrier(thr_nb, ret, "VRT: Compute status the group(s)");
+  barrier_ret = admwrk_barrier(ctx, ret, "VRT: Compute status the group(s)");
   if (barrier_ret != EXA_SUCCESS)
     goto local_vrt_recover_end;
 
@@ -635,28 +635,28 @@ local_vrt_recover (int thr_nb, void *msg)
     }
     EXA_ASSERT(ret == EXA_SUCCESS);
   }
-  barrier_ret = admwrk_barrier(thr_nb, ret, "VRT: Wait requests");
+  barrier_ret = admwrk_barrier(ctx, ret, "VRT: Wait requests");
   if (barrier_ret != EXA_SUCCESS)
     goto local_vrt_recover_end;
 
   /* Resync groups */
   adm_group_for_each_group(group)
   {
-      ret = local_vrt_resync_group(thr_nb, group);
+      ret = local_vrt_resync_group(ctx, group);
       if (ret != EXA_SUCCESS)
           goto local_vrt_recover_end;
   }
 
   adm_group_for_each_group(group)
   {
-    ret = adm_vrt_group_sync_sb(thr_nb, group);
+    ret = adm_vrt_group_sync_sb(ctx, group);
     if (ret == -ADMIND_ERR_NODE_DOWN)
       break;
     if (ret == -VRT_ERR_GROUP_NOT_ADMINISTRABLE)
       ret = EXA_SUCCESS;
     EXA_ASSERT(ret == EXA_SUCCESS);
   }
-  barrier_ret = admwrk_barrier(thr_nb, ret, "VRT: Commit the superblocks");
+  barrier_ret = admwrk_barrier(ctx, ret, "VRT: Commit the superblocks");
   if (barrier_ret != EXA_SUCCESS)
     goto local_vrt_recover_end;
 
@@ -675,7 +675,7 @@ local_vrt_recover (int thr_nb, void *msg)
 
  local_vrt_recover_end:
   exalog_debug("local_vrt_recover() returned '%s'", exa_error_msg(ret));
-  admwrk_ack(thr_nb, ret);
+  admwrk_ack(ctx, ret);
 }
 
 
@@ -684,7 +684,7 @@ struct vrt_reintegrate_synchro
   uint32_t reintegrate_needed;
 };
 
-static int local_vrt_group_check_up(int thr_nb, struct adm_group *group)
+static int local_vrt_group_check_up(admwrk_ctx_t *ctx, struct adm_group *group)
 {
     int barrier_ret, ret;
     exa_nodeid_t nodeid;
@@ -802,7 +802,7 @@ static int local_vrt_group_check_up(int thr_nb, struct adm_group *group)
     else
         ret = EXA_SUCCESS;
 
-    barrier_ret = admwrk_barrier(thr_nb, ret, "Freeze group for reintegrate");
+    barrier_ret = admwrk_barrier(ctx, ret, "Freeze group for reintegrate");
     if (barrier_ret != EXA_SUCCESS)
         return barrier_ret;
 
@@ -829,7 +829,7 @@ static int local_vrt_group_check_up(int thr_nb, struct adm_group *group)
             break;
     }
 
-    barrier_ret = admwrk_barrier(thr_nb, ret, "Reintegrating devices");
+    barrier_ret = admwrk_barrier(ctx, ret, "Reintegrating devices");
     if (barrier_ret != EXA_SUCCESS)
     {
         EXA_ASSERT(vrt_client_group_unfreeze(adm_wt_get_localmb(), &group->uuid) == EXA_SUCCESS);
@@ -861,7 +861,7 @@ static int local_vrt_group_check_up(int thr_nb, struct adm_group *group)
     }
 
 
-    barrier_ret = admwrk_barrier(thr_nb, ret, "Post-reintegrating device");
+    barrier_ret = admwrk_barrier(ctx, ret, "Post-reintegrating device");
     /* FIXME: we should leave even if the group is not started*/
     if (barrier_ret != EXA_SUCCESS && group->started)
     {
@@ -877,28 +877,28 @@ static int local_vrt_group_check_up(int thr_nb, struct adm_group *group)
     }
 
     /* Sync SB. */
-    ret = adm_vrt_group_sync_sb(thr_nb, group);
+    ret = adm_vrt_group_sync_sb(ctx, group);
     if (ret == -VRT_ERR_GROUP_NOT_ADMINISTRABLE)
         ret = EXA_SUCCESS;
 
     EXA_ASSERT(ret == EXA_SUCCESS || ret == -ADMIND_ERR_NODE_DOWN);
 
-    return admwrk_barrier(thr_nb, ret, "Syncing superblocks on disk");
+    return admwrk_barrier(ctx, ret, "Syncing superblocks on disk");
 }
 
-static void local_vrt_check_up(int thr_nb, void *msg)
+static void local_vrt_check_up(admwrk_ctx_t *ctx, void *msg)
 {
   struct adm_group *group;
   int ret = EXA_SUCCESS;
 
   adm_group_for_each_group(group)
   {
-      ret = local_vrt_group_check_up(thr_nb, group);
+      ret = local_vrt_group_check_up(ctx, group);
       if (ret != EXA_SUCCESS)
           break;
   }
 
-  admwrk_ack(thr_nb, ret);
+  admwrk_ack(ctx, ret);
 }
 
 /*------------------------------------------------------------------------------*/
@@ -909,15 +909,15 @@ static void local_vrt_check_up(int thr_nb, void *msg)
  */
 /*------------------------------------------------------------------------------*/
 static int
-vrt_shutdown(int thr_nb)
+vrt_shutdown(admwrk_ctx_t *ctx)
 {
     return vrt_client_pending_group_cleanup(adm_wt_get_localmb());
 }
 
 static int
-vrt_check_up(int thr_nb)
+vrt_check_up(admwrk_ctx_t *ctx)
 {
-  int ret = admwrk_exec_command(thr_nb, &adm_service_vrt,
+  int ret = admwrk_exec_command(ctx, &adm_service_vrt,
                                 RPC_SERVICE_VRT_CHECK_UP, NULL, 0);
   if (ret != EXA_SUCCESS)
     exalog_warning("Vrt check up failed: %s (%d)", exa_error_msg(ret), ret);
@@ -974,7 +974,7 @@ vrt_nodestop_stop_groups(bool force)
 
 
 static int
-vrt_nodestop(int thr_nb, const exa_nodeset_t *nodes_to_stop,
+vrt_nodestop(admwrk_ctx_t *ctx, const exa_nodeset_t *nodes_to_stop,
 	     bool goal_change, bool force)
 {
   struct adm_group *group;
@@ -1007,7 +1007,7 @@ vrt_nodestop(int thr_nb, const exa_nodeset_t *nodes_to_stop,
   else
     ret = -ADMIND_ERR_NOTHINGTODO;
   EXA_ASSERT(ret == EXA_SUCCESS || ret == -ADMIND_ERR_NOTHINGTODO);
-  barrier_ret = admwrk_barrier(thr_nb, ret, "Stop the groups on stopping nodes");
+  barrier_ret = admwrk_barrier(ctx, ret, "Stop the groups on stopping nodes");
   if (barrier_ret != EXA_SUCCESS)
     return barrier_ret;
 
@@ -1024,7 +1024,7 @@ vrt_nodestop(int thr_nb, const exa_nodeset_t *nodes_to_stop,
       ret = -ADMIND_ERR_NOTHINGTODO;
 
     EXA_ASSERT(ret == EXA_SUCCESS || ret == -ADMIND_ERR_NOTHINGTODO);
-    barrier_ret = admwrk_barrier(thr_nb, ret, buf);
+    barrier_ret = admwrk_barrier(ctx, ret, buf);
     if (barrier_ret != EXA_SUCCESS)
       return barrier_ret;
   }
@@ -1032,7 +1032,7 @@ vrt_nodestop(int thr_nb, const exa_nodeset_t *nodes_to_stop,
   /* Update nodes status. */
   ret = vrt_client_nodes_status(adm_wt_get_localmb(), &nodes_up);
   EXA_ASSERT(ret == EXA_SUCCESS);
-  barrier_ret = admwrk_barrier(thr_nb, ret, "Set nodes' state");
+  barrier_ret = admwrk_barrier(ctx, ret, "Set nodes' state");
   if (barrier_ret != EXA_SUCCESS)
     return barrier_ret;
 
@@ -1067,7 +1067,7 @@ vrt_nodestop(int thr_nb, const exa_nodeset_t *nodes_to_stop,
     }
 
     EXA_ASSERT(ret == EXA_SUCCESS || ret == -ADMIND_ERR_NOTHINGTODO);
-    barrier_ret = admwrk_barrier(thr_nb, ret, buf);
+    barrier_ret = admwrk_barrier(ctx, ret, buf);
     if (barrier_ret != EXA_SUCCESS)
       return barrier_ret;
   }
@@ -1090,7 +1090,7 @@ vrt_nodestop(int thr_nb, const exa_nodeset_t *nodes_to_stop,
       ret = -ADMIND_ERR_NOTHINGTODO;
 
     EXA_ASSERT(ret == EXA_SUCCESS || ret == -ADMIND_ERR_NOTHINGTODO);
-    barrier_ret = admwrk_barrier(thr_nb, ret, buf);
+    barrier_ret = admwrk_barrier(ctx, ret, buf);
     if (barrier_ret != EXA_SUCCESS)
       return barrier_ret;
   }
@@ -1114,14 +1114,14 @@ vrt_nodestop(int thr_nb, const exa_nodeset_t *nodes_to_stop,
     else
       ret = -ADMIND_ERR_NOTHINGTODO;
   }
-  barrier_ret = admwrk_barrier(thr_nb, ret, "VRT: Wait requests");
+  barrier_ret = admwrk_barrier(ctx, ret, "VRT: Wait requests");
   if (barrier_ret != EXA_SUCCESS)
     return barrier_ret;
 
   adm_group_for_each_group(group)
   {
     /* Sync the superblocks on one node that won't be stopped. */
-    ret = adm_vrt_group_sync_sb(thr_nb, group);
+    ret = adm_vrt_group_sync_sb(ctx, group);
     if (ret == -VRT_ERR_GROUP_NOT_ADMINISTRABLE)
         ret = EXA_SUCCESS;
     EXA_ASSERT(ret == EXA_SUCCESS
@@ -1129,33 +1129,33 @@ vrt_nodestop(int thr_nb, const exa_nodeset_t *nodes_to_stop,
                || ret == -ADMIND_ERR_NODE_DOWN);
 
     os_snprintf(buf, sizeof(buf), "Synchronize superblocks of '%s'", group->name);
-    barrier_ret = admwrk_barrier(thr_nb, ret, buf);
+    barrier_ret = admwrk_barrier(ctx, ret, buf);
     if (barrier_ret != EXA_SUCCESS)
       return barrier_ret;
   }
 
-  barrier_ret = admwrk_barrier(thr_nb, ret, "Reload the volumes");
+  barrier_ret = admwrk_barrier(ctx, ret, "Reload the volumes");
   if (barrier_ret != EXA_SUCCESS)
     return barrier_ret;
 
   return EXA_SUCCESS;
 }
 
-static void local_vrt_stop(int thr_nb, void *msg)
+static void local_vrt_stop(admwrk_ctx_t *ctx, void *msg)
 {
   const exa_nodeset_t *nodeset = &((const stop_data_t *)msg)->nodes_to_stop;
   bool goal_change = ((const stop_data_t *)msg)->goal_change;
   bool force = ((const stop_data_t *)msg)->force;
 
-  int ret = vrt_nodestop(thr_nb, nodeset, goal_change, force);
+  int ret = vrt_nodestop(ctx, nodeset, goal_change, force);
 
-  admwrk_ack(thr_nb, ret);
+  admwrk_ack(ctx, ret);
 }
 
 /**
  * Stop all volumes in a group.
  *
- * @param thr_nb       the thread number
+ * @param ctx       the thread number
  * @param group        the group in which volumes to stop are.
  * @param nodelist     the nodes on which to stop the volumes.
  * @param force        try to force execution even if in bad state.
@@ -1166,7 +1166,7 @@ static void local_vrt_stop(int thr_nb, void *msg)
  * NOTE: whenever an error occurs, some volumes may remain started on some
  *       nodes because there is no purpose for rollback.
  */
-static int vrt_stop_all_volumes(int thr_nb, struct adm_group *group,
+static int vrt_stop_all_volumes(admwrk_ctx_t *ctx, struct adm_group *group,
                                 const exa_nodeset_t *nodelist, bool force,
                                 adm_goal_change_t goal_change)
 {
@@ -1177,7 +1177,7 @@ static int vrt_stop_all_volumes(int thr_nb, struct adm_group *group,
 
     adm_group_for_each_volume(group, volume)
     {
-        int err = vrt_master_volume_stop(thr_nb, volume, nodelist, force,
+        int err = vrt_master_volume_stop(ctx, volume, nodelist, force,
                                          goal_change, false /* print_warning */);
 
         if (err != EXA_SUCCESS)
@@ -1187,7 +1187,7 @@ static int vrt_stop_all_volumes(int thr_nb, struct adm_group *group,
     return EXA_SUCCESS;
 }
 
-static int vrt_stop(int thr_nb, const stop_data_t *stop_data)
+static int vrt_stop(admwrk_ctx_t *ctx, const stop_data_t *stop_data)
 {
   struct adm_group *group;
 
@@ -1198,19 +1198,19 @@ static int vrt_stop(int thr_nb, const stop_data_t *stop_data)
       adm_goal_change_t goal_change = stop_data->goal_change ?
 	  ADM_GOAL_CHANGE_GROUP | ADM_GOAL_CHANGE_VOLUME : ADM_GOAL_PRESERVE;
 
-      int ret = vrt_stop_all_volumes(thr_nb, group, &stop_data->nodes_to_stop,
+      int ret = vrt_stop_all_volumes(ctx, group, &stop_data->nodes_to_stop,
 	                             stop_data->force, goal_change);
 
       if (ret != EXA_SUCCESS)
 	  return ret;
   }
 
-  return admwrk_exec_command(thr_nb, &adm_service_vrt, RPC_SERVICE_VRT_STOP,
+  return admwrk_exec_command(ctx, &adm_service_vrt, RPC_SERVICE_VRT_STOP,
                              stop_data, sizeof(*stop_data));
 }
 
 static void
-vrt_nodedel(int thr_nb, struct adm_node *node)
+vrt_nodedel(admwrk_ctx_t *ctx, struct adm_node *node)
 {
     struct adm_group *group;
     struct adm_volume *volume;
@@ -1221,7 +1221,7 @@ vrt_nodedel(int thr_nb, struct adm_node *node)
 }
 
 
-static int vrt_check_nodedel(int thr_nb, struct adm_node *node)
+static int vrt_check_nodedel(admwrk_ctx_t *ctx, struct adm_node *node)
 {
   struct adm_group *group;
   struct adm_volume *volume;

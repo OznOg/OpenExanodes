@@ -153,7 +153,7 @@ exa_nodeid_t gfs_get_designated_gulm_master(void)
  * \return An error code *should* be returned, but it is not, because the caller
  *         doesn't accept to fail. Instead, it may assert.
  */
-int gfs_shutdown(int thr_nb)
+int gfs_shutdown(admwrk_ctx_t *ctx)
 {
   if (gfs_using_gulm())
     {
@@ -300,12 +300,12 @@ void gfs_fill_data_from_config(fs_data_t* generic_fs, struct adm_fs *fs)
 /**
  * @brief Create new uuid for the fs.
  *
- * @param[in] thr_nb      Thread number
+ * @param[in] ctx      Thread number
  * @param[in] fs          File system data
  *
  * @return 0 upon success, an error code otherwise.
  */
-static exa_error_code gfs_pre_create_fs(int thr_nb, fs_data_t* fs)
+static exa_error_code gfs_pre_create_fs(admwrk_ctx_t *ctx, fs_data_t* fs)
 {
     gfs_new_uuid(fs);
     return EXA_SUCCESS;
@@ -319,7 +319,7 @@ static exa_error_code gfs_pre_create_fs(int thr_nb, fs_data_t* fs)
  *
  * \return 0 on success or an error code.
  */
-static exa_error_code gfs_create_fs(int thr_nb, fs_data_t* fs)
+static exa_error_code gfs_create_fs(admwrk_ctx_t *ctx, fs_data_t* fs)
 {
     int ret;
 
@@ -458,7 +458,7 @@ static exa_error_code gfs_create_config_file_local(uint64_t new_generation_numbe
  *
  * \return Error code (example : umount failed)
  */
-static exa_error_code gfs_stop_fs(int thr_nb, const exa_nodeset_t* nodes,
+static exa_error_code gfs_stop_fs(admwrk_ctx_t *ctx, const exa_nodeset_t* nodes,
                                   fs_data_t *fs, bool force,
                                   adm_goal_change_t goal_change,
                                   exa_nodeset_t* stop_succeeded)
@@ -467,7 +467,7 @@ static exa_error_code gfs_stop_fs(int thr_nb, const exa_nodeset_t* nodes,
     {
       return -FS_ERR_HANDLE_GFS;
     }
-  return clustered_stop_fs(thr_nb, nodes, fs, force, goal_change, stop_succeeded);
+  return clustered_stop_fs(ctx, nodes, fs, force, goal_change, stop_succeeded);
 }
 
 /**
@@ -481,7 +481,7 @@ static exa_error_code gfs_stop_fs(int thr_nb, const exa_nodeset_t* nodes,
  *
  * \return 0 on success or an error code.
  */
-static exa_error_code gfs_start_fs(int thr_nb, const exa_nodeset_t* nodes,
+static exa_error_code gfs_start_fs(admwrk_ctx_t *ctx, const exa_nodeset_t* nodes,
                                    const exa_nodeset_t* nodes_read_only,
                                    fs_data_t* fs,
                                    exa_nodeset_t* start_succeeded,
@@ -510,7 +510,7 @@ static exa_error_code gfs_start_fs(int thr_nb, const exa_nodeset_t* nodes,
     }
 
   config.generation_number = generation_number;
-  ret = admwrk_exec_command(thr_nb, MY_SERVICE_ID, RPC_SERVICE_FS_GFS_CREATE_CONFIG,
+  ret = admwrk_exec_command(ctx, MY_SERVICE_ID, RPC_SERVICE_FS_GFS_CREATE_CONFIG,
 			    &config, sizeof(create_config_info_t));
   if (ret!=EXA_SUCCESS) return ret;
 
@@ -529,7 +529,7 @@ static exa_error_code gfs_start_fs(int thr_nb, const exa_nodeset_t* nodes,
     return -FS_ERR_NB_LOGS_EXCEEDED;
   }
 
-  return clustered_start_fs(thr_nb, nodes, nodes_read_only, fs, start_succeeded, recovery);
+  return clustered_start_fs(ctx, nodes, nodes_read_only, fs, start_succeeded, recovery);
 }
 
 /**
@@ -541,7 +541,7 @@ static exa_error_code gfs_start_fs(int thr_nb, const exa_nodeset_t* nodes,
  *
  * \return 0 on success or an error code.
  */
-static exa_error_code gfs_resize_fs(int thr_nb, fs_data_t* fs, int64_t sizeKB)
+static exa_error_code gfs_resize_fs(admwrk_ctx_t *ctx, fs_data_t* fs, int64_t sizeKB)
 {
   int ret;
 
@@ -550,12 +550,12 @@ static exa_error_code gfs_resize_fs(int thr_nb, fs_data_t* fs, int64_t sizeKB)
       return -FS_ERR_HANDLE_GFS;
     }
   exalog_debug("gfs_resize_fs: sizeKB=%"PRId64, sizeKB);
-  ret = generic_fs_mounted_grow(thr_nb, fs, sizeKB);
+  ret = generic_fs_mounted_grow(ctx, fs, sizeKB);
   if (ret)
     return ret;
   if (fs->clustered.gfs.fuzzy_statfs)
     {
-      ret = admwrk_exec_command(thr_nb, &adm_service_fs,
+      ret = admwrk_exec_command(ctx, &adm_service_fs,
 				RPC_SERVICE_FS_GFS_UPDATE_TUNING,
 				fs, sizeof(fs_data_t));
     }
@@ -584,7 +584,7 @@ static void gfs_pre_unload(void)
  *
  * \return error code. Does not expect to fail, unless there's an error in FSD.
  */
-static int gfs_node_stop(int thr_nb, fs_data_t* fs)
+static int gfs_node_stop(admwrk_ctx_t *ctx, fs_data_t* fs)
 {
   if (!fs_handle_gfs)
     {
@@ -605,7 +605,7 @@ static int gfs_node_stop(int thr_nb, fs_data_t* fs)
  *
  * \return error code
  */
-static int gfs_create_config_local(int thr_nb,
+static int gfs_create_config_local(admwrk_ctx_t *ctx,
 				   uint64_t new_generation_number,
 				   bool barrier)
 {
@@ -614,7 +614,7 @@ static int gfs_create_config_local(int thr_nb,
   error_val=gfs_create_config_file_local(new_generation_number);
   if (barrier)
     {
-      error_val = admwrk_barrier(thr_nb, error_val, "FS: Create config files");
+      error_val = admwrk_barrier(ctx, error_val, "FS: Create config files");
     }
   if (error_val != EXA_SUCCESS) /* Rollback to previous configuration */
     {
@@ -632,13 +632,13 @@ static int gfs_create_config_local(int thr_nb,
  * \brief Local function; Create config files. Called from the leader
  *        (a clustered command)
  */
-void gfs_create_config_local_with_ack(int thr_nb, void *msg)
+void gfs_create_config_local_with_ack(admwrk_ctx_t *ctx, void *msg)
 {
   int error_val = EXA_SUCCESS;
   create_config_info_t* config = msg;
   uint64_t new_generation_number = config->generation_number;
-  error_val = gfs_create_config_local(thr_nb, new_generation_number, true);
-  admwrk_ack(thr_nb, error_val);
+  error_val = gfs_create_config_local(ctx, new_generation_number, true);
+  admwrk_ack(ctx, error_val);
 }
 
 /**
@@ -652,7 +652,7 @@ void gfs_create_config_local_with_ack(int thr_nb, void *msg)
  *
  * \return error code.
  */
-static int gfs_node_add(int thr_nb, struct adm_node *node)
+static int gfs_node_add(admwrk_ctx_t *ctx, struct adm_node *node)
 {
   return EXA_SUCCESS;
 }
@@ -665,7 +665,7 @@ static int gfs_node_add(int thr_nb, struct adm_node *node)
  *
  * \param[in] node        Structure of the additional node. Not NULL.
  */
-static void gfs_node_add_commit(int thr_nb, struct adm_node *node)
+static void gfs_node_add_commit(admwrk_ctx_t *ctx, struct adm_node *node)
 {
   int ret;
   uint64_t old_generation_number = generation_number;
@@ -676,7 +676,7 @@ static void gfs_node_add_commit(int thr_nb, struct adm_node *node)
      the version number of the GFS configuration number in a clustered manner.
      Reminder : GFS builds a CRC upon the config file, therefore it needs to be
      exactly the same on all nodes */
-  ret = gfs_create_config_local(thr_nb, new_generation_number, true);
+  ret = gfs_create_config_local(ctx, new_generation_number, true);
 
   if (ret != EXA_SUCCESS)
     return;
@@ -685,12 +685,12 @@ static void gfs_node_add_commit(int thr_nb, struct adm_node *node)
     {
         ret = fsd_gfs_update_config(adm_wt_get_localmb());
     }
-  ret = admwrk_barrier(thr_nb, ret, "FS: Update Seanodes FS");
+  ret = admwrk_barrier(ctx, ret, "FS: Update Seanodes FS");
   if (ret != EXA_SUCCESS)
     {
       /* Rollback to old config so new nodes won't be disappointed.
 	 Don't perform a barrier, this may fail like before. */
-      gfs_create_config_local(thr_nb, old_generation_number, false);
+      gfs_create_config_local(ctx, old_generation_number, false);
     }
   return;
 }
@@ -810,7 +810,7 @@ static void local_gulm_masters_selection(exa_nodeset_t* nodes_up)
  *
  * \param[in] nodes_up    Choose the gulm masters inside this list of nodes up.
  */
-static int gulm_masters_selection(int thr_nb, exa_nodeset_t* nodes_up)
+static int gulm_masters_selection(admwrk_ctx_t *ctx, exa_nodeset_t* nodes_up)
 {
   int ret;
   gfs_update_gulm_info_t gulm_info;
@@ -820,7 +820,7 @@ static int gulm_masters_selection(int thr_nb, exa_nodeset_t* nodes_up)
   gulm_info.gulm_update_type = GULM_UPDATE_TYPE_MASTERS;
   gulm_info.designated_gulm_master = designated_gulm_master;
   exa_nodeset_copy(&gulm_info.gulm_masters, &gulm_masters);
-  ret = admwrk_exec_command(thr_nb, MY_SERVICE_ID, RPC_SERVICE_FS_SHM_UPDATE,
+  ret = admwrk_exec_command(ctx, MY_SERVICE_ID, RPC_SERVICE_FS_SHM_UPDATE,
 			    &gulm_info, sizeof(gfs_update_gulm_info_t));
   return ret;
 }
@@ -835,7 +835,7 @@ static int gulm_masters_selection(int thr_nb, exa_nodeset_t* nodes_up)
  *
  * \return NODE_DOWN or SUCCESS
  */
-int gfs_global_recover(int thr_nb,
+int gfs_global_recover(admwrk_ctx_t *ctx,
 		       exa_nodeset_t* nodes_up_in_progress,
 		       exa_nodeset_t* nodes_down_in_progress,
 		       exa_nodeset_t* committed_up)
@@ -852,7 +852,7 @@ int gfs_global_recover(int thr_nb,
       exa_nodeset_copy(&all_nodes_up, nodes_up_in_progress);
       exa_nodeset_sum(&all_nodes_up, committed_up);
       exa_nodeset_substract(&all_nodes_up, nodes_down_in_progress);
-      error_val = gulm_masters_selection(thr_nb, &all_nodes_up);
+      error_val = gulm_masters_selection(ctx, &all_nodes_up);
       if (error_val == -ADMIND_ERR_NODE_DOWN)
 	{
 	  return error_val;
@@ -869,12 +869,12 @@ int gfs_global_recover(int thr_nb,
 	{
 	  int error;
 	  /* Check the volume is DOWN, or there is no Gulm master anymore. */
-	  if ((fs_get_data_device_offline(thr_nb, fs)) ||
+	  if ((fs_get_data_device_offline(ctx, fs)) ||
 	      ((designated_gulm_master == EXA_NODEID_NONE) && gfs_using_gulm()))
 	    {
 	      /* Check the FS is MOUNTED somewhere */
 	      exa_nodeset_t nodes_list;
-	      error = generic_fs_get_started_nodes(thr_nb, fs, &nodes_list, NULL);
+	      error = generic_fs_get_started_nodes(ctx, fs, &nodes_list, NULL);
 	      if (error)
 		{
 		  return error;
@@ -894,7 +894,7 @@ int gfs_global_recover(int thr_nb,
   if (!fs_handle_gfs)
     {
       /* Incoming nodes must set this flag, too */
-      int error_val = admwrk_exec_command(thr_nb, MY_SERVICE_ID, RPC_SERVICE_FS_HANDLE_GFS,
+      int error_val = admwrk_exec_command(ctx, MY_SERVICE_ID, RPC_SERVICE_FS_HANDLE_GFS,
 					  &fs_handle_gfs, sizeof(fs_handle_gfs));
       /* The only acceptable error is NODE DOWN */
       if (error_val==-ADMIND_ERR_NODE_DOWN) return error_val;
@@ -909,7 +909,7 @@ int gfs_global_recover(int thr_nb,
       exa_nodeset_copy(&gulm_info.nodes_up_committed, committed_up);
       exa_nodeset_substract( &gulm_info.nodes_up_committed, nodes_down_in_progress);
       gulm_info.gulm_update_type = GULM_UPDATE_TYPE_UP_DOWN;
-      error_val = admwrk_exec_command(thr_nb, &adm_service_fs, RPC_SERVICE_FS_SHM_UPDATE,
+      error_val = admwrk_exec_command(ctx, &adm_service_fs, RPC_SERVICE_FS_SHM_UPDATE,
 				      &gulm_info, sizeof(gulm_info));
       exalog_debug("gfs recover : nodes up " EXA_NODESET_FMT " nodes down " EXA_NODESET_FMT
 		   " shm update returned %i ",
@@ -921,7 +921,7 @@ int gfs_global_recover(int thr_nb,
   if (gfs_using_dlm() && (exa_nodeset_count(nodes_down_in_progress)))
     {
       exa_nodeset_copy(&cman_info.nodes_down_in_progress, nodes_down_in_progress);
-      error_val = admwrk_exec_command(thr_nb, &adm_service_fs, RPC_SERVICE_FS_UPDATE_CMAN,
+      error_val = admwrk_exec_command(ctx, &adm_service_fs, RPC_SERVICE_FS_UPDATE_CMAN,
 				      &cman_info, sizeof(cman_info));
       exalog_debug("gfs recover : nodes up " EXA_NODESET_FMT " nodes down " EXA_NODESET_FMT
 		   " shm update returned %i ",
@@ -995,7 +995,7 @@ int gfs_manage_node_stop(const exa_nodeset_t *nodes_to_stop, exa_nodeset_t* node
  * \param[in] nodes_up    List of remaining nodes up. Used to choose
  *                        new masters' list.
  */
-void gfs_nodedel(int thr_nb, struct adm_node *node, exa_nodeset_t* nodes_up)
+void gfs_nodedel(admwrk_ctx_t *ctx, struct adm_node *node, exa_nodeset_t* nodes_up)
 {
   /* erase it from the shared segment, otherwise the same node name could appear
      2 times with different nodeid's on some nodes, and 1 time on others. */
@@ -1014,7 +1014,7 @@ void gfs_nodedel(int thr_nb, struct adm_node *node, exa_nodeset_t* nodes_up)
  * \brief Create shared memory segment for other clustered FS stacks.
  *        for every node.
  */
-void manage_membership_on_shm_local(int thr_nb, void *msg)
+void manage_membership_on_shm_local(admwrk_ctx_t *ctx, void *msg)
 {
   gfs_update_gulm_info_t* gulm_info = msg;
   int error_val = EXA_SUCCESS;
@@ -1109,13 +1109,13 @@ void manage_membership_on_shm_local(int thr_nb, void *msg)
     default:
       EXA_ASSERT_VERBOSE(0, "Unknown type of command for gfs_update_gulm_info_t");
     }
-  admwrk_ack(thr_nb, error_val);
+  admwrk_ack(ctx, error_val);
 }
 
 /**
  * \brief Tell CMAN that there was a change in the membership.
  */
-void update_cman_local(int thr_nb, void *msg)
+void update_cman_local(admwrk_ctx_t *ctx, void *msg)
 {
     gfs_update_cman_info_t* info_cman = msg;
     int error_val = EXA_SUCCESS;
@@ -1132,13 +1132,13 @@ void update_cman_local(int thr_nb, void *msg)
 	if (error_val)
 	  final_error_val = error_val;
       }
-    admwrk_ack(thr_nb, final_error_val);
+    admwrk_ack(ctx, final_error_val);
 }
 
 /**
  * \brief Ask one node to call sfs_jadd on a locally mounted fs.
  */
-void gfs_add_logs_local(int thr_nb, void *msg)
+void gfs_add_logs_local(admwrk_ctx_t *ctx, void *msg)
 {
   gfs_add_logs_info_t* info_fs = msg;
   int ret_logs = EXA_SUCCESS;
@@ -1154,17 +1154,17 @@ void gfs_add_logs_local(int thr_nb, void *msg)
 	  ret_logs = -FS_ERR_INCREASE_LOGS;
 	}
     }
-  admwrk_ack(thr_nb, ret_logs);
+  admwrk_ack(ctx, ret_logs);
 }
 
 /**
  * \brief Ask SFS to set the new tuning values (RA, fuzzy_statfs)
  */
-void gfs_update_tuning(int thr_nb, void *msg)
+void gfs_update_tuning(admwrk_ctx_t *ctx, void *msg)
 {
   fs_data_t* fs = (fs_data_t*)msg;
   int set_tuning = fsd_update_gfs_tuning(adm_wt_get_localmb(), fs);
-  admwrk_ack(thr_nb, set_tuning);
+  admwrk_ack(ctx, set_tuning);
 }
 
 /**
@@ -1176,7 +1176,7 @@ void gfs_update_tuning(int thr_nb, void *msg)
  *
  * \return 0 on success or an error code.
  */
-static exa_error_code gfs_tune(int thr_nb, fs_data_t* fs,
+static exa_error_code gfs_tune(admwrk_ctx_t *ctx, fs_data_t* fs,
 			       const char* parameter, const char* value)
 {
   if (!fs_handle_gfs)
@@ -1206,7 +1206,7 @@ static exa_error_code gfs_tune(int thr_nb, fs_data_t* fs,
       volume = fs_get_volume(fs);
 
       /* Check : one node has the FS mounted RW somewhere */
-      ret_get_started_nodes = generic_fs_get_started_nodes(thr_nb, fs,
+      ret_get_started_nodes = generic_fs_get_started_nodes(ctx, fs,
 							   &nodes_list, &nodes_list_ro);
       if (ret_get_started_nodes != EXA_SUCCESS)
 	return ret_get_started_nodes;
@@ -1226,7 +1226,7 @@ static exa_error_code gfs_tune(int thr_nb, fs_data_t* fs,
 		  " which means new volume size is : %"PRId64" KB"
 		  " (old size was : %"PRId64" KB)",
 		  additional_logs, sizeKB, fs->sizeKB);
-      ret_vrt_resize = vrt_master_volume_resize(thr_nb, volume, sizeKB);
+      ret_vrt_resize = vrt_master_volume_resize(ctx, volume, sizeKB);
       if (ret_vrt_resize)
 	return ret_vrt_resize;
 
@@ -1234,7 +1234,7 @@ static exa_error_code gfs_tune(int thr_nb, fs_data_t* fs,
       logs_info.fs = *fs;
       logs_info.number_of_logs = number_of_logs;
       exa_nodeset_copy(&logs_info.nodes_mounted, &nodes_list);
-      ret_add_logs = admwrk_exec_command(thr_nb, &adm_service_fs, RPC_SERVICE_FS_GFS_ADD_LOGS,
+      ret_add_logs = admwrk_exec_command(ctx, &adm_service_fs, RPC_SERVICE_FS_GFS_ADD_LOGS,
 				      &logs_info, sizeof(logs_info));
 
       if (ret_add_logs < 0)
@@ -1243,7 +1243,7 @@ static exa_error_code gfs_tune(int thr_nb, fs_data_t* fs,
       /* update the FS info */
       fs->clustered.gfs.nb_logs = number_of_logs;
       fs->sizeKB = sizeKB;
-      ret_update = fs_update_tree(thr_nb, fs);
+      ret_update = fs_update_tree(ctx, fs);
       return ret_update;
     }
   else if (!strcmp(parameter, EXA_FSTUNE_READAHEAD))
@@ -1254,12 +1254,12 @@ static exa_error_code gfs_tune(int thr_nb, fs_data_t* fs,
       if (ret_get_size != 0)
 	  return ret_get_size;
 
-      ret_update = fs_update_tree(thr_nb, fs);
+      ret_update = fs_update_tree(ctx, fs);
       if (ret_update != EXA_SUCCESS)
 	{
 	  return ret_update;
 	}
-      ret_set_readahead = admwrk_exec_command(thr_nb, &adm_service_fs,
+      ret_set_readahead = admwrk_exec_command(ctx, &adm_service_fs,
 					      RPC_SERVICE_FS_GFS_UPDATE_TUNING,
 					      fs, sizeof(fs_data_t));
       return ret_set_readahead;
@@ -1275,10 +1275,10 @@ static exa_error_code gfs_tune(int thr_nb, fs_data_t* fs,
       if (fs->clustered.gfs.demote_secs > EXA_FSTUNE_DEMOTE_SECS_MAX)
         return -ERANGE;
 
-      ret_update = fs_update_tree(thr_nb, fs);
+      ret_update = fs_update_tree(ctx, fs);
       if (ret_update != EXA_SUCCESS)
         return ret_update;
-      ret_set_demote_secs = admwrk_exec_command(thr_nb, &adm_service_fs,
+      ret_set_demote_secs = admwrk_exec_command(ctx, &adm_service_fs,
                                                 RPC_SERVICE_FS_GFS_UPDATE_TUNING,
                                                 fs, sizeof(fs_data_t));
       return ret_set_demote_secs;
@@ -1294,10 +1294,10 @@ static exa_error_code gfs_tune(int thr_nb, fs_data_t* fs,
       if (fs->clustered.gfs.glock_purge > 100)
         return -ERANGE;
 
-      ret_update = fs_update_tree(thr_nb, fs);
+      ret_update = fs_update_tree(ctx, fs);
       if (ret_update != EXA_SUCCESS)
         return ret_update;
-      ret_set_glock_purge = admwrk_exec_command(thr_nb, &adm_service_fs,
+      ret_set_glock_purge = admwrk_exec_command(ctx, &adm_service_fs,
                                                 RPC_SERVICE_FS_GFS_UPDATE_TUNING,
                                                 fs, sizeof(fs_data_t));
       return ret_set_glock_purge;
@@ -1313,17 +1313,17 @@ static exa_error_code gfs_tune(int thr_nb, fs_data_t* fs,
       else
 	return -EINVAL;
       fs->clustered.gfs.fuzzy_statfs = new_statfs;
-      ret_update = fs_update_tree(thr_nb, fs);
+      ret_update = fs_update_tree(ctx, fs);
       if (ret_update != EXA_SUCCESS)
 	{
 	  return ret_update;
 	}
-      ret_set_fuzzy_statfs = admwrk_exec_command(thr_nb, &adm_service_fs,
+      ret_set_fuzzy_statfs = admwrk_exec_command(ctx, &adm_service_fs,
 						 RPC_SERVICE_FS_GFS_UPDATE_TUNING,
 						 fs, sizeof(fs_data_t));
       return ret_set_fuzzy_statfs;
     }
-  return generic_fs_tune(thr_nb, fs, parameter, value);
+  return generic_fs_tune(ctx, fs, parameter, value);
 }
 
 /**
@@ -1336,7 +1336,7 @@ static exa_error_code gfs_tune(int thr_nb, fs_data_t* fs,
  * \return false if it was the last name or an error occurred, true instead
  *         and fill tune_name_value
  */
-static bool gfs_gettune(int thr_nb, fs_data_t* fs,
+static bool gfs_gettune(admwrk_ctx_t *ctx, fs_data_t* fs,
 				struct tune_t* tune, int* error)
 {
   *error = EXA_SUCCESS;
@@ -1392,7 +1392,7 @@ static bool gfs_gettune(int thr_nb, fs_data_t* fs,
     {
       tune_set_name(tune, "");
     }
-  return generic_fs_gettune(thr_nb, fs, tune, error);
+  return generic_fs_gettune(ctx, fs, tune, error);
 }
 
 /**
@@ -1402,7 +1402,7 @@ static bool gfs_gettune(int thr_nb, fs_data_t* fs,
  *
  * return EXA_SUCCESS if allowed, error code otherwise
  */
-int gfs_check_nodedel(int thr_nb, struct adm_node *node)
+int gfs_check_nodedel(admwrk_ctx_t *ctx, struct adm_node *node)
 {
   if (loaded && gfs_using_gulm())
     {
@@ -1424,12 +1424,12 @@ int gfs_check_nodedel(int thr_nb, struct adm_node *node)
 /**
  * \brief manage_gfs_local : Can we still manage GFS filesystems ?
  */
-void manage_gfs_local(int thr_nb, void *msg)
+void manage_gfs_local(admwrk_ctx_t *ctx, void *msg)
 {
     uint64_t* info_handle_gfs = msg;
     int error_val = EXA_SUCCESS;
     fs_handle_gfs = *info_handle_gfs;
-    admwrk_ack(thr_nb, error_val);
+    admwrk_ack(ctx, error_val);
 }
 
 /*

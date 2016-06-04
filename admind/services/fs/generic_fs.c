@@ -88,13 +88,13 @@ const fs_definition_t* fs_iterate_over_fs_definition(const fs_definition_t* curr
  *
  * \return the status of the data device, as seen by the VRT
  */
-int fs_get_data_device_offline(int thr_nb, fs_data_t* fs)
+int fs_get_data_device_offline(admwrk_ctx_t *ctx, fs_data_t* fs)
 {
   int offline = false;
   admwrk_request_t handle;
   int ret;
 
-  admwrk_run_command(thr_nb, &adm_service_fs, &handle, RPC_SERVICE_FS_DEVICE_STATUS,
+  admwrk_run_command(ctx, &adm_service_fs, &handle, RPC_SERVICE_FS_DEVICE_STATUS,
 		     &fs->volume_uuid, sizeof(fs->volume_uuid));
   while(admwrk_get_ack(&handle, NULL, &ret))
     if (ret)
@@ -108,15 +108,15 @@ int fs_get_data_device_offline(int thr_nb, fs_data_t* fs)
  *
  * \return True/False
  */
-void fs_get_data_device_status_local(int thr_nb, void *msg)
+void fs_get_data_device_status_local(admwrk_ctx_t *ctx, void *msg)
 {
   exa_uuid_t *uuid = msg;
   struct adm_volume *volume = adm_cluster_get_volume_by_uuid(uuid);
 
   if (volume->started)
-    admwrk_ack(thr_nb, volume->group->offline);
+    admwrk_ack(ctx, volume->group->offline);
   else
-    admwrk_ack(thr_nb, false);
+    admwrk_ack(ctx, false);
 }
 
 /** \brief Helper function; start the device.
@@ -126,10 +126,10 @@ void fs_get_data_device_status_local(int thr_nb, void *msg)
  *
  * \return : error code from device start
  */
-exa_error_code fs_data_device_start(int thr_nb, fs_data_t* fs, const exa_nodeset_t* list, uint32_t readonly)
+exa_error_code fs_data_device_start(admwrk_ctx_t *ctx, fs_data_t* fs, const exa_nodeset_t* list, uint32_t readonly)
 {
   struct adm_volume *volume = fs_get_volume(fs);
-  return vrt_master_volume_start(thr_nb, volume, list, readonly,
+  return vrt_master_volume_start(ctx, volume, list, readonly,
                                  false /* print_warning */);
 }
 
@@ -143,7 +143,7 @@ exa_error_code fs_data_device_start(int thr_nb, fs_data_t* fs, const exa_nodeset
  *
  * \return : error code from device stop
  */
-exa_error_code fs_data_device_stop(int thr_nb, fs_data_t* fs,
+exa_error_code fs_data_device_stop(admwrk_ctx_t *ctx, fs_data_t* fs,
                                    const exa_nodeset_t *list,
                                    bool force,
                                    adm_goal_change_t goal_change)
@@ -154,11 +154,11 @@ exa_error_code fs_data_device_stop(int thr_nb, fs_data_t* fs,
   if (!volume)
       return EXA_SUCCESS;
 
-  err = lum_master_export_unpublish(thr_nb, &volume->uuid, list, force);
+  err = lum_master_export_unpublish(ctx, &volume->uuid, list, force);
   if (err != EXA_SUCCESS)
       return err;
 
-  return vrt_master_volume_stop(thr_nb, volume, list, force, goal_change,
+  return vrt_master_volume_stop(ctx, volume, list, force, goal_change,
                                 false /* print_warning */);
 }
 
@@ -227,7 +227,7 @@ const fs_definition_t* fs_get_definition(const char* name)
 /**
  * Local function; Grow a FS.
  */
-void generic_fs_mounted_grow_local(int thr_nb, void *msg)
+void generic_fs_mounted_grow_local(admwrk_ctx_t *ctx, void *msg)
 {
   resize_info_t *info = msg;
   int ret = EXA_SUCCESS;
@@ -241,8 +241,8 @@ void generic_fs_mounted_grow_local(int thr_nb, void *msg)
 		     info->fs.mountpoint,
 		     0);
 
-  ret = admwrk_barrier(thr_nb, ret, "FS: Resize a mounted file system");
-  admwrk_ack(thr_nb, ret);
+  ret = admwrk_barrier(ctx, ret, "FS: Resize a mounted file system");
+  admwrk_ack(ctx, ret);
 }
 
 /**
@@ -253,7 +253,7 @@ void generic_fs_mounted_grow_local(int thr_nb, void *msg)
  *
  * \return 0 on success or an error code.
  */
-exa_error_code generic_fs_mounted_grow(int thr_nb, fs_data_t* fs_to_grow,
+exa_error_code generic_fs_mounted_grow(admwrk_ctx_t *ctx, fs_data_t* fs_to_grow,
 				       int64_t new_size)
 {
   int ret;
@@ -263,7 +263,7 @@ exa_error_code generic_fs_mounted_grow(int thr_nb, fs_data_t* fs_to_grow,
   struct vrt_volume_info volume_info;
 
   /* Check that the fs is mounted RW somewhere. */
-  ret = generic_fs_get_started_nodes(thr_nb, fs_to_grow, &list_mounted_rw, &list_mounted_ro);
+  ret = generic_fs_get_started_nodes(ctx, fs_to_grow, &list_mounted_rw, &list_mounted_ro);
   exa_nodeset_substract(&list_mounted_rw, &list_mounted_ro);
   if (exa_nodeset_is_empty(&list_mounted_rw))
     return -FS_ERR_RESIZE_NEED_MOUNT_RW;
@@ -273,7 +273,7 @@ exa_error_code generic_fs_mounted_grow(int thr_nb, fs_data_t* fs_to_grow,
     return -FS_ERR_RESIZE_SHRINK_NOT_POSSIBLE;
 
   /* resize the volume */
-  ret = vrt_master_volume_resize(thr_nb, volume, new_size);
+  ret = vrt_master_volume_resize(ctx, volume, new_size);
   if (ret) return ret;
 
   /* print a nice message and resize the filesystem */
@@ -282,7 +282,7 @@ exa_error_code generic_fs_mounted_grow(int thr_nb, fs_data_t* fs_to_grow,
 		       EXA_SUCCESS, "");
   memcpy(&info.fs, fs_to_grow, sizeof(info.fs));
   info.node=exa_nodeset_first(&list_mounted_rw);
-  ret = admwrk_exec_command(thr_nb, MY_SERVICE_ID, RPC_SERVICE_FS_GENERIC_GROW, &info, sizeof(info));
+  ret = admwrk_exec_command(ctx, MY_SERVICE_ID, RPC_SERVICE_FS_GENERIC_GROW, &info, sizeof(info));
   if (ret!=EXA_SUCCESS) return ret;
 
   /* Save the new size in the configuration */
@@ -299,7 +299,7 @@ exa_error_code generic_fs_mounted_grow(int thr_nb, fs_data_t* fs_to_grow,
 /**
  * \brief Local function; Make a fsck of a filesystem.
  */
-void generic_fs_check_local(int thr_nb, void *msg)
+void generic_fs_check_local(admwrk_ctx_t *ctx, void *msg)
 {
   generic_check_t *check = msg;
   int error_val = EXA_SUCCESS;
@@ -310,8 +310,8 @@ void generic_fs_check_local(int thr_nb, void *msg)
 			    check->optional_parameters,
 			    check->repair, check->output_file);
     }
-  error_val = admwrk_barrier(thr_nb, error_val, "Filesystem check");
-  admwrk_ack(thr_nb, error_val);
+  error_val = admwrk_barrier(ctx, error_val, "Filesystem check");
+  admwrk_ack(ctx, error_val);
 }
 
 /**
@@ -323,7 +323,7 @@ void generic_fs_check_local(int thr_nb, void *msg)
  *
  * \return 0 on success or an error code.
  */
-exa_error_code generic_fs_check(int thr_nb, fs_data_t* fs_to_test,
+exa_error_code generic_fs_check(admwrk_ctx_t *ctx, fs_data_t* fs_to_test,
 				const char* optional_parameters,
 				exa_nodeid_t node_where_to_check,
 				bool repair)
@@ -344,12 +344,12 @@ exa_error_code generic_fs_check(int thr_nb, fs_data_t* fs_to_test,
     }
 
   /* Start the data volume */
-  ret = fs_data_device_start(thr_nb, fs_to_test,
+  ret = fs_data_device_start(ctx, fs_to_test,
 			     &nodelist_where_to_check, false /* readonly*/);
   if (ret)
     {
       /* Error : try to stop volume */
-      fs_data_device_stop(thr_nb, fs_to_test,
+      fs_data_device_stop(ctx, fs_to_test,
                           &nodelist_where_to_check,
                           false /*force */,
                           ADM_GOAL_CHANGE_VOLUME);
@@ -374,11 +374,11 @@ exa_error_code generic_fs_check(int thr_nb, fs_data_t* fs_to_test,
   adm_write_inprogress(adm_nodeid_to_name(adm_my_id), message_string,
 		       EXA_SUCCESS, message_string);
 
-  ret = admwrk_exec_command(thr_nb, MY_SERVICE_ID, RPC_SERVICE_FS_GENERIC_CHECK,
+  ret = admwrk_exec_command(ctx, MY_SERVICE_ID, RPC_SERVICE_FS_GENERIC_CHECK,
 			    &check, sizeof(check));
   if (ret)
     {
-      fs_data_device_stop(thr_nb, fs_to_test,
+      fs_data_device_stop(ctx, fs_to_test,
                           &nodelist_where_to_check,
                           false /* force */,
                           ADM_GOAL_CHANGE_VOLUME);
@@ -386,7 +386,7 @@ exa_error_code generic_fs_check(int thr_nb, fs_data_t* fs_to_test,
     }
 
   /* Stop the volume */
-  ret = fs_data_device_stop(thr_nb, fs_to_test,
+  ret = fs_data_device_stop(ctx, fs_to_test,
                             &nodelist_where_to_check,
                             false /* force */,
                             ADM_GOAL_CHANGE_VOLUME);
@@ -402,7 +402,7 @@ exa_error_code generic_fs_check(int thr_nb, fs_data_t* fs_to_test,
  *
  * \return 0 on success or an error code.
  */
-exa_error_code generic_fs_tune(int thr_nb, fs_data_t* fs,
+exa_error_code generic_fs_tune(admwrk_ctx_t *ctx, fs_data_t* fs,
 			       const char* parameter, const char* value)
 {
   if (!strcmp(parameter, EXA_FSTUNE_MOUNT_OPTION))
@@ -421,7 +421,7 @@ exa_error_code generic_fs_tune(int thr_nb, fs_data_t* fs,
 	  return -FS_ERR_FORMAT_MOUNT_OPTION;
 	}
       strlcpy(fs->mount_option, value, sizeof(fs->mount_option));
-      ret_update = fs_update_tree(thr_nb, fs);
+      ret_update = fs_update_tree(ctx, fs);
       return ret_update;
     }
   return -FS_ERR_UNKNOWN_TUNE_OPTION;
@@ -436,19 +436,19 @@ exa_error_code generic_fs_tune(int thr_nb, fs_data_t* fs,
  *
  * \return 0 on success or an error code.
  */
-exa_error_code generic_fs_check_before_stop(int thr_nb, const exa_nodeset_t* nodes,
+exa_error_code generic_fs_check_before_stop(admwrk_ctx_t *ctx, const exa_nodeset_t* nodes,
 					    fs_data_t* fs,bool force)
 {
   EXA_ASSERT(nodes);
   /* Get the list of nodes really mounted */
-  if (fs_get_data_device_offline(thr_nb, fs))
+  if (fs_get_data_device_offline(ctx, fs))
   {
     if (! force)
       {
 	/* Get the list of nodes really mounted */
 	exa_nodeset_t mounted_nodes_list;
 
-	generic_fs_get_started_nodes(thr_nb, fs, &mounted_nodes_list, NULL);
+	generic_fs_get_started_nodes(ctx, fs, &mounted_nodes_list, NULL);
 
 	/* If the nodes to stop are mounted and the force flag is not set, this is an error */
         if (!exa_nodeset_disjoint(&mounted_nodes_list, nodes))
@@ -506,7 +506,7 @@ static uint64_t generic_fs_recovery_compute_option(bool recovery, int volume_off
  *
  * \return 0 on success or an error code.
  */
-exa_error_code generic_fs_get_started_nodes(int thr_nb,fs_data_t* fs_to_test,
+exa_error_code generic_fs_get_started_nodes(admwrk_ctx_t *ctx,fs_data_t* fs_to_test,
 					    exa_nodeset_t* nodes_list,
 					    exa_nodeset_t* nodes_list_ro)
 {
@@ -527,7 +527,7 @@ exa_error_code generic_fs_get_started_nodes(int thr_nb,fs_data_t* fs_to_test,
   strlcpy(fs_request.mountpoint, fs_to_test->mountpoint, sizeof(fs_request.mountpoint));
   strlcpy(fs_request.devpath, fs_to_test->devpath, sizeof(fs_request.devpath));
   exa_nodeset_reset( &fs_request.nodeliststatfs );
-  admwrk_run_command(thr_nb, MY_SERVICE_ID, &fs_rpc, RPC_ADM_CLINFO_FS, &fs_request, sizeof(fs_request));
+  admwrk_run_command(ctx, MY_SERVICE_ID, &fs_rpc, RPC_ADM_CLINFO_FS, &fs_request, sizeof(fs_request));
   while (admwrk_get_reply(&fs_rpc, &nodeid, &fs_reply, sizeof(fs_reply), &error_val))
     {
       if (error_val == -ADMIND_ERR_NODE_DOWN)
@@ -558,7 +558,7 @@ exa_error_code generic_fs_get_started_nodes(int thr_nb,fs_data_t* fs_to_test,
  * \return false if it was the last name or an error occurred, true instead
  *         and fill tune_name_value
  */
-bool generic_fs_gettune(int thr_nb, fs_data_t* fs,
+bool generic_fs_gettune(admwrk_ctx_t *ctx, fs_data_t* fs,
 			      struct tune_t* tune, int* error)
 {
   *error = EXA_SUCCESS;
@@ -596,7 +596,7 @@ const char* fs_get_name(fs_data_t* fs)
 /**
  * Local function; prepare/unload/mount/unmount the filesystem
  */
-void generic_startstop_fs_local(int thr_nb, void *msg)
+void generic_startstop_fs_local(admwrk_ctx_t *ctx, void *msg)
 {
   startstop_info_t *info = msg;
   int error_val= EXA_SUCCESS;
@@ -621,7 +621,7 @@ void generic_startstop_fs_local(int thr_nb, void *msg)
 	      fs_definition->post_prepare();
 	    }
 	}
-      error_val = admwrk_barrier(thr_nb, error_val, "FS: Loading daemons and modules");
+      error_val = admwrk_barrier(ctx, error_val, "FS: Loading daemons and modules");
     }
 
   /* mount */
@@ -668,7 +668,7 @@ void generic_startstop_fs_local(int thr_nb, void *msg)
 	      }
 	  }
 	}
-      error_barrier = admwrk_barrier(thr_nb, error_val,
+      error_barrier = admwrk_barrier(ctx, error_val,
 				     "FS: Mounting the filesystem");
     }
 
@@ -682,7 +682,7 @@ void generic_startstop_fs_local(int thr_nb, void *msg)
 				 fs_get_name(&info->fs));
 	  if (error_val) error_val = -FS_ERR_UMOUNT_ERROR;
 	}
-      error_barrier = admwrk_barrier(thr_nb, error_val,
+      error_barrier = admwrk_barrier(ctx, error_val,
 				     "FS: Unmounting the filesystem");
     }
 
@@ -697,7 +697,7 @@ void generic_startstop_fs_local(int thr_nb, void *msg)
 	}
       error_val = fsd_unload(adm_wt_get_localmb(), &info->fs);
 
-      error_barrier = admwrk_barrier(thr_nb, error_val,
+      error_barrier = admwrk_barrier(ctx, error_val,
 				     "FS: Unloading daemons and modules");
       if (error_barrier == -ADMIND_ERR_NODE_DOWN)
 	{
@@ -705,5 +705,5 @@ void generic_startstop_fs_local(int thr_nb, void *msg)
 	}
     }
 
-  admwrk_ack(thr_nb, error_val);
+  admwrk_ack(ctx, error_val);
 }

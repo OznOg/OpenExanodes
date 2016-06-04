@@ -38,7 +38,7 @@ struct msg_diskdel
 };
 
 static void
-cluster_cldiskdel(int thr_nb, void *data, cl_error_desc_t *err_desc)
+cluster_cldiskdel(admwrk_ctx_t *ctx, void *data, cl_error_desc_t *err_desc)
 {
   const struct cldiskdel_params *params = data;
   struct adm_disk *disk;
@@ -141,7 +141,7 @@ cluster_cldiskdel(int thr_nb, void *data, cl_error_desc_t *err_desc)
 
   msg.uuid = disk->uuid;
 
-  admwrk_exec_command(thr_nb, &adm_service_rdev,
+  admwrk_exec_command(ctx, &adm_service_rdev,
 		      RPC_ADM_CLDISKDEL, &msg, sizeof(msg));
 
   set_success(err_desc);
@@ -149,7 +149,7 @@ cluster_cldiskdel(int thr_nb, void *data, cl_error_desc_t *err_desc)
 
 
 static void
-local_diskdel(int thr_nb, void *msg)
+local_diskdel(admwrk_ctx_t *ctx, void *msg)
 {
   struct msg_diskdel *request = msg;
   struct adm_disk *disk;
@@ -167,7 +167,7 @@ local_diskdel(int thr_nb, void *msg)
 
   adm_service_for_each_reverse(service)
     if (service->diskdel != NULL)
-      service->diskdel(thr_nb, node, disk);
+      service->diskdel(ctx, node, disk);
 
   EXA_ASSERT(conf_save_synchronous() == EXA_SUCCESS);
 
@@ -175,7 +175,7 @@ local_diskdel(int thr_nb, void *msg)
 
   adm_disk_delete(disk);
 
-  admwrk_ack(thr_nb, EXA_SUCCESS);
+  admwrk_ack(ctx, EXA_SUCCESS);
 }
 
 

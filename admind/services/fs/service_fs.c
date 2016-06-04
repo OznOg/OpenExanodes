@@ -30,7 +30,7 @@
 #include "log/include/log.h"
 #include "vrt/virtualiseur/include/vrt_client.h"
 
-static int fs_init(int thr_nb)
+static int fs_init(admwrk_ctx_t *ctx)
 {
   char admind_pid_str[8 /* enougth for a pid */ ];
   char fsd_path[OS_PATH_MAX];
@@ -159,7 +159,7 @@ fs_data_t* iterate_fs_instance(fs_iterator_t* iter, bool valid,
  * \return EXA_SUCCESS; in case of error, returning something else than EXA_SUCCESS
  *         will make the hierarchy recovery fail.
  */
-static int fs_recover(int thr_nb)
+static int fs_recover(admwrk_ctx_t *ctx)
 {
   /* nodes considered brought UP by the recovery.*/
   exa_nodeset_t nodes_up_in_progress;
@@ -178,7 +178,7 @@ static int fs_recover(int thr_nb)
   inst_get_nodes_going_down(&adm_service_fs, &nodes_down_in_progress);
   inst_get_nodes_up(&adm_service_fs, &nodes_up);
 
-  error_val  = gfs_global_recover(thr_nb,
+  error_val  = gfs_global_recover(ctx,
 				  &nodes_up_in_progress,
 				  &nodes_down_in_progress,
 				  &nodes_up);
@@ -202,7 +202,7 @@ static int fs_recover(int thr_nb)
 
     exalog_debug("fs recover : restart filesystem instance '%s'",
 		 fs_get_name(struct_fs));
-    ret_recovery = definition->specific_fs_recovery(thr_nb, struct_fs);
+    ret_recovery = definition->specific_fs_recovery(ctx, struct_fs);
     if (ret_recovery == -ADMIND_ERR_NODE_DOWN)
       return ret_recovery;
   }
@@ -217,13 +217,13 @@ static int fs_recover(int thr_nb)
  * \return Error if daemon failed to stop.
  */
 static int
-fs_shutdown(int thr_nb)
+fs_shutdown(admwrk_ctx_t *ctx)
 {
   int error_val;
 
   exalog_debug("fs shutdown");
 
-  error_val = gfs_shutdown(thr_nb);
+  error_val = gfs_shutdown(ctx);
   if (error_val)
     {
       exalog_error("Execution of gfs_stop failed with error %d.", error_val);
@@ -247,7 +247,7 @@ fs_shutdown(int thr_nb)
  * \return error code. Should always be EXA_SUCCESS, otherwise the caller may break.
  */
 static int
-fs_nodeadd(int thr_nb, struct adm_node *node)
+fs_nodeadd(admwrk_ctx_t *ctx, struct adm_node *node)
 {
   int ret = EXA_SUCCESS;
   /* For each FS, if one is started with the given type, call nodeadd */
@@ -264,7 +264,7 @@ fs_nodeadd(int thr_nb, struct adm_node *node)
 	  while ((struct_fs = iterate_fs_instance(&iter, true, current_name, true)) != NULL)
 	    {
 	      exalog_debug("fs_nodeadd call nodeadd");
-	      ret = iter_type->node_add(thr_nb, node);
+	      ret = iter_type->node_add(ctx, node);
 	      if (ret != EXA_SUCCESS) return ret;
 	      break;
 	    }
@@ -279,7 +279,7 @@ fs_nodeadd(int thr_nb, struct adm_node *node)
  * \param [in] node : Node that will be added.
  */
 static void
-fs_nodeadd_commit(int thr_nb, struct adm_node *node)
+fs_nodeadd_commit(admwrk_ctx_t *ctx, struct adm_node *node)
 {
   /* For each FS, if one is started with the given type, call nodeadd */
   const fs_definition_t *iter_type = NULL;
@@ -295,7 +295,7 @@ fs_nodeadd_commit(int thr_nb, struct adm_node *node)
 	  while ((struct_fs = iterate_fs_instance(&iter, true, current_name, true)) != NULL)
 	    {
 	      exalog_debug("fs_nodeadd call nodeadd_commit");
-	      iter_type->node_add_commit(thr_nb, node);
+	      iter_type->node_add_commit(ctx, node);
 	      break;
 	    }
 	}
@@ -311,7 +311,7 @@ fs_nodeadd_commit(int thr_nb, struct adm_node *node)
  * \return Stop error. Should be always success.
  */
 static int
-fs_nodestop(int thr_nb, const exa_nodeset_t *nodes_to_stop)
+fs_nodestop(admwrk_ctx_t *ctx, const exa_nodeset_t *nodes_to_stop)
 {
   if (adm_nodeset_contains_me(nodes_to_stop))
     {
@@ -324,7 +324,7 @@ fs_nodestop(int thr_nb, const exa_nodeset_t *nodes_to_stop)
 	  definition = fs_get_definition(struct_fs->fstype);
 	  if (definition->node_stop == NULL)
 	    continue;
-	  definition->node_stop(thr_nb, struct_fs);
+	  definition->node_stop(ctx, struct_fs);
 	}
     }
   else
@@ -337,15 +337,15 @@ fs_nodestop(int thr_nb, const exa_nodeset_t *nodes_to_stop)
 }
 
 static void
-local_fs_stop(int thr_nb, void *msg)
+local_fs_stop(admwrk_ctx_t *ctx, void *msg)
 {
   const exa_nodeset_t *nodeset = msg;
-  int ret = fs_nodestop(thr_nb, nodeset);
+  int ret = fs_nodestop(ctx, nodeset);
 
-  admwrk_ack(thr_nb, ret);
+  admwrk_ack(ctx, ret);
 }
 
-static int fs_stop(int thr_nb, const stop_data_t *stop_data)
+static int fs_stop(admwrk_ctx_t *ctx, const stop_data_t *stop_data)
 {
   struct adm_group *group;
 
@@ -353,13 +353,13 @@ static int fs_stop(int thr_nb, const stop_data_t *stop_data)
    * and not use the vrt structures. */
   adm_group_for_each_group(group)
     {
-      int ret = fs_stop_all_fs(thr_nb, group, &stop_data->nodes_to_stop,
+      int ret = fs_stop_all_fs(ctx, group, &stop_data->nodes_to_stop,
 	                       stop_data->force, stop_data->goal_change);
       if (ret != EXA_SUCCESS)
 	return ret;
     }
 
-  return admwrk_exec_command(thr_nb, &adm_service_fs, RPC_SERVICE_FS_STOP,
+  return admwrk_exec_command(ctx, &adm_service_fs, RPC_SERVICE_FS_STOP,
                              &stop_data->nodes_to_stop,
 			     sizeof(stop_data->nodes_to_stop));
 }
@@ -369,11 +369,11 @@ static int fs_stop(int thr_nb, const stop_data_t *stop_data)
  *
  * \param [in] node   : Node to delete.
  */
-static void fs_nodedel(int thr_nb, struct adm_node *node)
+static void fs_nodedel(admwrk_ctx_t *ctx, struct adm_node *node)
 {
   exa_nodeset_t nodes_up;
   inst_get_nodes_up(&adm_service_fs, &nodes_up);
-  gfs_nodedel(thr_nb, node, &nodes_up);
+  gfs_nodedel(ctx, node, &nodes_up);
 }
 
 /**
@@ -385,13 +385,13 @@ static void fs_nodedel(int thr_nb, struct adm_node *node)
  *
  * \return the error code if it fails, EXA_SUCCESS otherwise.
  */
-exa_error_code fs_update_tree(int thr_nb,fs_data_t* fs_data)
+exa_error_code fs_update_tree(admwrk_ctx_t *ctx,fs_data_t* fs_data)
 {
   exa_error_code error_val = EXA_SUCCESS;
 
   /* Create the message for the local command */
   /* send event */
-  error_val = admwrk_exec_command(thr_nb, &adm_service_fs, RPC_SERVICE_FS_CONFIG_UPDATE,
+  error_val = admwrk_exec_command(ctx, &adm_service_fs, RPC_SERVICE_FS_CONFIG_UPDATE,
 				  fs_data, sizeof(fs_data_t));
   if ( error_val != EXA_SUCCESS)
     {
@@ -403,7 +403,7 @@ exa_error_code fs_update_tree(int thr_nb,fs_data_t* fs_data)
 /**
  * \brief Local command to create/update/delete a filesystem in the config file.
  */
-static void local_exa_fs_config (int thr_nb, void *msg)
+static void local_exa_fs_config (admwrk_ctx_t *ctx, void *msg)
 {
   struct adm_fs *fs = NULL;
   struct adm_volume* volume = NULL;
@@ -453,24 +453,24 @@ static void local_exa_fs_config (int thr_nb, void *msg)
 
   /* normal bail-out */
   exalog_debug("fsupdate local command is complete");
-  admwrk_ack(thr_nb, EXA_SUCCESS);
+  admwrk_ack(ctx, EXA_SUCCESS);
   return;
 
 barrier_error:
-  admwrk_ack(thr_nb, error_val);
+  admwrk_ack(ctx, error_val);
 }
 
-extern void gfs_create_config_local_with_ack(int thr_nb, void *msg);
-extern void generic_fs_mounted_grow_local(int thr_nb, void* msg);
-extern void generic_startstop_fs_local(int thr_nb, void *msg);
-extern void fs_get_data_device_status_local(int thr_nb, void *msg);
-extern void manage_membership_on_shm_local(int thr_nb, void *msg);
-extern void manage_gfs_local(int thr_nb, void *msg);
-extern void update_cman_local(int thr_nb, void *msg);
-extern void gfs_add_logs_local(int thr_nb, void *msg);
-extern void gfs_update_tuning(int thr_nb, void *msg);
+extern void gfs_create_config_local_with_ack(admwrk_ctx_t *ctx, void *msg);
+extern void generic_fs_mounted_grow_local(admwrk_ctx_t *ctx, void* msg);
+extern void generic_startstop_fs_local(admwrk_ctx_t *ctx, void *msg);
+extern void fs_get_data_device_status_local(admwrk_ctx_t *ctx, void *msg);
+extern void manage_membership_on_shm_local(admwrk_ctx_t *ctx, void *msg);
+extern void manage_gfs_local(admwrk_ctx_t *ctx, void *msg);
+extern void update_cman_local(admwrk_ctx_t *ctx, void *msg);
+extern void gfs_add_logs_local(admwrk_ctx_t *ctx, void *msg);
+extern void gfs_update_tuning(admwrk_ctx_t *ctx, void *msg);
 
-extern int gfs_check_nodedel(int thr_nb, struct adm_node *node);
+extern int gfs_check_nodedel(admwrk_ctx_t *ctx, struct adm_node *node);
 
 const struct adm_service adm_service_fs =
 {

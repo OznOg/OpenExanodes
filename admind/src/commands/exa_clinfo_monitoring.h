@@ -13,8 +13,8 @@
 
 #include <libxml/tree.h>
 
-void local_clinfo_monitoring(int thr_nb, void *msg);
-int cluster_clinfo_monitoring(int thr_nb, xmlNodePtr cluster_node);
+void local_clinfo_monitoring(admwrk_ctx_t *ctx, void *msg);
+int cluster_clinfo_monitoring(admwrk_ctx_t *ctx, xmlNodePtr cluster_node);
 
 #endif
 #endif

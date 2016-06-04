@@ -62,7 +62,7 @@ is_clustered_started(const char* fstype)
  *
  * \return 0 on success or an error code.
  */
-exa_error_code clustered_check_before_start(int thr_nb, fs_data_t* fs)
+exa_error_code clustered_check_before_start(admwrk_ctx_t *ctx, fs_data_t* fs)
 {
   struct adm_group *group = fs_get_volume(fs)->group;
 
@@ -83,7 +83,7 @@ exa_error_code clustered_check_before_start(int thr_nb, fs_data_t* fs)
  *
  * \return 0 on success or an error code.
  */
-exa_error_code clustered_start_fs(int thr_nb, const exa_nodeset_t* nodes,
+exa_error_code clustered_start_fs(admwrk_ctx_t *ctx, const exa_nodeset_t* nodes,
 				  const exa_nodeset_t* nodes_read_only,
 				  fs_data_t* fs, exa_nodeset_t* start_succeeded,
 				  int recovery)
@@ -108,7 +108,7 @@ exa_error_code clustered_start_fs(int thr_nb, const exa_nodeset_t* nodes,
       /* Start the data volume normal */
       if (!exa_nodeset_is_empty(nodes))
       {
-        ret = fs_data_device_start(thr_nb, fs, nodes, false);
+        ret = fs_data_device_start(ctx, fs, nodes, false);
         if (ret)
         {
             exa_nodeset_reset(start_succeeded);
@@ -118,7 +118,7 @@ exa_error_code clustered_start_fs(int thr_nb, const exa_nodeset_t* nodes,
 
       if (!exa_nodeset_is_empty(nodes_read_only))
       {
-        ret = fs_data_device_start(thr_nb, fs, nodes_read_only, true);
+        ret = fs_data_device_start(ctx, fs, nodes_read_only, true);
         if (ret)
         {
             exa_nodeset_reset(start_succeeded);
@@ -136,7 +136,7 @@ exa_error_code clustered_start_fs(int thr_nb, const exa_nodeset_t* nodes,
   /* prepare */
   info.action = startstop_action_prepare;
   exa_nodeset_reset(&info.nodes);
-  err = admwrk_exec_command(thr_nb, MY_SERVICE_ID, RPC_SERVICE_FS_STARTSTOP, &info, sizeof(info));
+  err = admwrk_exec_command(ctx, MY_SERVICE_ID, RPC_SERVICE_FS_STARTSTOP, &info, sizeof(info));
   if (err != EXA_SUCCESS)
     {
       exa_nodeset_copy(&start_failed, start_succeeded);
@@ -155,7 +155,7 @@ exa_error_code clustered_start_fs(int thr_nb, const exa_nodeset_t* nodes,
 	  info.read_only = exa_nodeset_contains(nodes_read_only, current_node);
 
 	  /* Call start. Sort for each node. */
-	  admwrk_run_command(thr_nb, MY_SERVICE_ID, &handle, RPC_SERVICE_FS_STARTSTOP, &info, sizeof(info));
+	  admwrk_run_command(ctx, MY_SERVICE_ID, &handle, RPC_SERVICE_FS_STARTSTOP, &info, sizeof(info));
 	  while (admwrk_get_ack(&handle, &nodeid, &err))
 	    {
 	      exalog_debug("FS start (mount) >>> reply from node %u, err=%d",
@@ -180,7 +180,7 @@ exa_error_code clustered_start_fs(int thr_nb, const exa_nodeset_t* nodes,
       /* Stop volume on nodes that failed to start, only not in recovery */
       if (exa_nodeset_count(&start_failed) != 0)
 	{
-          ret = fs_data_device_stop(thr_nb, fs, &start_failed,
+          ret = fs_data_device_stop(ctx, fs, &start_failed,
                                     false /* force */, ADM_GOAL_CHANGE_VOLUME);
 	  if (ret)
 	    {
@@ -204,7 +204,7 @@ exa_error_code clustered_start_fs(int thr_nb, const exa_nodeset_t* nodes,
  * \param[out] stop_succeeded    List of nodes on which the unmount action succeeded.
  * \return 0 on success or an error code.
  */
-exa_error_code clustered_stop_fs(int thr_nb, const exa_nodeset_t *nodes,
+exa_error_code clustered_stop_fs(admwrk_ctx_t *ctx, const exa_nodeset_t *nodes,
                                  fs_data_t* fs, bool force,
                                  adm_goal_change_t goal_change,
                                  exa_nodeset_t* stop_succeeded)
@@ -252,7 +252,7 @@ exa_error_code clustered_stop_fs(int thr_nb, const exa_nodeset_t *nodes,
   exa_nodeset_copy(&info.nodes, nodes);
 
   /* Call stop. Sort for each node. */
-  admwrk_run_command(thr_nb, MY_SERVICE_ID, &handle, RPC_SERVICE_FS_STARTSTOP, &info, sizeof(info));
+  admwrk_run_command(ctx, MY_SERVICE_ID, &handle, RPC_SERVICE_FS_STARTSTOP, &info, sizeof(info));
   while (admwrk_get_ack(&handle, &nodeid, &err))
   {
     exalog_debug("FS stop (unmount) >>> reply from %u, err=%d",
@@ -271,13 +271,13 @@ exa_error_code clustered_stop_fs(int thr_nb, const exa_nodeset_t *nodes,
     {
       info.action = startstop_action_unload;
       exa_nodeset_reset(&info.nodes);
-      ret_unload = admwrk_exec_command(thr_nb, MY_SERVICE_ID, RPC_SERVICE_FS_STARTSTOP,
+      ret_unload = admwrk_exec_command(ctx, MY_SERVICE_ID, RPC_SERVICE_FS_STARTSTOP,
 				       &info, sizeof(info));
     }
 
 vlstop:
   /* Stop the data volume on stopped FS */
-  ret = fs_data_device_stop(thr_nb, fs, stop_succeeded, force, goal_change);
+  ret = fs_data_device_stop(ctx, fs, stop_succeeded, force, goal_change);
   if (!force && ret_unload)
   {
     return ret_unload;
@@ -298,10 +298,10 @@ vlstop:
  * \param[in] repair              Repair or just check ?
  * \return 0 on success or an error code.
  */
-exa_error_code clustered_check_fs(int thr_nb, fs_data_t* fs, const char* optional_parameter,
+exa_error_code clustered_check_fs(admwrk_ctx_t *ctx, fs_data_t* fs, const char* optional_parameter,
 				  exa_nodeid_t node_where_to_check, bool repair)
 {
-  return generic_fs_check(thr_nb, fs, optional_parameter,
+  return generic_fs_check(ctx, fs, optional_parameter,
 			  node_where_to_check, repair);
 }
 
@@ -311,7 +311,7 @@ exa_error_code clustered_check_fs(int thr_nb, fs_data_t* fs, const char* optiona
  *
  * \return 0 on success or an error code.
  */
-exa_error_code clustered_specific_fs_recovery(int thr_nb, fs_data_t* fs)
+exa_error_code clustered_specific_fs_recovery(admwrk_ctx_t *ctx, fs_data_t* fs)
 {
     exa_nodeset_t list_to_start, list_to_start_read_only, list_started;
     const fs_definition_t *fs_definition = fs_get_definition(fs->fstype);
@@ -322,7 +322,7 @@ exa_error_code clustered_specific_fs_recovery(int thr_nb, fs_data_t* fs)
 
     exa_nodeset_intersect(&list_to_start_read_only, &list_to_start);
 
-    error = fs_definition->start_fs(thr_nb, &list_to_start, &list_to_start_read_only,
+    error = fs_definition->start_fs(ctx, &list_to_start, &list_to_start_read_only,
                                     fs, &list_started, true);
     if (error != EXA_SUCCESS)
     {

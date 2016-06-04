@@ -37,7 +37,7 @@ __export(EXA_ADM_CLNODESTOP) struct clnodestop_params
 
 
 static void
-cluster_clnodestop(int thr_nb, void *data, cl_error_desc_t *err_desc)
+cluster_clnodestop(admwrk_ctx_t *ctx, void *data, cl_error_desc_t *err_desc)
 {
   const struct clnodestop_params *params = data;
   int ret;
@@ -113,7 +113,7 @@ cluster_clnodestop(int thr_nb, void *data, cl_error_desc_t *err_desc)
   exa_nodeset_copy(&stop_data.nodes_to_stop, &nodes_to_stop);
   stop_data.force       = params->force;
   stop_data.goal_change = params->recursive;
-  adm_hierarchy_run_stop(thr_nb, &stop_data, err_desc);
+  adm_hierarchy_run_stop(ctx, &stop_data, err_desc);
 
   /* The nodestop failed; the cluster may be in a inconsistant status
    * (fe some instances stopped, some other not) so we trigger a recovery

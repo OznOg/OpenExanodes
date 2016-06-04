@@ -43,7 +43,7 @@ struct t_work
    * this uid with the request */
   cmd_uid_t cmd_uid;
 
-  admwrk_ctx_t admwrk;
+  admwrk_ctx_t *admwrk;
 
   ExamsgID id_mine;
   bool stop;
@@ -82,7 +82,7 @@ ExamsgHandle adm_wt_get_barmb(bool even)
 
 admwrk_ctx_t *adm_wt_get_admwrk_ctx(void)
 {
-  return &thr->admwrk;
+  return thr->admwrk;
 }
 
 const char *
@@ -107,6 +107,10 @@ launch_worker_thread(t_work **thr_ptr, worker_thread_id_t thr_id,
   thr->thr_nb  = thr_id;
   thr->cmd_uid = CMD_UID_INVALID;
   thr->id_mine = id_mine;
+
+  thr->admwrk = admwrk_ctx_alloc();
+  if (thr->admwrk == NULL)
+    return -ENOMEM;
 
   /* initialize examsg framework */
   thr->mb_inbox = examsgInit(id_mine);
@@ -180,6 +184,8 @@ void stop_worker_thread(t_work *thr)
     examsgExit(thr->mb_local);
     examsgExit(thr->mb_barrier[0]);
     examsgExit(thr->mb_barrier[1]);
+
+    admwrk_ctx_free(thr->admwrk);
 
     os_free(thr);
 }
@@ -300,7 +306,7 @@ static void exec_cluster_cmd(command_t *msg, cl_error_desc_t *err_desc)
   }
 
   /* Call the cluster command */
-  cmd->cluster_command(thr->thr_nb, msg->data, err_desc);
+  cmd->cluster_command(thr->admwrk, msg->data, err_desc);
 
   exalog_debug("%s: %s (%d)", cmd->msg,
     err_desc->msg[0] != '\0' ? err_desc->msg : exa_error_msg(err_desc->code),
@@ -372,7 +378,7 @@ void work_thread_handle_msg(Examsg *msg, ExamsgMID *from)
 
       case EXAMSG_SERVICE_LOCALCMD:
 	/* FIXME the in use flag should probably be set here too */
-	admwrk_handle_localcmd_msg(thr->thr_nb, msg, from);
+	admwrk_handle_localcmd_msg(thr->admwrk, msg, from);
 	break;
 
       default:

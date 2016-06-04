@@ -9,8 +9,9 @@
 #define __RPC_COMMAND_H__
 
 #include "admind/src/adm_error.h"
+#include "admind/src/rpc.h"
 
-typedef void (*LocalCommand) (int thr_nb, void *data);
+typedef void (*LocalCommand) (admwrk_ctx_t *ctx, void *data);
 typedef void (*RegisterLocalCommand) (LocalCommand local_commands[]);
 
 typedef enum rpc_command {

@@ -61,7 +61,7 @@ struct dgdiskrecover_info
  * commands.
  */
 static void
-cluster_dgdiskrecover(int thr_nb, void *data, cl_error_desc_t *err_desc)
+cluster_dgdiskrecover(admwrk_ctx_t *ctx, void *data, cl_error_desc_t *err_desc)
 {
   const struct dgdiskrecover_params *params = data;
   struct adm_group *group;
@@ -168,7 +168,7 @@ cluster_dgdiskrecover(int thr_nb, void *data, cl_error_desc_t *err_desc)
   new_disk_ok = false;
   new_disk_nodeid = EXA_NODEID_NONE;
 
-  admwrk_run_command(thr_nb, &adm_service_rdev, &rpc,
+  admwrk_run_command(ctx, &adm_service_rdev, &rpc,
           RPC_ADM_CLINFO_DISK_INFO, &query, sizeof(query));
 
   /* Only one reply will contain the local information about the disk. */
@@ -202,7 +202,7 @@ cluster_dgdiskrecover(int thr_nb, void *data, cl_error_desc_t *err_desc)
   uuid_copy(&info.old_disk_uuid, &old_disk_uuid);
   uuid_copy(&info.new_disk_uuid, &new_disk_uuid);
 
-  ret = admwrk_exec_command(thr_nb, &adm_service_rdev, RPC_ADM_DGDISKRECOVER,
+  ret = admwrk_exec_command(ctx, &adm_service_rdev, RPC_ADM_DGDISKRECOVER,
                             &info, sizeof(info));
   if (ret != EXA_SUCCESS)
     {
@@ -220,7 +220,7 @@ cluster_dgdiskrecover(int thr_nb, void *data, cl_error_desc_t *err_desc)
  * The dgdiskrecover local command, executed on all nodes.
  */
 static void
-local_dgdiskrecover(int thr_nb, void *msg)
+local_dgdiskrecover(admwrk_ctx_t *ctx, void *msg)
 {
   int ret;
   int barrier_ret;
@@ -244,14 +244,14 @@ local_dgdiskrecover(int thr_nb, void *msg)
   ret = vrt_client_device_replace(adm_wt_get_localmb(), &group->uuid,
                                   &new_disk->vrt_uuid, &new_disk->uuid);
 
-  barrier_ret = admwrk_barrier(thr_nb, ret, "Replacing the disk");
+  barrier_ret = admwrk_barrier(ctx, ret, "Replacing the disk");
   if (barrier_ret != EXA_SUCCESS)
       goto local_exa_dgdiskrecover_end;
 
   /* Synchronize the group SBs */
-  ret = adm_vrt_group_sync_sb(thr_nb, group);
+  ret = adm_vrt_group_sync_sb(ctx, group);
 
-  barrier_ret = admwrk_barrier(thr_nb, ret, "Synchronyse the group SBs");
+  barrier_ret = admwrk_barrier(ctx, ret, "Synchronyse the group SBs");
   if (barrier_ret != EXA_SUCCESS)
       goto local_exa_dgdiskrecover_end;
 
@@ -268,7 +268,7 @@ local_dgdiskrecover(int thr_nb, void *msg)
   inst_set_resources_changed_up(&adm_service_vrt);
 
 local_exa_dgdiskrecover_end:
-  admwrk_ack(thr_nb, barrier_ret);
+  admwrk_ack(ctx, barrier_ret);
 }
 
 

@@ -56,7 +56,7 @@ static int lum_target_config_load(void)
     return target_config_load(conf_file);
 }
 
-static int lum_init(int thr_nb)
+static int lum_init(admwrk_ctx_t *ctx)
 {
     char iqn_compliant_name[EXA_MAXSIZE_CLUSTERNAME + 1];
     lum_init_params_t params;
@@ -103,7 +103,7 @@ static int lum_init(int thr_nb)
     return lum_deserialize_exports();
 }
 
-static int lum_shutdown(int thr_nb)
+static int lum_shutdown(admwrk_ctx_t *ctx)
 {
     int err;
 
@@ -185,7 +185,7 @@ int lum_service_publish_export(const exa_uuid_t *uuid)
     return EXA_SUCCESS;
 }
 
-static int local_lum_recover_reexport_all_exports(int thr_nb)
+static int local_lum_recover_reexport_all_exports(admwrk_ctx_t *ctx)
 {
     const adm_export_t *adm_export;
     int i;
@@ -267,7 +267,7 @@ static void local_lum_get_listen_addresses(__node_target_addresses_t *addresses)
         addresses->listen_addr[0] = listen_addr;
 }
 
-static void local_lum_recover(int thr_nb, void *msg)
+static void local_lum_recover(admwrk_ctx_t *ctx, void *msg)
 {
   uint64_t version, best_version = EXPORTS_VERSION_DEFAULT;
   uint64_t exports_version = lum_exports_get_version();
@@ -285,12 +285,12 @@ static void local_lum_recover(int thr_nb, void *msg)
 
   ret = local_lum_set_peers();
 
-  barrier_ret = admwrk_barrier(thr_nb, ret, "Setting peers");
+  barrier_ret = admwrk_barrier(ctx, ret, "Setting peers");
   if (barrier_ret != EXA_SUCCESS)
   {
       exalog_error("Cannot set peers: %s (%d).",
 		   exa_error_msg(barrier_ret), barrier_ret);
-      admwrk_ack(thr_nb, barrier_ret);
+      admwrk_ack(ctx, barrier_ret);
       return;
   }
 
@@ -303,12 +303,12 @@ static void local_lum_recover(int thr_nb, void *msg)
 
   ret = lum_client_set_membership(adm_wt_get_localmb(), &nodes_up);
 
-  barrier_ret = admwrk_barrier(thr_nb, ret, "Setting membership");
+  barrier_ret = admwrk_barrier(ctx, ret, "Setting membership");
   if (barrier_ret != EXA_SUCCESS)
   {
       exalog_error("Cannot set LUM membership: %s (%d).",
 		   exa_error_msg(barrier_ret), barrier_ret);
-      admwrk_ack(thr_nb, barrier_ret);
+      admwrk_ack(ctx, barrier_ret);
       return;
   }
 
@@ -334,23 +334,23 @@ static void local_lum_recover(int thr_nb, void *msg)
       }
   }
 
-  barrier_ret = admwrk_barrier(thr_nb, ret, "Exchanging target listen addresses");
+  barrier_ret = admwrk_barrier(ctx, ret, "Exchanging target listen addresses");
   if (barrier_ret != EXA_SUCCESS)
   {
       exalog_error("Cannot exchange listen addresses: %s (%d).",
 		   exa_error_msg(barrier_ret), barrier_ret);
-      admwrk_ack(thr_nb, barrier_ret);
+      admwrk_ack(ctx, barrier_ret);
       return;
   }
 
   ret = lum_client_set_targets(adm_wt_get_localmb(), num_addr, addresses);
 
-  barrier_ret = admwrk_barrier(thr_nb, ret, "Setting targets");
+  barrier_ret = admwrk_barrier(ctx, ret, "Setting targets");
   if (barrier_ret != EXA_SUCCESS)
   {
       exalog_error("Cannot set targets: %s (%d).",
 		   exa_error_msg(barrier_ret), barrier_ret);
-      admwrk_ack(thr_nb, barrier_ret);
+      admwrk_ack(ctx, barrier_ret);
       return;
   }
   /* Exchange exports file version number */
@@ -373,12 +373,12 @@ static void local_lum_recover(int thr_nb, void *msg)
                    nodeid, version);
   }
 
-  barrier_ret = admwrk_barrier(thr_nb, ret, "Exchanging exports version");
+  barrier_ret = admwrk_barrier(ctx, ret, "Exchanging exports version");
   if (barrier_ret != EXA_SUCCESS)
   {
       exalog_error("Cannot exchange exports version: %s (%d).",
 		   exa_error_msg(barrier_ret), barrier_ret);
-      admwrk_ack(thr_nb, barrier_ret);
+      admwrk_ack(ctx, barrier_ret);
       return;
   }
 
@@ -432,12 +432,12 @@ static void local_lum_recover(int thr_nb, void *msg)
       }
   }
 
-  barrier_ret = admwrk_barrier(thr_nb, ret, "Exchanging exports number");
+  barrier_ret = admwrk_barrier(ctx, ret, "Exchanging exports number");
   if (barrier_ret != EXA_SUCCESS)
   {
       exalog_error("Cannot exchange exports number: %s (%d).",
 		   exa_error_msg(barrier_ret), barrier_ret);
-      admwrk_ack(thr_nb, barrier_ret);
+      admwrk_ack(ctx, barrier_ret);
       return;
   }
 
@@ -491,7 +491,7 @@ static void local_lum_recover(int thr_nb, void *msg)
   {
       exalog_error("Cannot exchange exports data: %s (%d).",
 		   exa_error_msg(ret), ret);
-      admwrk_ack(thr_nb, ret);
+      admwrk_ack(ctx, ret);
       if (need_update)
           /* rollback MUST be successful otherwise situation is unrecoverable */
           EXA_ASSERT(lum_deserialize_exports() == EXA_SUCCESS);
@@ -505,63 +505,63 @@ static void local_lum_recover(int thr_nb, void *msg)
       lum_serialize_exports();
   }
 
-  barrier_ret = admwrk_barrier(thr_nb, ret, "Exchanging exports data");
+  barrier_ret = admwrk_barrier(ctx, ret, "Exchanging exports data");
   if (barrier_ret != EXA_SUCCESS)
   {
       exalog_error("Cannot exchange exports data: %s (%d).",
 		   exa_error_msg(barrier_ret), barrier_ret);
-      admwrk_ack(thr_nb, barrier_ret);
+      admwrk_ack(ctx, barrier_ret);
       return;
   }
 
   /* and re-export our exports */
-  ret = local_lum_recover_reexport_all_exports(thr_nb);
+  ret = local_lum_recover_reexport_all_exports(ctx);
 
-  barrier_ret = admwrk_barrier(thr_nb, ret, "Re-exporting exports");
+  barrier_ret = admwrk_barrier(ctx, ret, "Re-exporting exports");
   if (barrier_ret != EXA_SUCCESS)
   {
       exalog_error("Cannot re-export exports: %s (%d).",
 		   exa_error_msg(barrier_ret), barrier_ret);
-      admwrk_ack(thr_nb, barrier_ret);
+      admwrk_ack(ctx, barrier_ret);
       return;
   }
 
   ret = lum_client_start_target(adm_wt_get_localmb());
 
-  admwrk_ack(thr_nb, ret);
+  admwrk_ack(ctx, ret);
 }
 
 static int
-lum_recover(int thr_nb)
+lum_recover(admwrk_ctx_t *ctx)
 {
-  return admwrk_exec_command(thr_nb, &adm_service_lum,
+  return admwrk_exec_command(ctx, &adm_service_lum,
                              RPC_SERVICE_LUM_RECOVER, NULL, 0);
 }
 
-static int lum_suspend(int thr_nb)
+static int lum_suspend(admwrk_ctx_t *ctx)
 {
-  return admwrk_exec_command(thr_nb, &adm_service_lum,
+  return admwrk_exec_command(ctx, &adm_service_lum,
                              RPC_SERVICE_LUM_SUSPEND, NULL, 0);
 }
 
-static void local_lum_suspend(int thr_nb, void *msg)
+static void local_lum_suspend(admwrk_ctx_t *ctx, void *msg)
 {
   int ret = lum_client_suspend(adm_wt_get_localmb());
 
-  admwrk_ack(thr_nb, ret);
+  admwrk_ack(ctx, ret);
 }
 
-static int lum_resume(int thr_nb)
+static int lum_resume(admwrk_ctx_t *ctx)
 {
-  return admwrk_exec_command(thr_nb, &adm_service_lum,
+  return admwrk_exec_command(ctx, &adm_service_lum,
                              RPC_SERVICE_LUM_RESUME, NULL, 0);
 }
 
-static void local_lum_resume(int thr_nb, void *msg)
+static void local_lum_resume(admwrk_ctx_t *ctx, void *msg)
 {
   int ret = lum_client_resume(adm_wt_get_localmb());
 
-  admwrk_ack(thr_nb, ret);
+  admwrk_ack(ctx, ret);
 }
 
 typedef struct
@@ -570,7 +570,7 @@ typedef struct
     exa_nodeset_t nodelist;
 } lum_unpublish_args_t;
 
-int lum_master_export_unpublish(int thr_nb, const exa_uuid_t *uuid,
+int lum_master_export_unpublish(admwrk_ctx_t *ctx, const exa_uuid_t *uuid,
                                 const exa_nodeset_t *nodelist, bool force)
 {
     lum_unpublish_args_t args;
@@ -589,7 +589,7 @@ int lum_master_export_unpublish(int thr_nb, const exa_uuid_t *uuid,
     uuid_copy(&args.uuid, uuid);
     exa_nodeset_copy(&args.nodelist, nodelist);
 
-    admwrk_run_command(thr_nb, &adm_service_lum, &handle,
+    admwrk_run_command(ctx, &adm_service_lum, &handle,
                        RPC_SERVICE_LUM_UNPUBLISH, &args, sizeof(args));
 
     while (admwrk_get_ack(&handle, &nodeid, &err))
@@ -614,7 +614,7 @@ int lum_master_export_unpublish(int thr_nb, const exa_uuid_t *uuid,
     return res;
 }
 
-static void local_lum_unpublish(int thr_nb, void *msg)
+static void local_lum_unpublish(admwrk_ctx_t *ctx, void *msg)
 {
     const lum_unpublish_args_t *args = msg;
     int err;
@@ -632,28 +632,28 @@ static void local_lum_unpublish(int thr_nb, void *msg)
     else
         err = -ADMIND_ERR_NOTHINGTODO;
 
-  admwrk_ack(thr_nb, err);
+  admwrk_ack(ctx, err);
 }
 
-static int lum_stop(int thr_nb, const stop_data_t *stop_data)
+static int lum_stop(admwrk_ctx_t *ctx, const stop_data_t *stop_data)
 {
     const adm_export_t *export;
     int i, err;
 
     lum_exports_for_each_export(i, export)
     {
-        err = lum_master_export_unpublish(thr_nb, adm_export_get_uuid(export),
+        err = lum_master_export_unpublish(ctx, adm_export_get_uuid(export),
                                           &stop_data->nodes_to_stop,
                                           stop_data->force);
         if (err != EXA_SUCCESS)
             return err;
     }
 
-    return admwrk_exec_command(thr_nb, &adm_service_lum,
+    return admwrk_exec_command(ctx, &adm_service_lum,
 	 	     RPC_SERVICE_LUM_STOP, stop_data, sizeof(*stop_data));
 }
 
-static void local_lum_stop(int thr_nb, void *msg)
+static void local_lum_stop(admwrk_ctx_t *ctx, void *msg)
 {
   const exa_nodeset_t *nodes_to_stop = &((const stop_data_t *)msg)->nodes_to_stop;
   exa_nodeset_t membership;
@@ -664,12 +664,12 @@ static void local_lum_stop(int thr_nb, void *msg)
   else
       err = -ADMIND_ERR_NOTHINGTODO;
 
-  barrier_err = admwrk_barrier(thr_nb, err, "Stopping target");
+  barrier_err = admwrk_barrier(ctx, err, "Stopping target");
   if (barrier_err != EXA_SUCCESS)
   {
       exalog_error("Cannot stop target: %s (%d).",
 		   exa_error_msg(barrier_err), barrier_err);
-      admwrk_ack(thr_nb, barrier_err);
+      admwrk_ack(ctx, barrier_err);
       return;
   }
 
@@ -693,11 +693,11 @@ static void local_lum_stop(int thr_nb, void *msg)
 
   err = lum_client_set_membership(adm_wt_get_localmb(), &membership);
 
-  admwrk_ack(thr_nb, err);
+  admwrk_ack(ctx, err);
 }
 
 /* Note: this is called on all nodes */
-static void lum_nodedel(int thr_nb, struct adm_node *node)
+static void lum_nodedel(admwrk_ctx_t *ctx, struct adm_node *node)
 {
     local_lum_set_peers();
 }

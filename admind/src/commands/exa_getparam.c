@@ -151,11 +151,11 @@ build_response(xmlNodePtr exanodes_node)
  *
  * Recreate a list of parameters.
  *
- * \param [in] thr_nb: thread id.
+ * \param [in] ctx: thread id.
  */
 /*------------------------------------------------------------------------------*/
 static void
-cluster_getparam(int thr_nb, void *data, cl_error_desc_t *err_desc)
+cluster_getparam(admwrk_ctx_t *ctx, void *data, cl_error_desc_t *err_desc)
 {
   xmlDocPtr doc = NULL;
   xmlNodePtr exanodes_node;

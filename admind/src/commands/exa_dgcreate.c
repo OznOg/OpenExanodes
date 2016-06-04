@@ -284,7 +284,7 @@ get_info_from_params(const struct dgcreate_params *params,
  * commands.
  */
 static void
-cluster_dgcreate(int thr_nb, void *data, cl_error_desc_t *err_desc)
+cluster_dgcreate(admwrk_ctx_t *ctx, void *data, cl_error_desc_t *err_desc)
 {
     struct dgcreate_params *params = data;
     struct dgcreate_info info;
@@ -329,7 +329,7 @@ cluster_dgcreate(int thr_nb, void *data, cl_error_desc_t *err_desc)
 	return;
     }
 
-    error_val = admwrk_exec_command(thr_nb, &adm_service_admin, RPC_ADM_DGCREATE,
+    error_val = admwrk_exec_command(ctx, &adm_service_admin, RPC_ADM_DGCREATE,
 				    &info, sizeof(info));
 
     set_error(err_desc, error_val, NULL);
@@ -346,7 +346,7 @@ cluster_dgcreate(int thr_nb, void *data, cl_error_desc_t *err_desc)
  *
  * @return EXA_SUCCESS on success, an error code on failure
  */
-static int local_exa_dgcreate_config_add(int thr_nb, struct dgcreate_info *info,
+static int local_exa_dgcreate_config_add(admwrk_ctx_t *ctx, struct dgcreate_info *info,
 					 struct adm_group **out_group,
 					 char *error_msg)
 {
@@ -487,14 +487,14 @@ static int local_exa_dgcreate_config_add(int thr_nb, struct dgcreate_info *info,
 /**
  * Create the group inside the virtualizer.
  *
- * @param[in] thr_nb       Thread number in which we are (needed to send
+ * @param[in] ctx       Thread number in which we are (needed to send
  *                         and receive messages)
  *
  * @param[in] group        The structure describing the group to create
  *
  * @return EXA_SUCCESS on success, an error code on failure
  */
-static int local_exa_dgcreate_vrt_create(int thr_nb, struct adm_group *group,
+static int local_exa_dgcreate_vrt_create(admwrk_ctx_t *ctx, struct adm_group *group,
 			      struct dgcreate_info *info,
                               char *error_msg, int error_msg_size)
 {
@@ -526,7 +526,7 @@ static int local_exa_dgcreate_vrt_create(int thr_nb, struct adm_group *group,
  * The dgcreate local command, executed on all nodes.
  */
 static void
-local_exa_dgcreate (int thr_nb, void *msg)
+local_exa_dgcreate (admwrk_ctx_t *ctx, void *msg)
 {
     int ret, barrier_ret, rollback_ret;
     struct dgcreate_info *info = msg;
@@ -535,9 +535,9 @@ local_exa_dgcreate (int thr_nb, void *msg)
     char error_msg[EXA_MAXSIZE_LINE + 1] = "";
 
     EXA_ASSERT(info->nb_disks > 0);
-    ret = local_exa_dgcreate_config_add(thr_nb, info, &group, error_msg);
+    ret = local_exa_dgcreate_config_add(ctx, info, &group, error_msg);
 
-    barrier_ret = admwrk_barrier_msg(thr_nb, ret,
+    barrier_ret = admwrk_barrier_msg(ctx, ret,
 				     "Adding diskgroup in the configuration",
 				     "%s", error_msg);
     if (barrier_ret == -ADMIND_ERR_NODE_DOWN)
@@ -546,15 +546,15 @@ local_exa_dgcreate (int thr_nb, void *msg)
 	goto undo_diskgroup_add;
 
     ret = conf_save_synchronous();
-    barrier_ret = admwrk_barrier(thr_nb, ret, "Saving configuration file");
+    barrier_ret = admwrk_barrier(ctx, ret, "Saving configuration file");
     if (barrier_ret == -ADMIND_ERR_NODE_DOWN)
 	goto metadata_corruption;
     else if (barrier_ret != EXA_SUCCESS)
 	goto undo_xml_save;
 
-    ret = local_exa_dgcreate_vrt_create(thr_nb, group, info, error_msg, EXA_MAXSIZE_LINE + 1);
+    ret = local_exa_dgcreate_vrt_create(ctx, group, info, error_msg, EXA_MAXSIZE_LINE + 1);
 
-    barrier_ret = admwrk_barrier_msg(thr_nb, ret, "Creating group", "%s", error_msg);
+    barrier_ret = admwrk_barrier_msg(ctx, ret, "Creating group", "%s", error_msg);
     if (barrier_ret == -ADMIND_ERR_NODE_DOWN)
 	goto metadata_corruption;
     else if (barrier_ret != EXA_SUCCESS)
@@ -585,7 +585,7 @@ undo_diskgroup_add:
 
     /* Always save the configuration file after rollback */
     rollback_ret = conf_save_synchronous();
-    barrier_ret = admwrk_barrier(thr_nb, rollback_ret, "conf_save_synchronous");
+    barrier_ret = admwrk_barrier(ctx, rollback_ret, "conf_save_synchronous");
     if (barrier_ret == -ADMIND_ERR_NODE_DOWN)
 	goto metadata_corruption;
 
@@ -595,7 +595,7 @@ metadata_corruption:
     ret = -ADMIND_ERR_METADATA_CORRUPTION;
 
 local_exa_dgcreate_end:
-    admwrk_ack(thr_nb, ret);
+    admwrk_ack(ctx, ret);
 }
 
 /**

@@ -45,7 +45,7 @@ static os_daemon_t server_daemon = OS_DAEMON_INVALID;
 static os_daemon_t client_daemon = OS_DAEMON_INVALID;
 
 static int
-nbd_init(int thr_nb)
+nbd_init(admwrk_ctx_t *ctx)
 {
   int error_val = EXA_SUCCESS;
   struct adm_nic *nic;                       /**< the local network card for data network */
@@ -147,14 +147,14 @@ nbd_init(int thr_nb)
 
 
 static int
-nbd_suspend(int thr_nb)
+nbd_suspend(admwrk_ctx_t *ctx)
 {
-  return admwrk_exec_command(thr_nb, &adm_service_nbd, RPC_SERVICE_NBD_SUSPEND, NULL, 0);
+  return admwrk_exec_command(ctx, &adm_service_nbd, RPC_SERVICE_NBD_SUSPEND, NULL, 0);
 }
 
 
 static void
-nbd_local_suspend(int thr_nb, void *msg)
+nbd_local_suspend(admwrk_ctx_t *ctx, void *msg)
 {
   exa_nodeset_t nodes_up, nodes_going_up, nodes_going_down;
   struct adm_node *node;
@@ -195,14 +195,14 @@ nbd_local_suspend(int thr_nb, void *msg)
   }
 
 error:
-  admwrk_ack(thr_nb, ret);
+  admwrk_ack(ctx, ret);
 }
 
 /**
  * Unimport newly down disks.
  */
 static int
-nbd_recover_clientd_device_down(int thr_nb, exa_nodeset_t *nodes_going_down)
+nbd_recover_clientd_device_down(admwrk_ctx_t *ctx, exa_nodeset_t *nodes_going_down)
 {
   struct adm_node *node;
 
@@ -240,7 +240,7 @@ nbd_recover_clientd_device_down(int thr_nb, exa_nodeset_t *nodes_going_down)
  * Close connections with newly down servers.
  */
 static int
-nbd_recover_clientd_close_session(int thr_nb, exa_nodeset_t *nodes_going_down)
+nbd_recover_clientd_close_session(admwrk_ctx_t *ctx, exa_nodeset_t *nodes_going_down)
 {
   struct adm_node *node;
 
@@ -271,7 +271,7 @@ nbd_recover_clientd_close_session(int thr_nb, exa_nodeset_t *nodes_going_down)
  * Add newly up nodes to serverd.
  */
 static int
-nbd_recover_serverd_add_client(int thr_nb, exa_nodeset_t *nodes_up)
+nbd_recover_serverd_add_client(admwrk_ctx_t *ctx, exa_nodeset_t *nodes_up)
 {
   struct adm_node *node;
 
@@ -311,7 +311,7 @@ nbd_recover_serverd_add_client(int thr_nb, exa_nodeset_t *nodes_up)
  * Remove newly down nodes from serverd.
  */
 static int
-nbd_recover_serverd_remove_client(int thr_nb, exa_nodeset_t *nodes_going_down)
+nbd_recover_serverd_remove_client(admwrk_ctx_t *ctx, exa_nodeset_t *nodes_going_down)
 {
   struct adm_node *node;
 
@@ -470,7 +470,7 @@ nbd_assert_disk_consistency(exa_nodeset_t *graph)
  * Open connections to newly up servers.
  */
 static int
-nbd_recover_clientd_open_session(int thr_nb, exa_nodeset_t *nodes_up,
+nbd_recover_clientd_open_session(admwrk_ctx_t *ctx, exa_nodeset_t *nodes_up,
 	                         exa_nodeset_t *nodes_going_up)
 {
   struct {
@@ -571,7 +571,7 @@ nbd_recover_clientd_open_session(int thr_nb, exa_nodeset_t *nodes_up,
  * Get information about local disks.
  */
 static void
-nbd_recover_serverd_device_get_info(int thr_nb, struct nbd_recover_disk_info *info)
+nbd_recover_serverd_device_get_info(admwrk_ctx_t *ctx, struct nbd_recover_disk_info *info)
 {
   exported_device_info_t device_info;
   struct adm_disk *disk;
@@ -606,7 +606,7 @@ nbd_recover_serverd_device_get_info(int thr_nb, struct nbd_recover_disk_info *in
  * Import newly up disks.
  */
 static int
-nbd_recover_clientd_device_import(int thr_nb,
+nbd_recover_clientd_device_import(admwrk_ctx_t *ctx,
 	                          exa_nodeset_t *nodes_up,
 	                          exa_nodeset_t *nodes_going_up,
 				  struct nbd_recover_disk_info *info)
@@ -693,7 +693,7 @@ nbd_recover_clientd_device_import(int thr_nb,
  * inprogress messages.
  */
 static void
-nbd_local_recover(int thr_nb, void *msg)
+nbd_local_recover(admwrk_ctx_t *ctx, void *msg)
 {
   struct nbd_recover_disk_info info[NBMAX_DISKS_PER_NODE];
   exa_nodeset_t nodes_up, nodes_going_up, nodes_going_down;
@@ -727,7 +727,7 @@ nbd_local_recover(int thr_nb, void *msg)
 
   /* Add newly up nodes to serverd (UP) */
 
-  ret = nbd_recover_serverd_add_client(thr_nb, &nodes_going_up);
+  ret = nbd_recover_serverd_add_client(ctx, &nodes_going_up);
 
   /* Stop data net checking (DOWN) */
 
@@ -735,7 +735,7 @@ nbd_local_recover(int thr_nb, void *msg)
    * BARRIER *
    ***********/
 
-  ret = admwrk_barrier(thr_nb, ret, "NBD: Export the disks");
+  ret = admwrk_barrier(ctx, ret, "NBD: Export the disks");
   if (ret == -ADMIND_ERR_NODE_DOWN)
     goto end;
   EXA_ASSERT_VERBOSE(ret == EXA_SUCCESS,
@@ -748,35 +748,35 @@ nbd_local_recover(int thr_nb, void *msg)
   /* Open connections to newly up servers and add all its disks if needed (UP) */
   /* client connect on servers*/
 
-  ret = nbd_recover_clientd_open_session(thr_nb, &nodes_up, &nodes_going_up);
+  ret = nbd_recover_clientd_open_session(ctx, &nodes_up, &nodes_going_up);
   if (ret == -ADMIND_ERR_NODE_DOWN)
     goto end;
 
   /* Get information about local disks (UP) */
 
   if (ret == EXA_SUCCESS)
-    nbd_recover_serverd_device_get_info(thr_nb, info);
+    nbd_recover_serverd_device_get_info(ctx, info);
 
   /* Import newly up disks (UP) */
 
   if (ret == EXA_SUCCESS)
-    ret = nbd_recover_clientd_device_import(thr_nb, &nodes_up, &nodes_going_up, info);
+    ret = nbd_recover_clientd_device_import(ctx, &nodes_up, &nodes_going_up, info);
 
   /* Unimport newly down disks (DOWN) */
 
   if (ret == EXA_SUCCESS)
-    ret = nbd_recover_clientd_device_down(thr_nb, &nodes_going_down);
+    ret = nbd_recover_clientd_device_down(ctx, &nodes_going_down);
 
   /* Close connections with newly down servers (DOWN) */
 
   if (ret == EXA_SUCCESS)
-    ret = nbd_recover_clientd_close_session(thr_nb, &nodes_going_down);
+    ret = nbd_recover_clientd_close_session(ctx, &nodes_going_down);
 
   /***********
    * BARRIER *
    ***********/
 
-  ret = admwrk_barrier(thr_nb, ret, "NBD: Import the disks");
+  ret = admwrk_barrier(ctx, ret, "NBD: Import the disks");
   if (ret == -ADMIND_ERR_NODE_DOWN)
     goto end;
   EXA_ASSERT_VERBOSE(ret == EXA_SUCCESS,
@@ -789,29 +789,29 @@ nbd_local_recover(int thr_nb, void *msg)
   /* Remove newly down nodes from serverd (DOWN) */
 
   if (ret == EXA_SUCCESS)
-    ret = nbd_recover_serverd_remove_client(thr_nb, &nodes_going_down);
+    ret = nbd_recover_serverd_remove_client(ctx, &nodes_going_down);
 
 end:
-  admwrk_ack(thr_nb, ret);
+  admwrk_ack(ctx, ret);
 }
 
 
 static int
-nbd_recover(int thr_nb)
+nbd_recover(admwrk_ctx_t *ctx)
 {
-  return admwrk_exec_command(thr_nb, &adm_service_nbd, RPC_SERVICE_NBD_RECOVER, NULL, 0);
+  return admwrk_exec_command(ctx, &adm_service_nbd, RPC_SERVICE_NBD_RECOVER, NULL, 0);
 }
 
 
 static int
-nbd_resume(int thr_nb)
+nbd_resume(admwrk_ctx_t *ctx)
 {
-  return admwrk_exec_command(thr_nb, &adm_service_nbd, RPC_SERVICE_NBD_RESUME, NULL, 0);
+  return admwrk_exec_command(ctx, &adm_service_nbd, RPC_SERVICE_NBD_RESUME, NULL, 0);
 }
 
 
 static void
-nbd_local_resume(int thr_nb, void *msg)
+nbd_local_resume(admwrk_ctx_t *ctx, void *msg)
 {
   struct adm_node *node;
   struct adm_disk *disk;
@@ -839,20 +839,20 @@ nbd_local_resume(int thr_nb, void *msg)
   }
 
 error:
-  admwrk_ack(thr_nb, ret);
+  admwrk_ack(ctx, ret);
 }
 
 
 static int
-nbd_stop(int thr_nb, const stop_data_t *stop_data)
+nbd_stop(admwrk_ctx_t *ctx, const stop_data_t *stop_data)
 {
-  return admwrk_exec_command(thr_nb, &adm_service_nbd, RPC_SERVICE_NBD_STOP,
+  return admwrk_exec_command(ctx, &adm_service_nbd, RPC_SERVICE_NBD_STOP,
                              stop_data, sizeof(*stop_data));
 }
 
 
 static void
-nbd_diskstop(int thr_nb, struct adm_node *node, struct adm_disk *disk,
+nbd_diskstop(admwrk_ctx_t *ctx, struct adm_node *node, struct adm_disk *disk,
 	     const exa_nodeset_t *nodes_to_stop)
 {
     int err;
@@ -889,7 +889,7 @@ nbd_diskstop(int thr_nb, struct adm_node *node, struct adm_disk *disk,
 }
 
 
-static void nbd_diskdel(int thr_nb, struct adm_node *node,
+static void nbd_diskdel(admwrk_ctx_t *ctx, struct adm_node *node,
 			struct adm_disk *disk)
 {
   int ret;
@@ -907,13 +907,13 @@ static void nbd_diskdel(int thr_nb, struct adm_node *node,
     disk->imported = false;
   }
 
-  admwrk_barrier(thr_nb, EXA_SUCCESS, "NBD: Remove the disk");
+  admwrk_barrier(ctx, EXA_SUCCESS, "NBD: Remove the disk");
 
 }
 
 
 static int
-nbd_nodestop(int thr_nb, const exa_nodeset_t *nodes_to_stop)
+nbd_nodestop(admwrk_ctx_t *ctx, const exa_nodeset_t *nodes_to_stop)
 {
   struct adm_node *node;
 
@@ -931,7 +931,7 @@ nbd_nodestop(int thr_nb, const exa_nodeset_t *nodes_to_stop)
       continue;
 
     adm_node_for_each_disk(node, disk)
-      nbd_diskstop(thr_nb, node, disk, nodes_to_stop);
+      nbd_diskstop(ctx, node, disk, nodes_to_stop);
 
     if (!node->managed_by_clientd)
       continue;
@@ -949,7 +949,7 @@ nbd_nodestop(int thr_nb, const exa_nodeset_t *nodes_to_stop)
    * BARRIER *
    ***********/
 
-  admwrk_barrier(thr_nb, EXA_SUCCESS, "NBD: Unimport the disks");
+  admwrk_barrier(ctx, EXA_SUCCESS, "NBD: Unimport the disks");
 
   /*****************
    * SERVER STEP 2 *
@@ -980,19 +980,19 @@ nbd_nodestop(int thr_nb, const exa_nodeset_t *nodes_to_stop)
 
 
 static void
-nbd_local_stop(int thr_nb, void *msg)
+nbd_local_stop(admwrk_ctx_t *ctx, void *msg)
 {
   int ret;
   const stop_data_t *stop_data = msg;
 
-  ret = nbd_nodestop(thr_nb, &stop_data->nodes_to_stop);
+  ret = nbd_nodestop(ctx, &stop_data->nodes_to_stop);
 
-  admwrk_ack(thr_nb, ret);
+  admwrk_ack(ctx, ret);
 }
 
 
 static int
-nbd_shutdown(int thr_nb)
+nbd_shutdown(admwrk_ctx_t *ctx)
 {
   int error_val = EXA_SUCCESS;
 
@@ -1021,7 +1021,7 @@ nbd_shutdown(int thr_nb)
 }
 
 
-static void nbd_nodedel(int thr_nb, struct adm_node *node)
+static void nbd_nodedel(admwrk_ctx_t *ctx, struct adm_node *node)
 {
   struct adm_disk *disk;
   int ret;

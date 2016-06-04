@@ -12,7 +12,7 @@
 struct adm_cluster_monitoring;
 
 
-int monitor_start(int thr_nb, struct adm_cluster_monitoring *params);
+int monitor_start(admwrk_ctx_t *ctx, struct adm_cluster_monitoring *params);
 
 int monitor_stop(int thr_nb);
 

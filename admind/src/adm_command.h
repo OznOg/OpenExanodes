@@ -19,7 +19,7 @@
 #include "common/include/exa_constants.h"
 #include "os/include/os_inttypes.h"
 
-typedef void (*ClusterCommand) (int thr_nb, void *data, cl_error_desc_t *err_desc);
+typedef void (*ClusterCommand) (admwrk_ctx_t *ctx, void *data, cl_error_desc_t *err_desc);
 
 /** Describe all the command code for the XML Admind protocol
  */

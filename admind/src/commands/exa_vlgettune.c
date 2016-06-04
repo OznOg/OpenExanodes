@@ -188,7 +188,7 @@ int tunelist_add_readahead(tunelist_t *tunelist, const struct adm_volume *volume
     return ret;
 }
 
-static void cluster_vlgettune(int thr_nb, void *data, cl_error_desc_t *err_desc)
+static void cluster_vlgettune(admwrk_ctx_t *ctx, void *data, cl_error_desc_t *err_desc)
 {
     const struct vlgettune_params *params = data;
     struct adm_group *group;

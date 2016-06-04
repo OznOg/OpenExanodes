@@ -84,7 +84,7 @@ get_prop(char *dst, xmlNodePtr node, const char *propname, size_t len)
 }
 
 static int
-nodeadd_begin(int thr_nb, xmlNodePtr node, cl_error_desc_t *err_desc)
+nodeadd_begin(admwrk_ctx_t *ctx, xmlNodePtr node, cl_error_desc_t *err_desc)
 {
   struct msg_nodeadd_begin msg_begin;
 
@@ -104,7 +104,7 @@ nodeadd_begin(int thr_nb, xmlNodePtr node, cl_error_desc_t *err_desc)
       return -EXA_ERR_DEFAULT;
     }
 
-  admwrk_exec_command(thr_nb, &adm_service_admin,
+  admwrk_exec_command(ctx, &adm_service_admin,
 		      RPC_ADM_CLNODEADD_BEGIN,
 		      &msg_begin, sizeof(msg_begin));
 
@@ -113,7 +113,7 @@ nodeadd_begin(int thr_nb, xmlNodePtr node, cl_error_desc_t *err_desc)
 
 
 static void
-nodeadd_network(int thr_nb, xmlNodePtr node)
+nodeadd_network(admwrk_ctx_t *ctx, xmlNodePtr node)
 {
   struct msg_nodeadd_network msg_network;
 
@@ -121,14 +121,14 @@ nodeadd_network(int thr_nb, xmlNodePtr node)
 
   GET_PROP(msg_network.hostname, node, "hostname");
 
-  admwrk_exec_command(thr_nb, &adm_service_admin,
+  admwrk_exec_command(ctx, &adm_service_admin,
 		      RPC_ADM_CLNODEADD_NETWORK,
 		      &msg_network, sizeof(msg_network));
 }
 
 
 static void
-nodeadd_disk(int thr_nb, xmlNodePtr node)
+nodeadd_disk(admwrk_ctx_t *ctx, xmlNodePtr node)
 {
   struct msg_nodeadd_disk msg_disk;
 
@@ -138,15 +138,15 @@ nodeadd_disk(int thr_nb, xmlNodePtr node)
                          msg_disk.path, sizeof(msg_disk.path));
   uuid_scan(xml_get_prop(node, "uuid"), &msg_disk.uuid);
 
-  admwrk_exec_command(thr_nb, &adm_service_admin,
+  admwrk_exec_command(ctx, &adm_service_admin,
 		      RPC_ADM_CLNODEADD_DISK,
 		      &msg_disk, sizeof(msg_disk));
 }
 
 
-static int nodeadd_commit(int thr_nb)
+static int nodeadd_commit(admwrk_ctx_t *ctx)
 {
-  return admwrk_exec_command(thr_nb, &adm_service_admin,
+  return admwrk_exec_command(ctx, &adm_service_admin,
 		      RPC_ADM_CLNODEADD_COMMIT,
 		      NULL, 0);
 }
@@ -154,7 +154,7 @@ static int nodeadd_commit(int thr_nb)
 
 
 static void
-cluster_clnodeadd(int thr_nb, void *data, cl_error_desc_t *err_desc)
+cluster_clnodeadd(admwrk_ctx_t *ctx, void *data, cl_error_desc_t *err_desc)
 {
   struct clnodeadd_params *params = data;
   xmlNodePtr node = xmlDocGetRootElement(params->tree);
@@ -247,19 +247,19 @@ cluster_clnodeadd(int thr_nb, void *data, cl_error_desc_t *err_desc)
     goto free;
   }
 
-  if (nodeadd_begin(thr_nb, node, err_desc) != EXA_SUCCESS)
+  if (nodeadd_begin(ctx, node, err_desc) != EXA_SUCCESS)
     goto free;
 
   for (node = node->children; node != NULL; node = node->next)
     {
       if (xmlStrEqual(node->name, BAD_CAST("network")))
-	  nodeadd_network(thr_nb, node);
+	  nodeadd_network(ctx, node);
 
       if (xmlStrEqual(node->name, BAD_CAST("disk")))
-	  nodeadd_disk(thr_nb, node);
+	  nodeadd_disk(ctx, node);
     }
 
-  ret = nodeadd_commit(thr_nb);
+  ret = nodeadd_commit(ctx);
 
   /*
    * Request a recovery, to verify that we still have the quorum and
@@ -276,7 +276,7 @@ free:
 
 
 static void
-local_addnode_begin(int thr_nb, void *msg)
+local_addnode_begin(admwrk_ctx_t *ctx, void *msg)
 {
   struct msg_nodeadd_begin *request = msg;
 
@@ -298,12 +298,12 @@ local_addnode_begin(int thr_nb, void *msg)
   exalog_debug("adding %s as node %s (id %i)",
 	       new_node->hostname, new_node->name, new_node->id);
 
-  admwrk_ack(thr_nb, EXA_SUCCESS);
+  admwrk_ack(ctx, EXA_SUCCESS);
 }
 
 
 static void
-local_addnode_network(int thr_nb, void *msg)
+local_addnode_network(admwrk_ctx_t *ctx, void *msg)
 {
   struct msg_nodeadd_network *request = msg;
   struct adm_nic *nic = NULL;
@@ -319,12 +319,12 @@ local_addnode_network(int thr_nb, void *msg)
 	      request->hostname, new_node->name,
 	      exa_error_msg(rv), rv);
 
-  admwrk_ack(thr_nb, rv);
+  admwrk_ack(ctx, rv);
 }
 
 
 static void
-local_addnode_disk(int thr_nb, void *msg)
+local_addnode_disk(admwrk_ctx_t *ctx, void *msg)
 {
   struct msg_nodeadd_disk *request = msg;
   struct adm_disk *disk;
@@ -350,12 +350,12 @@ local_addnode_disk(int thr_nb, void *msg)
   exalog_debug("adding disk %s to node %s: %s", disk->path, new_node->name,
                exa_error_msg(rv));
 
-  admwrk_ack(thr_nb, rv);
+  admwrk_ack(ctx, rv);
 }
 
 
 static void
-cleanup_new_node(int thr_nb, int rv, struct adm_node *node)
+cleanup_new_node(admwrk_ctx_t *ctx, int rv, struct adm_node *node)
 {
   exalog_warning("addition of node %s aborted", node->name);
 
@@ -365,12 +365,12 @@ cleanup_new_node(int thr_nb, int rv, struct adm_node *node)
       new_node = NULL;
     }
 
-  admwrk_ack(thr_nb, rv);
+  admwrk_ack(ctx, rv);
 }
 
 
 static void
-local_addnode_commit(int thr_nb, void *msg)
+local_addnode_commit(admwrk_ctx_t *ctx, void *msg)
 {
   const struct adm_service *service;
   struct adm_nic *nic;
@@ -381,7 +381,7 @@ local_addnode_commit(int thr_nb, void *msg)
 
   if (nic == NULL)
     {
-      cleanup_new_node(thr_nb, -ADMIND_ERR_UNKNOWN_NICNAME, node);
+      cleanup_new_node(ctx, -ADMIND_ERR_UNKNOWN_NICNAME, node);
       return;
     }
 
@@ -396,12 +396,12 @@ local_addnode_commit(int thr_nb, void *msg)
     if (service->nodeadd == NULL)
       continue;
 
-    rv = service->nodeadd(thr_nb, node);
+    rv = service->nodeadd(ctx, node);
     if (rv != EXA_SUCCESS)
       {
 	exalog_error("%s->nodeadd: %s", adm_service_name(service->id),
 		     exa_error_msg(rv));
-	cleanup_new_node(thr_nb, rv, node);
+	cleanup_new_node(ctx, rv, node);
 	return;
       }
   }
@@ -411,7 +411,7 @@ local_addnode_commit(int thr_nb, void *msg)
   if (rv != EXA_SUCCESS)
     {
       exalog_error("adm_node_insert_node: %s", exa_error_msg(rv));
-      cleanup_new_node(thr_nb, rv, node);
+      cleanup_new_node(ctx, rv, node);
       return;
     }
 
@@ -424,13 +424,13 @@ local_addnode_commit(int thr_nb, void *msg)
 
   adm_service_for_each(service)
     if (service->nodeadd_commit != NULL)
-      service->nodeadd_commit(thr_nb, node);
+      service->nodeadd_commit(ctx, node);
 
   rv = examsgAddNode(adm_wt_get_localmb(), node->id, node->name);
   if (rv != EXA_SUCCESS)
     {
       exalog_error("examsgAddNode: %s", exa_error_msg(rv));
-      cleanup_new_node(thr_nb, rv, node);
+      cleanup_new_node(ctx, rv, node);
       return;
     }
 
@@ -440,7 +440,7 @@ local_addnode_commit(int thr_nb, void *msg)
 
   exalog_debug("addition of node %s done", node->name);
 
-  admwrk_ack(thr_nb, EXA_SUCCESS);
+  admwrk_ack(ctx, EXA_SUCCESS);
 }
 
 

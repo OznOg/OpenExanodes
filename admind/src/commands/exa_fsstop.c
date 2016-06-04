@@ -44,7 +44,7 @@ __export(EXA_ADM_FSSTOP) struct fsstop_params
  *
  * \return error code.
  */
-static int fs_stop_one_fs(int thr_nb, fs_data_t *fs,
+static int fs_stop_one_fs(admwrk_ctx_t *ctx, fs_data_t *fs,
                           const exa_nodeset_t *list_to_stop,
                           exa_nodeset_t *list_stop_succeeded,
                           int force, adm_goal_change_t goal_change)
@@ -62,12 +62,12 @@ static int fs_stop_one_fs(int thr_nb, fs_data_t *fs,
     }
 
   /* End of protected access */
-  error_val=fs_definition->check_before_stop(thr_nb, list_to_stop, fs, force);
+  error_val=fs_definition->check_before_stop(ctx, list_to_stop, fs, force);
   if (error_val!=EXA_SUCCESS)
     {
       goto error;
     }
-  error_val=fs_definition->stop_fs(thr_nb, list_to_stop,
+  error_val=fs_definition->stop_fs(ctx, list_to_stop,
                                    fs, force, goal_change,
                                    list_stop_succeeded);
 
@@ -86,7 +86,7 @@ static int fs_stop_one_fs(int thr_nb, fs_data_t *fs,
  * \return error code.
  */
 int
-fs_stop_all_fs(int thr_nb, struct adm_group *group, const exa_nodeset_t *nodelist,
+fs_stop_all_fs(admwrk_ctx_t *ctx, struct adm_group *group, const exa_nodeset_t *nodelist,
                int force, adm_goal_change_t goal_change)
 {
   int error_val_last = EXA_SUCCESS;
@@ -107,7 +107,7 @@ fs_stop_all_fs(int thr_nb, struct adm_group *group, const exa_nodeset_t *nodelis
       int error_val = EXA_SUCCESS;
       if (iter.fs->volume->group != group)
 	continue;
-       error_val = fs_stop_one_fs(thr_nb, struct_fs, nodelist,
+       error_val = fs_stop_one_fs(ctx, struct_fs, nodelist,
                                  &list_stop_succeeded, force, goal_change);
       if (error_val != EXA_SUCCESS)
 	{
@@ -125,7 +125,7 @@ fs_stop_all_fs(int thr_nb, struct adm_group *group, const exa_nodeset_t *nodelis
  *        Stop it on the specified nodes, using FS specific function.
  */
 static void
-cluster_fsstop(int thr_nb, void *data, cl_error_desc_t *err_desc)
+cluster_fsstop(admwrk_ctx_t *ctx, void *data, cl_error_desc_t *err_desc)
 {
   const struct fsstop_params *params = data;
   exa_nodeset_t list, list_stop_succeeded, list_already_stopped;
@@ -182,7 +182,7 @@ cluster_fsstop(int thr_nb, void *data, cl_error_desc_t *err_desc)
                            exa_error_msg(-FS_INFO_ALREADY_STOPPED));
     }
 
-  error_val = fs_stop_one_fs(thr_nb, &fs_data, &list,
+  error_val = fs_stop_one_fs(ctx, &fs_data, &list,
                              &list_stop_succeeded, params->force,
                              ADM_GOAL_CHANGE_VOLUME);
   if (error_val)

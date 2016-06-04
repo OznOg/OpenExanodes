@@ -13,10 +13,10 @@
 
 #include "common/include/uuid.h"
 
-void local_clinfo_export(int thr_nb, void *msg);
-void local_clinfo_get_nth_iqn(int thr_nb, void *msg);
+void local_clinfo_export(admwrk_ctx_t *ctx, void *msg);
+void local_clinfo_get_nth_iqn(admwrk_ctx_t *ctx, void *msg);
 
-int cluster_clinfo_export_by_volume(int thr_nb, xmlNodePtr father_node,
+int cluster_clinfo_export_by_volume(admwrk_ctx_t *ctx, xmlNodePtr father_node,
 				    exa_uuid_t *volume_uuid);
 
 

@@ -53,7 +53,7 @@ __export(EXA_ADM_DGSTOP) struct dgstop_params
   };
 
 static int
-vrt_master_group_stop(int thr_nb, struct adm_group *group,
+vrt_master_group_stop(admwrk_ctx_t *ctx, struct adm_group *group,
                       int force, adm_goal_change_t goal_change,
                       bool print_warning)
 {
@@ -67,18 +67,18 @@ vrt_master_group_stop(int thr_nb, struct adm_group *group,
   memset(&info, 0, sizeof(info));
 
 #ifdef WITH_FS
-  ret = fs_stop_all_fs(thr_nb, group, NULL, force, goal_change);
+  ret = fs_stop_all_fs(ctx, group, NULL, force, goal_change);
   if (ret != EXA_SUCCESS)
     return ret;
 #endif
 
   adm_group_for_each_volume(group, volume)
   {
-      ret = lum_master_export_unpublish(thr_nb, &volume->uuid, &all_nodes, force);
+      ret = lum_master_export_unpublish(ctx, &volume->uuid, &all_nodes, force);
       if (ret != EXA_SUCCESS)
           return ret;
 
-      ret = vrt_master_volume_stop(thr_nb, volume, &all_nodes, force,
+      ret = vrt_master_volume_stop(ctx, volume, &all_nodes, force,
                                    goal_change, false /* print_warning */);
       if (ret != EXA_SUCCESS)
           return ret;
@@ -88,12 +88,12 @@ vrt_master_group_stop(int thr_nb, struct adm_group *group,
   info.goal_change = goal_change;
   info.force       = force;
   info.print_warning = print_warning;
-  return admwrk_exec_command(thr_nb, &adm_service_admin, RPC_ADM_DGSTOP,
+  return admwrk_exec_command(ctx, &adm_service_admin, RPC_ADM_DGSTOP,
 			     &info, sizeof(info));
 }
 
 static void
-cluster_dgstop(int thr_nb, void *data, cl_error_desc_t *err_desc)
+cluster_dgstop(admwrk_ctx_t *ctx, void *data, cl_error_desc_t *err_desc)
 {
   const struct dgstop_params *params = data;
   struct adm_group *group;
@@ -126,7 +126,7 @@ cluster_dgstop(int thr_nb, void *data, cl_error_desc_t *err_desc)
   if (params->recursive)
       goal_change |= ADM_GOAL_CHANGE_VOLUME;
 
-  error_val = vrt_master_group_stop(thr_nb, group, params->force,
+  error_val = vrt_master_group_stop(ctx, group, params->force,
                                     goal_change,
                                     true /* print_warning */);
   set_error(err_desc, error_val, NULL);
@@ -134,7 +134,7 @@ cluster_dgstop(int thr_nb, void *data, cl_error_desc_t *err_desc)
 
 
 static void
-local_exa_dgstop(int thr_nb, void *msg)
+local_exa_dgstop(admwrk_ctx_t *ctx, void *msg)
 {
   int ret, barrier_ret;
   struct adm_group *group;
@@ -151,7 +151,7 @@ local_exa_dgstop(int thr_nb, void *msg)
     ret = -ADMIND_ERR_RESOURCE_IS_INVALID;
   else
     ret = EXA_SUCCESS;
-  barrier_ret = admwrk_barrier(thr_nb, ret, "Checking if group is valid");
+  barrier_ret = admwrk_barrier(ctx, ret, "Checking if group is valid");
   if (barrier_ret != EXA_SUCCESS)
     goto local_exa_dgstop_end;
 
@@ -164,7 +164,7 @@ local_exa_dgstop(int thr_nb, void *msg)
     ret = -VRT_INFO_GROUP_ALREADY_STOPPED;
   else
     ret = EXA_SUCCESS;
-  barrier_ret = admwrk_barrier(thr_nb, ret, "Checking if group is stoppable");
+  barrier_ret = admwrk_barrier(ctx, ret, "Checking if group is stoppable");
   if (barrier_ret == -VRT_INFO_GROUP_ALREADY_STOPPED)
     barrier_ret = EXA_SUCCESS;
   if (!info->force && barrier_ret != EXA_SUCCESS)
@@ -176,7 +176,7 @@ local_exa_dgstop(int thr_nb, void *msg)
     group->goal = ADM_GROUP_GOAL_STOPPED;
 
   ret = conf_save_synchronous();
-  barrier_ret = admwrk_barrier(thr_nb, ret, "Updating configuration");
+  barrier_ret = admwrk_barrier(ctx, ret, "Updating configuration");
   if (!info->force && barrier_ret != EXA_SUCCESS)
   {
     /* Reset the goal to its former value. */
@@ -190,7 +190,7 @@ local_exa_dgstop(int thr_nb, void *msg)
 
 local_exa_dgstop_end:
 
-  admwrk_ack(thr_nb, barrier_ret);
+  admwrk_ack(ctx, barrier_ret);
 }
 
 /**

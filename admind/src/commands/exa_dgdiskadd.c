@@ -46,7 +46,7 @@ struct dgdiskadd_info
  * dgdiskadd_info message used to pass the arguments to the local
  * commands.
  */
-static void cluster_dgdiskadd(int thr_nb, void *data, cl_error_desc_t *err_desc)
+static void cluster_dgdiskadd(admwrk_ctx_t *ctx, void *data, cl_error_desc_t *err_desc)
 {
     const struct dgdiskadd_params *params = data;
     char normalized_path[EXA_MAXSIZE_DEVPATH + 1];
@@ -131,7 +131,7 @@ static void cluster_dgdiskadd(int thr_nb, void *data, cl_error_desc_t *err_desc)
     uuid_copy(&info.disk_uuid, &new_disk->uuid);
     uuid_generate(&info.vrt_uuid);
 
-    err = admwrk_exec_command(thr_nb, &adm_service_rdev, RPC_ADM_DGDISKADD,
+    err = admwrk_exec_command(ctx, &adm_service_rdev, RPC_ADM_DGDISKADD,
                               &info, sizeof(info));
 
     set_error(err_desc, err, NULL);
@@ -140,7 +140,7 @@ static void cluster_dgdiskadd(int thr_nb, void *data, cl_error_desc_t *err_desc)
 /**
  * The dgdiskadd local command, executed on all nodes.
  */
-static void local_dgdiskadd(int thr_nb, void *msg)
+static void local_dgdiskadd(admwrk_ctx_t *ctx, void *msg)
 {
     int barrier_ret;
     struct dgdiskadd_info *info = msg;
@@ -163,13 +163,13 @@ static void local_dgdiskadd(int thr_nb, void *msg)
 
     if (new_disk->imported == 0)
     {
-        barrier_ret = admwrk_barrier(thr_nb, -VRT_ERR_RDEV_DOWN, "Disk down");
+        barrier_ret = admwrk_barrier(ctx, -VRT_ERR_RDEV_DOWN, "Disk down");
         goto local_exa_dgdiskadd_end;
     }
 
     err = service_vrt_prepare_group(group);
 
-    barrier_ret = admwrk_barrier(thr_nb, err, "Preparing the group");
+    barrier_ret = admwrk_barrier(ctx, err, "Preparing the group");
     if (barrier_ret != EXA_SUCCESS)
     {
         exalog_error("Failed to prepare group " UUID_FMT ": %s (%d)",
@@ -187,7 +187,7 @@ static void local_dgdiskadd(int thr_nb, void *msg)
 				       adm_disk_is_local(new_disk),
                                        old_sb_version, new_sb_version);
 
-    barrier_ret = admwrk_barrier(thr_nb, err, "Sending new rdev information");
+    barrier_ret = admwrk_barrier(ctx, err, "Sending new rdev information");
     if (barrier_ret != EXA_SUCCESS)
     {
         exalog_error("Failed to insert disk " UUID_FMT " in group: %s (%d)",
@@ -198,7 +198,7 @@ static void local_dgdiskadd(int thr_nb, void *msg)
 
     sb_version_new_version_done(group->sb_version);
 
-    barrier_ret = admwrk_barrier(thr_nb, EXA_SUCCESS, "Writing superblocks version");
+    barrier_ret = admwrk_barrier(ctx, EXA_SUCCESS, "Writing superblocks version");
     /* Commit anyway, If we are here, we are sure that other nodes have done the
     * job too even if they crashed meanwhile */
     sb_version_new_version_commit(group->sb_version);
@@ -213,7 +213,7 @@ static void local_dgdiskadd(int thr_nb, void *msg)
     EXA_ASSERT(err == EXA_SUCCESS);
 
 local_exa_dgdiskadd_end:
-    admwrk_ack(thr_nb, barrier_ret);
+    admwrk_ack(ctx, barrier_ret);
 }
 
 

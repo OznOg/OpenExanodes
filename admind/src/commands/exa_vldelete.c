@@ -54,7 +54,7 @@ struct vldelete_info
 /** \brief Implements the vldelete command
  */
 static void
-cluster_vldelete(int thr_nb, void *data, cl_error_desc_t *err_desc)
+cluster_vldelete(admwrk_ctx_t *ctx, void *data, cl_error_desc_t *err_desc)
 {
   const struct vldelete_params *params = data;
   struct adm_group *group;
@@ -96,14 +96,14 @@ cluster_vldelete(int thr_nb, void *data, cl_error_desc_t *err_desc)
 	      adm_cli_ip());
 
   /* ask to delete the volume */
-  error_val = vrt_master_volume_delete(thr_nb, volume, params->metadata_recovery);
+  error_val = vrt_master_volume_delete(ctx, volume, params->metadata_recovery);
   set_error(err_desc, error_val, NULL);
 
   exalog_debug("vldelete clustered command is complete %d", error_val);
 }
 
 int
-vrt_master_volume_delete (int thr_nb, struct adm_volume *volume,
+vrt_master_volume_delete (admwrk_ctx_t *ctx, struct adm_volume *volume,
                           bool metadata_recovery)
 {
   int ret;
@@ -130,7 +130,7 @@ vrt_master_volume_delete (int thr_nb, struct adm_volume *volume,
   strlcpy(info.volume_name, volume->name, EXA_MAXSIZE_VOLUMENAME + 1);
   info.metadata_recovery = metadata_recovery;
 
-  admwrk_run_command(thr_nb, &adm_service_admin, &handle, RPC_ADM_VLDELETE, &info, sizeof(info));
+  admwrk_run_command(ctx, &adm_service_admin, &handle, RPC_ADM_VLDELETE, &info, sizeof(info));
   /* Examine replies in order to filter return values.
    * The priority of return values is the following (in descending order):
    * o ADMIND_ERR_METADATA_CORRUPTION
@@ -156,7 +156,7 @@ vrt_master_volume_delete (int thr_nb, struct adm_volume *volume,
 }
 
 static void
-local_exa_vldelete (int thr_nb, void *msg)
+local_exa_vldelete (admwrk_ctx_t *ctx, void *msg)
 {
   struct adm_group *group;
   struct adm_volume *volume = NULL;
@@ -182,11 +182,11 @@ local_exa_vldelete (int thr_nb, void *msg)
 get_barrier:
   /*** Barrier: getting parameters ***/
   ret = EXA_SUCCESS;
-  barrier_ret = admwrk_barrier(thr_nb, ret, "Getting parameters");
+  barrier_ret = admwrk_barrier(ctx, ret, "Getting parameters");
   if (barrier_ret != EXA_SUCCESS)
     goto local_exa_vldelete_end_no_resume;
 
-  ret = vrt_group_suspend_threads_barrier(thr_nb, &group->uuid);
+  ret = vrt_group_suspend_threads_barrier(ctx, &group->uuid);
   if (ret != EXA_SUCCESS)
       goto local_exa_vldelete_end;
 
@@ -197,7 +197,7 @@ get_barrier:
   EXA_ASSERT_VERBOSE(ret == EXA_SUCCESS, "%s", exa_error_msg(ret));
 
   /*** Barrier: mark the transaction as in-progress ***/
-  barrier_ret = admwrk_barrier(thr_nb, ret, "Marking transaction as in-progress");
+  barrier_ret = admwrk_barrier(ctx, ret, "Marking transaction as in-progress");
   if (barrier_ret == -ADMIND_ERR_NODE_DOWN)
     goto metadata_corruption;
   else if (barrier_ret != EXA_SUCCESS)
@@ -212,7 +212,7 @@ get_barrier:
   ret = vrt_client_volume_delete(adm_wt_get_localmb(), &group->uuid, &volume->uuid);
 
   /*** Barrier: delete the volume through the VRT API ***/
-  barrier_ret = admwrk_barrier(thr_nb, ret, "Deleting volume");
+  barrier_ret = admwrk_barrier(ctx, ret, "Deleting volume");
   if (barrier_ret == -ADMIND_ERR_NODE_DOWN)
     goto metadata_corruption;
   else if (barrier_ret == -VRT_ERR_GROUP_NOT_ADMINISTRABLE)
@@ -229,10 +229,10 @@ get_barrier:
     goto local_exa_vldelete_end;
 
   /*** Action: group sync SB (master) ***/
-  ret = adm_vrt_group_sync_sb(thr_nb, group);
+  ret = adm_vrt_group_sync_sb(ctx, group);
 
   /*** Barrier: group sync SB ***/
-  barrier_ret = admwrk_barrier(thr_nb, ret,
+  barrier_ret = admwrk_barrier(ctx, ret,
 			       "Syncing metadata on disk");
   if (barrier_ret == -ADMIND_ERR_NODE_DOWN)
     goto metadata_corruption;
@@ -245,7 +245,7 @@ get_barrier:
   ret = conf_save_synchronous();
   EXA_ASSERT_VERBOSE(ret == EXA_SUCCESS, "%s", exa_error_msg(ret));
 
-  barrier_ret = admwrk_barrier(thr_nb, ret, "Updating XML configuration");
+  barrier_ret = admwrk_barrier(ctx, ret, "Updating XML configuration");
   if (barrier_ret == -ADMIND_ERR_NODE_DOWN)
     goto metadata_corruption;
 
@@ -255,14 +255,14 @@ metadata_corruption:
   ret = -ADMIND_ERR_METADATA_CORRUPTION;
 
 local_exa_vldelete_end:
-    barrier_ret = vrt_group_resume_threads_barrier(thr_nb, &group->uuid);
+    barrier_ret = vrt_group_resume_threads_barrier(ctx, &group->uuid);
     /* What to do if that fails... I don't know. */
     if (barrier_ret != 0)
         ret = barrier_ret;
 
 local_exa_vldelete_end_no_resume:
   exalog_debug("local_exa_vldelete() = %s", exa_error_msg(ret));
-  admwrk_ack(thr_nb, ret);
+  admwrk_ack(ctx, ret);
 }
 
 /**

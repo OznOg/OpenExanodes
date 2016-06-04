@@ -19,7 +19,7 @@ __export(EXA_ADM_GET_NODEDISKS) __no_param;
  *
  * return availavble disks for cluster
  */
-static void cluster_get_nodedisks(int thr_nb, void *dummy, cl_error_desc_t *err_desc)
+static void cluster_get_nodedisks(admwrk_ctx_t *ctx, void *dummy, cl_error_desc_t *err_desc)
 {
     char *buffer = NULL;
 

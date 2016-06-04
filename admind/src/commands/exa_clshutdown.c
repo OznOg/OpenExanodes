@@ -63,7 +63,7 @@ nodes_are_stopped(const exa_nodeset_t *nodeset)
  */
 /*---------------------------------------------------------------------------*/
 static void
-cluster_clshutdown(int thr_nb, void *data, cl_error_desc_t *err_desc)
+cluster_clshutdown(admwrk_ctx_t *ctx, void *data, cl_error_desc_t *err_desc)
 {
   const struct clshutdown_params *params = data;
   int error_val;

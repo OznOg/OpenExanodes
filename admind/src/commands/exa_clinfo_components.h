@@ -11,7 +11,7 @@
 
 #include <libxml/tree.h>
 
-void local_clinfo_components(int thr_nb, void *msg);
-int cluster_clinfo_components(int thr_nb, xmlNodePtr exanodes_node);
+void local_clinfo_components(admwrk_ctx_t *ctx, void *msg);
+int cluster_clinfo_components(admwrk_ctx_t *ctx, xmlNodePtr exanodes_node);
 
 #endif

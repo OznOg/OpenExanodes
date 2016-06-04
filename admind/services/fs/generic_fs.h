@@ -15,6 +15,7 @@
 #include "admind/src/admind.h"
 #include "fs/include/fs_data.h"
 #include "admind/src/commands/tunelist.h"
+#include "admind/src/rpc.h"
 
 struct adm_fs;
 struct adm_volume;
@@ -42,10 +43,10 @@ typedef struct fs_definition
   const char** type_name_list;
 
   /** Check before start */
-  exa_error_code  (*check_before_start)(int thr_nb, fs_data_t* fs);
+  exa_error_code  (*check_before_start)(admwrk_ctx_t *ctx, fs_data_t* fs);
 
   /** Check the filesystem can be stopped on the 'node_set' nodes */
-  exa_error_code  (*check_before_stop)(int thr_nb, const exa_nodeset_t* node_set,
+  exa_error_code  (*check_before_stop)(admwrk_ctx_t *ctx, const exa_nodeset_t* node_set,
 				       fs_data_t* fs, bool force);
 
   /** Parse the filesystem-specific creation parameters, and fill fs
@@ -53,10 +54,10 @@ typedef struct fs_definition
   int (*parse_fscreate_parameters)(fs_data_t *fs, int data, uint64_t rg_size);
 
     /** Perform clustered preparation before really creating the filesystem */
-  exa_error_code (*pre_create_fs)(int thr_nb, fs_data_t* fs);
+  exa_error_code (*pre_create_fs)(admwrk_ctx_t *ctx, fs_data_t* fs);
 
   /** Really create the filesystem (mkfs) and associated volumes */
-  exa_error_code  (*create_fs)(int thr_nb, fs_data_t* fs);
+  exa_error_code  (*create_fs)(admwrk_ctx_t *ctx, fs_data_t* fs);
 
   /** Mount the filesystem on the specified nodes.
    - node_set = list of nodes mounted RW
@@ -64,7 +65,7 @@ typedef struct fs_definition
    These 2 lists can be unvoid at the same time during recovery, or exclusively unvoid
    at command time. The underlying volume will be RO/RW and it mounts RO if necessary.
    start_succeeded is filled with the full list of nodes that succeeded to mount (RO or RW) */
-  exa_error_code  (*start_fs)(int thr_nb, const exa_nodeset_t* node_set,
+  exa_error_code  (*start_fs)(admwrk_ctx_t *ctx, const exa_nodeset_t* node_set,
 			      const exa_nodeset_t* node_set_read_only,
 			      fs_data_t* fs, exa_nodeset_t* start_succeeded,
 			      int recovery);
@@ -76,35 +77,35 @@ typedef struct fs_definition
   void (*pre_unload)();
 
   /** When node is stopped. Do specific necessary clean-up (unload daemons, modules) */
-  exa_error_code (*node_stop)(int thr_nb, fs_data_t* fs);
+  exa_error_code (*node_stop)(admwrk_ctx_t *ctx, fs_data_t* fs);
 
   /** When node is added, check it is allowed. */
-  exa_error_code (*node_add)(int thr_nb, struct adm_node *node);
+  exa_error_code (*node_add)(admwrk_ctx_t *ctx, struct adm_node *node);
 
   /** When node is added. (update /etc/cluster/cluster.conf, for example) */
-  void (*node_add_commit)(int thr_nb, struct adm_node *node);
+  void (*node_add_commit)(admwrk_ctx_t *ctx, struct adm_node *node);
 
   /** Umount the filesystem on the specified nodes */
-  exa_error_code  (*stop_fs)(int thr_nb, const exa_nodeset_t* node_set,
+  exa_error_code  (*stop_fs)(admwrk_ctx_t *ctx, const exa_nodeset_t* node_set,
                              fs_data_t* fs, bool force,
                              adm_goal_change_t goal_change,
                              exa_nodeset_t* stop_succeeded);
 
   /** Resize the filesystem */
-  exa_error_code  (*resize_fs)(int thr_nb, fs_data_t* fs, int64_t sizeKB);
+  exa_error_code  (*resize_fs)(admwrk_ctx_t *ctx, fs_data_t* fs, int64_t sizeKB);
 
   /** Check filesystem */
-  exa_error_code  (*check_fs)(int thr_nb, fs_data_t* fs, const char* optional_parameter,
+  exa_error_code  (*check_fs)(admwrk_ctx_t *ctx, fs_data_t* fs, const char* optional_parameter,
 			      exa_nodeid_t node_where_to_check, bool repair);
 
   /** Tune filesystem */
-  exa_error_code  (*tune)(int thr_nb, fs_data_t* fs,
+  exa_error_code  (*tune)(admwrk_ctx_t *ctx, fs_data_t* fs,
 			  const char* parameter, const char* value);
 
   /** Get one tuning parameter for a filesystem. Fill name with next, unless none is found.
    If none is found (it was the last one), return false, unless return true. If an error
    occurred, return also false and fill the error code */
-  bool (*gettune)(int thr_nb, fs_data_t* fs,
+  bool (*gettune)(admwrk_ctx_t *ctx, fs_data_t* fs,
 			struct tune_t* tune, int* error);
 
   /** Fill from config to a structure */
@@ -112,7 +113,7 @@ typedef struct fs_definition
 
   /** Recovery function : This is called for every running file system instance,
       i.e, goal_started!="".  */
-  exa_error_code (*specific_fs_recovery)(int thr_nb, fs_data_t* fs);
+  exa_error_code (*specific_fs_recovery)(admwrk_ctx_t *ctx, fs_data_t* fs);
 
   /* Create with a private or shared volume ? */
   bool (*is_volume_private)();
@@ -125,39 +126,39 @@ const fs_definition_t* fs_iterate_over_fs_definition(const fs_definition_t* curr
 void             fs_fill_data_from_xml(fs_data_t* generic_fs, xmlNodePtr fs);
 void             fs_fill_data_from_config(fs_data_t* generic_fs, struct adm_fs *fs);
 
-exa_error_code     fs_data_device_create(int thr_nb, fs_data_t* fs,
+exa_error_code     fs_data_device_create(admwrk_ctx_t *ctx, fs_data_t* fs,
 					 uint64_t log_sizeKB, int private);
-exa_error_code     fs_data_device_start(int thr_nb, fs_data_t* fs,
+exa_error_code     fs_data_device_start(admwrk_ctx_t *ctx, fs_data_t* fs,
 					const exa_nodeset_t* list,
 					uint32_t readonly);
-exa_error_code     fs_data_device_stop(int thr_nb, fs_data_t* fs,
+exa_error_code     fs_data_device_stop(admwrk_ctx_t *ctx, fs_data_t* fs,
 				       const exa_nodeset_t* list,
                                        bool force,
                                        adm_goal_change_t goal_change);
-exa_error_code     fs_data_device_delete(int thr_nb, fs_data_t* fs,
+exa_error_code     fs_data_device_delete(admwrk_ctx_t *ctx, fs_data_t* fs,
 					 bool metadata_recovery);
-int                fs_get_data_device_offline(int thr_nb, fs_data_t* fs);
-int                fs_get_data_device_status_changed(int thr_nb, fs_data_t* fs);
+int                fs_get_data_device_offline(admwrk_ctx_t *ctx, fs_data_t* fs);
+int                fs_get_data_device_status_changed(admwrk_ctx_t *ctx, fs_data_t* fs);
 struct adm_volume* fs_get_volume(fs_data_t* fs);
 const char*        fs_get_name(fs_data_t* fs);
 
 /* Some commands are common to all FS types, (ie fsck) */
-exa_error_code   generic_fs_get_started_nodes(int thr_nb, fs_data_t* fs_to_test,
+exa_error_code   generic_fs_get_started_nodes(admwrk_ctx_t *ctx, fs_data_t* fs_to_test,
 					      exa_nodeset_t* nodes_list,
 					      exa_nodeset_t* nodes_list_ro);
-exa_error_code   generic_fs_check(int thr_nb, fs_data_t* fs_to_test,
+exa_error_code   generic_fs_check(admwrk_ctx_t *ctx, fs_data_t* fs_to_test,
 				  const char* optional_parameters,
 				  exa_nodeid_t node_where_to_check,
 				  bool repair);
-void             generic_fs_check_local(int thr_nb, void *msg);
-exa_error_code   generic_fs_check_before_stop(int thr_nb, const exa_nodeset_t* nodes,
+void             generic_fs_check_local(admwrk_ctx_t *ctx, void *msg);
+exa_error_code   generic_fs_check_before_stop(admwrk_ctx_t *ctx, const exa_nodeset_t* nodes,
 					      fs_data_t* fs,
 					      bool force);
-exa_error_code   generic_fs_tune(int thr_nb, fs_data_t* fs,
+exa_error_code   generic_fs_tune(admwrk_ctx_t *ctx, fs_data_t* fs,
 				 const char* parameter, const char* value);
-bool       generic_fs_gettune(int thr_nb, fs_data_t* fs,
+bool       generic_fs_gettune(admwrk_ctx_t *ctx, fs_data_t* fs,
 				    struct tune_t* tune, int* error);
-exa_error_code   generic_fs_mounted_grow(int thr_nb, fs_data_t* fs_to_grow,
+exa_error_code   generic_fs_mounted_grow(admwrk_ctx_t *ctx, fs_data_t* fs_to_grow,
 					 int64_t new_size);
 
 /** getting info of a mountpoint */

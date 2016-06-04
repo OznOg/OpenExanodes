@@ -34,7 +34,7 @@ __export(EXA_ADM_CLSTATS) struct clstats_params
   };
 
 static void
-add_nbd_stats(int thr_nb, const struct nbd_stats_request *request,
+add_nbd_stats(admwrk_ctx_t *ctx, const struct nbd_stats_request *request,
 	      struct nbd_stats_reply *stats)
 {
   char buf[1024];
@@ -58,7 +58,7 @@ add_nbd_stats(int thr_nb, const struct nbd_stats_request *request,
 
 
 static void
-get_nbd_stats(int thr_nb, bool reset)
+get_nbd_stats(admwrk_ctx_t *ctx, bool reset)
 {
   struct adm_node *node;
   struct adm_disk *disk;
@@ -78,7 +78,7 @@ get_nbd_stats(int thr_nb, bool reset)
       strlcpy(nbdreq.disk_path, disk->path, sizeof(nbdreq.disk_path));
       uuid_copy(&nbdreq.device_uuid, &disk->uuid);
 
-      admwrk_run_command(thr_nb, &adm_service_nbd, &req,
+      admwrk_run_command(ctx, &adm_service_nbd, &req,
 			 RPC_SERVICE_ADMIND_GETNBDSTATS,
 			 &nbdreq, sizeof(nbdreq));
 
@@ -94,7 +94,7 @@ get_nbd_stats(int thr_nb, bool reset)
 	  send_payload_str(nodetag);
 
 	  if (errval != -ADMIND_ERR_NODE_DOWN)
-	    add_nbd_stats(thr_nb, &nbdreq, &reply_nbd);
+	    add_nbd_stats(ctx, &nbdreq, &reply_nbd);
 
 	  send_payload_str("</nbd></node>");
 	}
@@ -104,7 +104,7 @@ get_nbd_stats(int thr_nb, bool reset)
 
 
 static void
-add_vrt_stats(int thr_nb, struct vrt_stats_request *request,
+add_vrt_stats(admwrk_ctx_t *ctx, struct vrt_stats_request *request,
 	      struct vrt_stats_reply *stats)
 {
   char buf[1024];
@@ -128,7 +128,7 @@ add_vrt_stats(int thr_nb, struct vrt_stats_request *request,
 
 
 static void
-get_vrt_stats(int thr_nb, bool reset)
+get_vrt_stats(admwrk_ctx_t *ctx, bool reset)
 {
   struct adm_group *group;
   struct adm_volume *volume;
@@ -147,7 +147,7 @@ get_vrt_stats(int thr_nb, bool reset)
       uuid_copy(&request.group_uuid, &group->uuid);
       strlcpy(request.volume_name, volume->name, sizeof(request.volume_name));
 
-      admwrk_run_command(thr_nb, &adm_service_vrt, &req,
+      admwrk_run_command(ctx, &adm_service_vrt, &req,
 			 RPC_SERVICE_ADMIND_GETVRTSTATS,
 			 &request, sizeof(request));
 
@@ -166,7 +166,7 @@ get_vrt_stats(int thr_nb, bool reset)
 	  send_payload_str(nodetag);
 
 	  if (errval != -ADMIND_ERR_NODE_DOWN)
-	    add_vrt_stats(thr_nb, &request, &reply_vrt);
+	    add_vrt_stats(ctx, &request, &reply_vrt);
 
 	  send_payload_str("</diskgroup></vrt></node>");
 	}
@@ -176,7 +176,7 @@ get_vrt_stats(int thr_nb, bool reset)
 
 
 static void
-cluster_clstats(int thr_nb, void *data, cl_error_desc_t *err_desc)
+cluster_clstats(admwrk_ctx_t *ctx, void *data, cl_error_desc_t *err_desc)
 {
   const struct clstats_params *params = data;
 
@@ -185,8 +185,8 @@ cluster_clstats(int thr_nb, void *data, cl_error_desc_t *err_desc)
 
   send_payload_str("<?xml version=\"1.0\"?><stats>");
 
-  get_nbd_stats(thr_nb, params->reset);
-  get_vrt_stats(thr_nb, params->reset);
+  get_nbd_stats(ctx, params->reset);
+  get_vrt_stats(ctx, params->reset);
 
   send_payload_str("</stats>");
 
@@ -195,7 +195,7 @@ cluster_clstats(int thr_nb, void *data, cl_error_desc_t *err_desc)
 
 
 static void
-local_getnbdstats(int thr_nb, void *msg)
+local_getnbdstats(admwrk_ctx_t *ctx, void *msg)
 {
   const struct nbd_stats_request *request = msg;
   struct nbd_stats_reply reply_msg;
@@ -203,12 +203,12 @@ local_getnbdstats(int thr_nb, void *msg)
   clientd_stat_get(adm_wt_get_localmb(), request, &reply_msg);
 
   COMPILE_TIME_ASSERT(sizeof(reply_msg) <= ADM_MAILBOX_PAYLOAD_PER_NODE);
-  admwrk_reply(thr_nb, &reply_msg, sizeof(reply_msg));
+  admwrk_reply(ctx, &reply_msg, sizeof(reply_msg));
 }
 
 
 static void
-local_getvrtstats(int thr_nb, void *msg)
+local_getvrtstats(admwrk_ctx_t *ctx, void *msg)
 {
   struct vrt_stats_request *request = msg;
   struct vrt_stats_reply reply_msg;
@@ -216,7 +216,7 @@ local_getvrtstats(int thr_nb, void *msg)
   vrt_client_stat_get(adm_wt_get_localmb(), request, &reply_msg);
 
   COMPILE_TIME_ASSERT(sizeof(reply_msg) <= ADM_MAILBOX_PAYLOAD_PER_NODE);
-  admwrk_reply(thr_nb, &reply_msg, sizeof(reply_msg));
+  admwrk_reply(ctx, &reply_msg, sizeof(reply_msg));
 }
 
 

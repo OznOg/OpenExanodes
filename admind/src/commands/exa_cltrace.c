@@ -28,11 +28,11 @@ __export(EXA_ADM_CLTRACE) struct cltrace_params
 
 /** \brief Clusterized cltrace command
  *
- * \param[in] thr_nb	Worker thread id.
+ * \param[in] ctx	Worker thread id.
  */
 
 static void
-cluster_cltrace(int thr_nb, void *data, cl_error_desc_t *err_desc)
+cluster_cltrace(admwrk_ctx_t *ctx, void *data, cl_error_desc_t *err_desc)
 {
   const struct cltrace_params *params = data;
 

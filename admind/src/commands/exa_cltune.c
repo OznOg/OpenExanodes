@@ -36,7 +36,7 @@ __export(EXA_ADM_CLTUNE) struct AdmTune
  * This works in cluster mode or not.
  */
 static exa_error_code
-tune(int thr_nb, const struct AdmTune *tune_info)
+tune(admwrk_ctx_t *ctx, const struct AdmTune *tune_info)
 {
   exalog_info("received cltune %s=%s from %s",
 	      tune_info->param, tune_info->value, adm_cli_ip());
@@ -50,11 +50,11 @@ tune(int thr_nb, const struct AdmTune *tune_info)
 
 /** \brief Clusterized cltune command
  *
- * \param[in] thr_nb	Worker thread id.
+ * \param[in] ctx	Worker thread id.
  */
 
 static void
-cluster_cltune(int thr_nb, void *data, cl_error_desc_t *err_desc)
+cluster_cltune(admwrk_ctx_t *ctx, void *data, cl_error_desc_t *err_desc)
 {
   struct AdmTune *tune_info = (struct AdmTune *)data;
   int error_val, save_ret;
@@ -64,7 +64,7 @@ cluster_cltune(int thr_nb, void *data, cl_error_desc_t *err_desc)
 
   set_success(err_desc);
 
-  error_val = tune(thr_nb, tune_info);
+  error_val = tune(ctx, tune_info);
   if (error_val)
     goto error;
 

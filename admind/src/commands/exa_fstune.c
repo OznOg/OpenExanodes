@@ -36,7 +36,7 @@ __export(EXA_ADM_FSTUNE) struct fstune_params
  * - call the tune callback for this type of FS.
  */
 static void
-cluster_fstune(int thr_nb, void *data, cl_error_desc_t *err_desc)
+cluster_fstune(admwrk_ctx_t *ctx, void *data, cl_error_desc_t *err_desc)
 {
   const struct fstune_params *params = data;
   fs_data_t fs;
@@ -63,7 +63,7 @@ cluster_fstune(int thr_nb, void *data, cl_error_desc_t *err_desc)
 
   EXA_ASSERT(fs_definition->tune);
 
-  error_val = fs_definition->tune(thr_nb, &fs, params->option, params->value);
+  error_val = fs_definition->tune(ctx, &fs, params->option, params->value);
   if (error_val != EXA_SUCCESS)
     {
       set_error(err_desc, error_val, exa_error_msg(error_val));

@@ -20,7 +20,7 @@
 
 
 
-int vrt_group_sync_sb_versions(int thr_nb, struct adm_group *group)
+int vrt_group_sync_sb_versions(admwrk_ctx_t *ctx, struct adm_group *group)
 {
     admwrk_request_t rpc;
     exa_nodeid_t nid;
@@ -49,7 +49,7 @@ int vrt_group_sync_sb_versions(int thr_nb, struct adm_group *group)
     return err;
 }
 
-int adm_vrt_group_sync_sb(int thr_nb, struct adm_group *group)
+int adm_vrt_group_sync_sb(admwrk_ctx_t *ctx, struct adm_group *group)
 {
   struct {
     bool group_is_started;
@@ -134,13 +134,13 @@ int adm_vrt_group_sync_sb(int thr_nb, struct adm_group *group)
   else
       ret = EXA_SUCCESS;
 
-  barrier_ret = admwrk_barrier(thr_nb, ret, "VRT: Preparing superblocks version");
+  barrier_ret = admwrk_barrier(ctx, ret, "VRT: Preparing superblocks version");
   if (barrier_ret != EXA_SUCCESS)
     return barrier_ret;
 
   sb_version_new_version_done(group->sb_version);
 
-  barrier_ret = admwrk_barrier(thr_nb, EXA_SUCCESS, "VRT: Writing superblocks version");
+  barrier_ret = admwrk_barrier(ctx, EXA_SUCCESS, "VRT: Writing superblocks version");
 
   /* Commit anyway, If we are here, we are sure that other nodes have done the
    * job too even if they crashed meanwhile */
@@ -149,22 +149,22 @@ int adm_vrt_group_sync_sb(int thr_nb, struct adm_group *group)
   return barrier_ret;
 }
 
-int vrt_group_suspend_threads_barrier(int thr_nb, const exa_uuid_t *group_uuid)
+int vrt_group_suspend_threads_barrier(admwrk_ctx_t *ctx, const exa_uuid_t *group_uuid)
 {
     int ret, barrier_ret;
 
     ret = vrt_client_group_suspend_metadata_and_rebuild(adm_wt_get_localmb(), group_uuid);
-    barrier_ret = admwrk_barrier(thr_nb, ret, "Suspending threads");
+    barrier_ret = admwrk_barrier(ctx, ret, "Suspending threads");
 
     return barrier_ret;
 }
 
-int vrt_group_resume_threads_barrier(int thr_nb, const exa_uuid_t *group_uuid)
+int vrt_group_resume_threads_barrier(admwrk_ctx_t *ctx, const exa_uuid_t *group_uuid)
 {
     int ret, barrier_ret;
 
     ret = vrt_client_group_resume_metadata_and_rebuild(adm_wt_get_localmb(), group_uuid);
-    barrier_ret = admwrk_barrier(thr_nb, ret, "Resuming threads");
+    barrier_ret = admwrk_barrier(ctx, ret, "Resuming threads");
 
     return barrier_ret;
 }

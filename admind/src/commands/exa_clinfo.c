@@ -49,7 +49,7 @@ __export(EXA_ADM_CLINFO) struct clinfo_params
 
 
 static void
-cluster_clinfo(int thr_nb, void *data, cl_error_desc_t *err_desc)
+cluster_clinfo(admwrk_ctx_t *ctx, void *data, cl_error_desc_t *err_desc)
 {
   const struct clinfo_params *params = data;
   xmlNodePtr exanodes_node;
@@ -110,26 +110,26 @@ cluster_clinfo(int thr_nb, void *data, cl_error_desc_t *err_desc)
     goto error;
 
   /* Get information about the nodes */
-  ret = cluster_clinfo_nodes(thr_nb, cluster_node);
+  ret = cluster_clinfo_nodes(ctx, cluster_node);
   if (ret != EXA_SUCCESS)
     goto error;
 
   /* Get information about the data monitoring */
 #ifdef WITH_MONITORING
-  ret = cluster_clinfo_monitoring(thr_nb, cluster_node);
+  ret = cluster_clinfo_monitoring(ctx, cluster_node);
   if (ret != EXA_SUCCESS)
     goto error;
 #endif
 
   /* Get information about the data components */
   if (params->softwares_info)
-    ret = cluster_clinfo_components(thr_nb, exanodes_node);
+    ret = cluster_clinfo_components(ctx, exanodes_node);
   if (ret != EXA_SUCCESS)
     goto error;
 
   /* Get information about the data groups and volumes */
   if (params->groups_info || params->volumes_info)
-    ret = cluster_clinfo_groups(thr_nb, exanodes_node, params->disks_info,
+    ret = cluster_clinfo_groups(ctx, exanodes_node, params->disks_info,
 				params->volumes_info, params->filesystems_info,
 				params->filesystems_size_info);
 

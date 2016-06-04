@@ -35,12 +35,12 @@ __export(EXA_ADM_CLDELETE) struct cldelete_params
 
 /** \brief Special local command that executes cldelete.
  *
- * \param[in] thr_nb: thread id
+ * \param[in] ctx: thread id
  * \return void
  *
  */
 static void
-local_exec_cldelete(int thr_nb, void *data, cl_error_desc_t *err_desc)
+local_exec_cldelete(admwrk_ctx_t *ctx, void *data, cl_error_desc_t *err_desc)
 {
   const struct cldelete_params *params = data;
   char err_msg [EXA_MAXSIZE_LINE + 1];

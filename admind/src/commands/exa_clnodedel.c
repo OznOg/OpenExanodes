@@ -32,7 +32,7 @@ __export(EXA_ADM_CLNODEDEL) struct clnodedel_params
 };
 
 static void
-cluster_clnodedel(int thr_nb, void *data, cl_error_desc_t *err_desc)
+cluster_clnodedel(admwrk_ctx_t *ctx, void *data, cl_error_desc_t *err_desc)
 {
   const char *nodename = data;
   struct adm_node *node;
@@ -79,7 +79,7 @@ cluster_clnodedel(int thr_nb, void *data, cl_error_desc_t *err_desc)
   {
     if (service->check_nodedel)
     {
-      int ret = service->check_nodedel(thr_nb, node);
+      int ret = service->check_nodedel(ctx, node);
       if (ret != EXA_SUCCESS)
 	{
 	  set_error(err_desc, ret, "The node cannot be deleted, %s",
@@ -91,7 +91,7 @@ cluster_clnodedel(int thr_nb, void *data, cl_error_desc_t *err_desc)
 
   msg.id = node->id;
 
-  admwrk_exec_command(thr_nb, &adm_service_admin,
+  admwrk_exec_command(ctx, &adm_service_admin,
 		      RPC_ADM_CLNODEDEL,
 		      &msg, sizeof(msg));
 
@@ -99,7 +99,7 @@ cluster_clnodedel(int thr_nb, void *data, cl_error_desc_t *err_desc)
 }
 
 static void
-local_delnode(int thr_nb, void *msg)
+local_delnode(admwrk_ctx_t *ctx, void *msg)
 {
   struct msg_nodedel *request = msg;
   struct adm_node *node;
@@ -115,7 +115,7 @@ local_delnode(int thr_nb, void *msg)
 
   adm_service_for_each_reverse(service)
     if (service->nodedel != NULL)
-      service->nodedel(thr_nb, node);
+      service->nodedel(ctx, node);
 
   inst_node_del(node);
 
@@ -129,7 +129,7 @@ local_delnode(int thr_nb, void *msg)
 
   adm_node_delete(node);
 
-  admwrk_ack(thr_nb, EXA_SUCCESS);
+  admwrk_ack(ctx, EXA_SUCCESS);
 }
 
 

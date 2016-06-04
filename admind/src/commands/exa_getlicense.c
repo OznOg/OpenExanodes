@@ -24,7 +24,7 @@
 __export(EXA_ADM_GETLICENSE) __no_param;
 
 static void
-cluster_get_license(int thr_nb, void *dummy, cl_error_desc_t *err_desc)
+cluster_get_license(admwrk_ctx_t *ctx, void *dummy, cl_error_desc_t *err_desc)
 {
   char *buffer;
   char path[OS_PATH_MAX];

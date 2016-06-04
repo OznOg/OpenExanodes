@@ -11,7 +11,6 @@
 
 #include <string.h>
 
-#include "admind/src/rpc_command.h"
 #include "common/include/exa_nodeset.h"
 #include "examsg/include/examsg.h"
 
@@ -31,32 +30,28 @@ typedef struct barrier {
   exa_nodeset_t nodes;
 } barrier_t;
 
-typedef struct admwrk_ctx_t
-{
-  barrier_t bar; /**< barrier private stuff */
+typedef struct admwrk_ctx_t admwrk_ctx_t;
 
-  char reply[EXAMSG_PAYLOAD_MAX]; /**< Reply data of the local command */
-  size_t reply_size;              /**< Size of the reply */
-  bool (*inst_is_node_down)(exa_nodeid_t nid);
-} admwrk_ctx_t;
+admwrk_ctx_t *admwrk_ctx_alloc();
+void admwrk_ctx_free(admwrk_ctx_t *ctx);
 
-void admwrk_handle_localcmd_msg(int thr_nb, const Examsg *msg, ExamsgMID *from);
+void admwrk_handle_localcmd_msg(admwrk_ctx_t *ctx, const Examsg *msg, ExamsgMID *from);
 
-void admwrk_run_command(int thr_nb, const struct adm_service *service,
+void admwrk_run_command(admwrk_ctx_t *ctx, const struct adm_service *service,
                         admwrk_request_t *handle, int command,
 			const void *request, size_t size);
 int admwrk_get_ack(admwrk_request_t *handle, exa_nodeid_t *nodeid, int *err);
 
-void admwrk_reply(int thr_nb, void *__reply, size_t size);
+void admwrk_reply(admwrk_ctx_t *ctx, void *__reply, size_t size);
 
-int admwrk_barrier_msg(int thr_nb, int err, const char *step, const char *fmt, ...)
+int admwrk_barrier_msg(admwrk_ctx_t *ctx, int err, const char *step, const char *fmt, ...)
     __attribute__ ((format (printf, 4, 5)));
-int  admwrk_exec_command(int thr_nb, const struct adm_service *service,
+int  admwrk_exec_command(admwrk_ctx_t *ctx, const struct adm_service *service,
                          int command, const void *request, size_t size);
 
-static inline void admwrk_ack(int thr_nb, int err)
+static inline void admwrk_ack(admwrk_ctx_t *ctx, int err)
 {
-  admwrk_reply(thr_nb, &err, sizeof(err));
+  admwrk_reply(ctx, &err, sizeof(err));
 }
 
 void admwrk_bcast  (admwrk_ctx_t *ctx, admwrk_request_t *handle,
@@ -66,9 +61,9 @@ int admwrk_get_reply(admwrk_request_t *handle, exa_nodeid_t *nodeid,
 int admwrk_get_bcast(admwrk_request_t *handle, exa_nodeid_t *nodeid,
 	             void *reply, size_t size, int *err);
 
-static inline int admwrk_barrier(int thr_nb, int err, const char *step)
+static inline int admwrk_barrier(admwrk_ctx_t *ctx, int err, const char *step)
 {
-  return admwrk_barrier_msg(thr_nb, err, step, "%s", "");
+  return admwrk_barrier_msg(ctx, err, step, "%s", "");
 }
 
 #endif /* __ADMIND_RPC_H */

@@ -28,7 +28,7 @@ __export(EXA_ADM_FSSTART) struct fsstart_params
 
 
 static int
-fs_start_one_fs(int thr_nb, fs_data_t *data_fs,
+fs_start_one_fs(admwrk_ctx_t *ctx, fs_data_t *data_fs,
                 const exa_nodeset_t *nodelist, const char *mountpoint,
                 uint32_t readonly,
 		bool print_warning)
@@ -59,7 +59,7 @@ fs_start_one_fs(int thr_nb, fs_data_t *data_fs,
         {
           /* It can. Conf must be saved with the new value */
           strlcpy(data_fs->mountpoint, mountpoint, sizeof(data_fs->mountpoint));
-	  ret = fs_update_tree(thr_nb, data_fs);
+	  ret = fs_update_tree(ctx, data_fs);
 	  if (ret != EXA_SUCCESS)
 	    goto fs_start_one_fs_end;
         }
@@ -68,7 +68,7 @@ fs_start_one_fs(int thr_nb, fs_data_t *data_fs,
   /* Check it can be used and started. Then start it. */
   EXA_ASSERT(fs_definition->check_before_start);
   EXA_ASSERT(fs_definition->start_fs);
-  ret = fs_definition->check_before_start(thr_nb, data_fs);
+  ret = fs_definition->check_before_start(ctx, data_fs);
   if (ret != EXA_SUCCESS)
     goto fs_start_one_fs_end;
 
@@ -105,7 +105,7 @@ fs_start_one_fs(int thr_nb, fs_data_t *data_fs,
       exa_nodeset_copy(&list_to_start_read_only, &list_to_start);
       exa_nodeset_reset(&list_to_start);
     }
-  ret_start = fs_definition->start_fs(thr_nb, &list_to_start, &list_to_start_read_only,
+  ret_start = fs_definition->start_fs(ctx, &list_to_start, &list_to_start_read_only,
 				      data_fs, &start_succeeded, false);
 
   /* For each node that is not part of the membership, send a warning */
@@ -124,7 +124,7 @@ fs_start_one_fs(int thr_nb, fs_data_t *data_fs,
 }
 
 int
-fs_start_all_fs(int thr_nb, const struct adm_group *group)
+fs_start_all_fs(admwrk_ctx_t *ctx, const struct adm_group *group)
 {
   int ret = EXA_SUCCESS;
   int overall_ret = EXA_SUCCESS;
@@ -142,10 +142,10 @@ fs_start_all_fs(int thr_nb, const struct adm_group *group)
       exa_nodeset_substract(&list_to_start_rw, &struct_fs->goal_started_ro);
 
       if (!exa_nodeset_is_empty(&list_to_start_rw))
-	ret = fs_start_one_fs(thr_nb, struct_fs, &list_to_start_rw,
+	ret = fs_start_one_fs(ctx, struct_fs, &list_to_start_rw,
 			      struct_fs->mountpoint, false, false);
       if (!exa_nodeset_is_empty(&struct_fs->goal_started_ro))
-	ret = fs_start_one_fs(thr_nb, struct_fs, &struct_fs->goal_started_ro,
+	ret = fs_start_one_fs(ctx, struct_fs, &struct_fs->goal_started_ro,
 			      struct_fs->mountpoint, true, false);
       if (ret != EXA_SUCCESS)
 	overall_ret = ret;
@@ -160,7 +160,7 @@ fs_start_all_fs(int thr_nb, const struct adm_group *group)
  * - Update the XML tree for a specific filesystem name, setting nodes goal to started.
  */
 static void
-cluster_fsstart(int thr_nb, void *data, cl_error_desc_t *err_desc)
+cluster_fsstart(admwrk_ctx_t *ctx, void *data, cl_error_desc_t *err_desc)
 {
   const struct fsstart_params *params = data;
   exa_nodeset_t list;
@@ -198,7 +198,7 @@ cluster_fsstart(int thr_nb, void *data, cl_error_desc_t *err_desc)
     }
   }
 
-  error_val = fs_start_one_fs(thr_nb, &fs, &list, params->mountpoint,
+  error_val = fs_start_one_fs(ctx, &fs, &list, params->mountpoint,
 			      params->read_only, true);
 
   set_error(err_desc, error_val, exa_error_msg(error_val));

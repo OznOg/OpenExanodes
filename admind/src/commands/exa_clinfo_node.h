@@ -28,8 +28,8 @@ struct disk_info_reply
 
 
 
-int cluster_clinfo_nodes(int thr_nb, xmlNodePtr cluster_node);
-void local_clinfo_node_disks(int thr_nb, void *msg);
-void local_clinfo_disk_info(int thr_nb, void *msg);
+int cluster_clinfo_nodes(admwrk_ctx_t *ctx, xmlNodePtr cluster_node);
+void local_clinfo_node_disks(admwrk_ctx_t *ctx, void *msg);
+void local_clinfo_disk_info(admwrk_ctx_t *ctx, void *msg);
 
 #endif

@@ -13,6 +13,7 @@
 
 #include "admind/src/adm_nodeset.h"
 #include "admind/services/lum/include/adm_export.h"
+#include "admind/src/rpc.h"
 #include "common/include/exa_constants.h"
 #include "common/include/exa_mkstr.h"
 #include "common/include/uuid.h"
@@ -149,7 +150,7 @@ int lum_service_publish_export(const exa_uuid_t *uuid);
  *
  * @return EXA_SUCCESS in case of success or a negative error code.
  */
-int lum_master_export_unpublish(int thr_nb, const exa_uuid_t *uuid,
+int lum_master_export_unpublish(admwrk_ctx_t *ctx, const exa_uuid_t *uuid,
                                 const exa_nodeset_t *nodelist, bool force);
 
 /* FIXME Rename to lum_export_create_iscsi() and lum_export_create_bdev() */

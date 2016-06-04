@@ -68,7 +68,7 @@ struct vlstart_info
 /** \brief Implements the vlstart command
  */
 static void
-cluster_vlstart(int thr_nb, void *data, cl_error_desc_t *err_desc)
+cluster_vlstart(admwrk_ctx_t *ctx, void *data, cl_error_desc_t *err_desc)
 {
   const struct vlstart_params *params = data;
   struct adm_group *group;
@@ -152,7 +152,7 @@ cluster_vlstart(int thr_nb, void *data, cl_error_desc_t *err_desc)
 	}
     }
 
-  error_val = vrt_master_volume_start(thr_nb, volume, &nodeset,
+  error_val = vrt_master_volume_start(ctx, volume, &nodeset,
                                       params->readonly,
                                       true /* print_warning */);
   set_error(err_desc, error_val, NULL);
@@ -175,7 +175,7 @@ cluster_vlstart(int thr_nb, void *data, cl_error_desc_t *err_desc)
 }
 
 
-int vrt_master_volume_start(int thr_nb, struct adm_volume *volume,
+int vrt_master_volume_start(admwrk_ctx_t *ctx, struct adm_volume *volume,
 			    const exa_nodeset_t * nodelist, uint32_t readonly,
                             bool print_warning)
 {
@@ -224,7 +224,7 @@ int vrt_master_volume_start(int thr_nb, struct adm_volume *volume,
   exa_nodeset_copy(&info.nodelist, nodelist);
   info.readonly = readonly;
   info.print_warning = print_warning;
-  error_val = admwrk_exec_command(thr_nb, &adm_service_admin, RPC_ADM_VLSTART, &info, sizeof(info));
+  error_val = admwrk_exec_command(ctx, &adm_service_admin, RPC_ADM_VLSTART, &info, sizeof(info));
 
   if(error_val)
     goto end_error;
@@ -248,7 +248,7 @@ end_error:
 }
 
 int
-vrt_master_volume_start_all(int thr_nb, struct adm_group *group)
+vrt_master_volume_start_all(admwrk_ctx_t *ctx, struct adm_group *group)
 {
   int ret = EXA_SUCCESS;
   int overall_ret = EXA_SUCCESS;
@@ -272,11 +272,11 @@ vrt_master_volume_start_all(int thr_nb, struct adm_group *group)
         exa_nodeset_copy(&goal_rw, &volume->goal_started);
         exa_nodeset_substract(&goal_rw, &volume->goal_readonly);
         if (!exa_nodeset_is_empty(&goal_rw))
-          ret = vrt_master_volume_start(thr_nb, volume, &goal_rw,
+          ret = vrt_master_volume_start(ctx, volume, &goal_rw,
                                         false /* readonly */,
                                         false /* print_warning */);
         if (!exa_nodeset_is_empty(&volume->goal_readonly))
-          ret = vrt_master_volume_start(thr_nb, volume, &volume->goal_readonly,
+          ret = vrt_master_volume_start(ctx, volume, &volume->goal_readonly,
                                         true /* readonly */,
                                         false /* print_warning */);
         if (ret != EXA_SUCCESS)
@@ -289,7 +289,7 @@ vrt_master_volume_start_all(int thr_nb, struct adm_group *group)
 }
 
 static void
-local_exa_vlstart (int thr_nb, void *msg)
+local_exa_vlstart (admwrk_ctx_t *ctx, void *msg)
 {
   struct adm_group *group;
   struct adm_volume *volume = NULL;
@@ -319,7 +319,7 @@ local_exa_vlstart (int thr_nb, void *msg)
 
 get_barrier:
   /*** Barrier: "cmd_params_get", getting parameters ***/
-  barrier_ret = admwrk_barrier(thr_nb, ret, "Getting parameters");
+  barrier_ret = admwrk_barrier(ctx, ret, "Getting parameters");
   if (barrier_ret != EXA_SUCCESS)
     goto local_exa_vlstart_end; /* Nothing to undo */
 
@@ -331,7 +331,7 @@ get_barrier:
     ret = -ADMIND_ERR_RESOURCE_IS_INVALID;
 
   /*** Barrier: "check_xml", check that the volume exists in the XML tree ***/
-  barrier_ret = admwrk_barrier(thr_nb, ret, "Checking XML configuration");
+  barrier_ret = admwrk_barrier(ctx, ret, "Checking XML configuration");
   if (barrier_ret != EXA_SUCCESS)
     goto local_exa_vlstart_end; /* Nothing to undo */
 
@@ -340,7 +340,7 @@ get_barrier:
       if (info->readonly ^ volume->readonly)
           ret = -ADMIND_ERR_VOLUME_ACCESS_MODE;
   }
-  barrier_ret = admwrk_barrier(thr_nb, ret, "Checking volume's access mode");
+  barrier_ret = admwrk_barrier(ctx, ret, "Checking volume's access mode");
   if (barrier_ret != EXA_SUCCESS)
       goto local_exa_vlstart_end;
 
@@ -369,7 +369,7 @@ get_barrier:
       ret = EXA_SUCCESS;
   }
 
-  barrier_ret = admwrk_barrier(thr_nb, ret, "Starting the logical volume");
+  barrier_ret = admwrk_barrier(ctx, ret, "Starting the logical volume");
   if (barrier_ret != EXA_SUCCESS &&
       barrier_ret != -VRT_INFO_VOLUME_ALREADY_STARTED)
     goto local_exa_vlstart_end;
@@ -408,11 +408,11 @@ get_barrier:
   else
       ret = -ADMIND_ERR_NOTHINGTODO;
 
-  barrier_ret = admwrk_barrier(thr_nb, ret, "Exporting the logical volume");
+  barrier_ret = admwrk_barrier(ctx, ret, "Exporting the logical volume");
 
  local_exa_vlstart_end:
   exalog_debug("local_exa_vlstart() = %s", exa_error_msg(barrier_ret));
-  admwrk_ack(thr_nb, barrier_ret);
+  admwrk_ack(ctx, barrier_ret);
 }
 
 /**

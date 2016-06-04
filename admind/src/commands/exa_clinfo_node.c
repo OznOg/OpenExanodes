@@ -44,7 +44,7 @@ struct node_disk_reply
 };
 
 
-void local_clinfo_node_disks(int thr_nb, void *msg)
+void local_clinfo_node_disks(admwrk_ctx_t *ctx, void *msg)
 {
   struct node_disk_reply reply[NBMAX_DISKS_PER_NODE];
   struct adm_disk *disk;
@@ -78,10 +78,10 @@ void local_clinfo_node_disks(int thr_nb, void *msg)
 
   COMPILE_TIME_ASSERT(sizeof(struct node_disk_reply) * NBMAX_DISKS <=
                       ADM_MAILBOX_PAYLOAD_PER_NODE * EXA_MAX_NODES_NUMBER);
-  admwrk_reply(thr_nb, reply, sizeof(struct node_disk_reply) * adm_node_nb_disks(adm_myself()));
+  admwrk_reply(ctx, reply, sizeof(struct node_disk_reply) * adm_node_nb_disks(adm_myself()));
 }
 
-void local_clinfo_disk_info(int thr_nb, void *msg)
+void local_clinfo_disk_info(admwrk_ctx_t *ctx, void *msg)
 {
   struct disk_info_reply reply;
   struct disk_info_query *query = msg;
@@ -104,11 +104,11 @@ void local_clinfo_disk_info(int thr_nb, void *msg)
 
   COMPILE_TIME_ASSERT(sizeof(struct disk_info_reply) <=
                       ADM_MAILBOX_PAYLOAD_PER_NODE * EXA_MAX_NODES_NUMBER);
-  admwrk_reply(thr_nb, &reply, sizeof(struct disk_info_reply));
+  admwrk_reply(ctx, &reply, sizeof(struct disk_info_reply));
 }
 
 
-static int cluster_clinfo_node_disks(int thr_nb, xmlNodePtr cluster_node)
+static int cluster_clinfo_node_disks(admwrk_ctx_t *ctx, xmlNodePtr cluster_node)
 {
   struct node_disk_reply reply[NBMAX_DISKS_PER_NODE];
   exa_nodeid_t nodeid;
@@ -118,7 +118,7 @@ static int cluster_clinfo_node_disks(int thr_nb, xmlNodePtr cluster_node)
 
   exalog_debug("RPC_ADM_CLINFO_NODE_DISKS");
 
-  admwrk_run_command(thr_nb, &adm_service_rdev, &rpc, RPC_ADM_CLINFO_NODE_DISKS, NULL, 0);
+  admwrk_run_command(ctx, &adm_service_rdev, &rpc, RPC_ADM_CLINFO_NODE_DISKS, NULL, 0);
 
   while (admwrk_get_reply(&rpc, &nodeid, reply, sizeof(reply), &err))
   {
@@ -183,7 +183,7 @@ error:
 }
 
 
-int cluster_clinfo_nodes(int thr_nb, xmlNodePtr cluster_node)
+int cluster_clinfo_nodes(admwrk_ctx_t *ctx, xmlNodePtr cluster_node)
 {
   struct adm_node *node;
   int ret;
@@ -242,7 +242,7 @@ int cluster_clinfo_nodes(int thr_nb, xmlNodePtr cluster_node)
 
   /* Get disks info */
 
-  ret = cluster_clinfo_node_disks(thr_nb, cluster_node);
+  ret = cluster_clinfo_node_disks(ctx, cluster_node);
 
   return ret;
 }

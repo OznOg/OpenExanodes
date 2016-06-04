@@ -144,7 +144,7 @@ static void disk_checking_thread(void *dummy)
  * - allocate and initialize aligned buffers to read/writes superblocks.
  */
 static int
-rdev_init(int thr_nb)
+rdev_init(admwrk_ctx_t *ctx)
 {
   char path[OS_PATH_MAX];
   int err = 0;
@@ -224,7 +224,7 @@ cleanup_broken:
  * - stop the exa_rdev kernel module.
  */
 static int
-rdev_shutdown(int thr_nb)
+rdev_shutdown(admwrk_ctx_t *ctx)
 {
   broken_disk_table_unload(&broken_disks);
 
@@ -592,7 +592,7 @@ typedef struct broken_table_info_t
     exa_uuid_t broken_table[NBMAX_DISKS];
 } broken_table_info;
 
-static int rdev_synchronise_broken_disk_table(int thr_nb)
+static int rdev_synchronise_broken_disk_table(admwrk_ctx_t *ctx)
 {
     admwrk_request_t rpc;
     exa_nodeid_t nodeid;
@@ -645,7 +645,7 @@ static int rdev_synchronise_broken_disk_table(int thr_nb)
  * - request a recovery RESOURCES of service NBD if some disks were just started.
  */
 static void
-rdev_recover_local(int thr_nb, void *msg)
+rdev_recover_local(admwrk_ctx_t *ctx, void *msg)
 {
   exa_nodeid_t nodeid;
   exa_nodeset_t nodes_going_up;
@@ -719,18 +719,18 @@ rdev_recover_local(int thr_nb, void *msg)
           adm_node_for_each_disk(adm_cluster_get_node_by_id(node->id), disk)
               disk->path[0] = '\0';
 
-  ret = rdev_synchronise_broken_disk_table(thr_nb);
+  ret = rdev_synchronise_broken_disk_table(ctx);
 
   /* FIXME is this barrier needed ? */
-  admwrk_barrier(thr_nb, ret, "RDEV: Syncing broken disks table");
+  admwrk_barrier(ctx, ret, "RDEV: Syncing broken disks table");
 
   rdev_update_disks();
 
-  admwrk_barrier(thr_nb, ret, "RDEV: writing broken disks table");
+  admwrk_barrier(ctx, ret, "RDEV: writing broken disks table");
 
   /* FIXME this return SUCCESS even if some error occured (during send or
    * store, who knows...) */
-  admwrk_ack(thr_nb, EXA_SUCCESS);
+  admwrk_ack(ctx, EXA_SUCCESS);
 }
 
 
@@ -738,15 +738,15 @@ rdev_recover_local(int thr_nb, void *msg)
  * Cluster command for recovery of service RDEV. Just call the local command.
  */
 static int
-rdev_recover(int thr_nb)
+rdev_recover(admwrk_ctx_t *ctx)
 {
-  return admwrk_exec_command(thr_nb, &adm_service_rdev,
+  return admwrk_exec_command(ctx, &adm_service_rdev,
 			     RPC_SERVICE_RDEV_RECOVER, NULL, 0);
 }
 
 
 static void
-rdev_diskdel(int thr_nb, struct adm_node *node, struct adm_disk *disk)
+rdev_diskdel(admwrk_ctx_t *ctx, struct adm_node *node, struct adm_disk *disk)
 {
   rdev_stop_disk(disk, node);
   if (broken_disk_table_contains(broken_disks, &disk->uuid))
@@ -760,7 +760,7 @@ rdev_diskdel(int thr_nb, struct adm_node *node, struct adm_disk *disk)
  * - cleanup the table of broken disks is we stop ourself.
  */
 static int
-rdev_nodestop(int thr_nb, const exa_nodeset_t *nodes_to_stop)
+rdev_nodestop(admwrk_ctx_t *ctx, const exa_nodeset_t *nodes_to_stop)
 {
   struct adm_node *node;
   struct adm_disk *disk;
@@ -797,14 +797,14 @@ rdev_nodestop(int thr_nb, const exa_nodeset_t *nodes_to_stop)
  * - cleanup the table of broken disks.
  */
 static void
-rdev_stop_local(int thr_nb, void *msg)
+rdev_stop_local(admwrk_ctx_t *ctx, void *msg)
 {
   exa_nodeset_t *nodes_to_stop = &((stop_data_t *)msg)->nodes_to_stop;
   int ret;
 
-  ret = rdev_nodestop(thr_nb, nodes_to_stop);
+  ret = rdev_nodestop(ctx, nodes_to_stop);
 
-  admwrk_ack(thr_nb, ret);
+  admwrk_ack(ctx, ret);
 }
 
 
@@ -812,9 +812,9 @@ rdev_stop_local(int thr_nb, void *msg)
  * Cluster command to stop the service RDEV on all nodes.
  */
 static int
-rdev_stop(int thr_nb, const stop_data_t *stop_data)
+rdev_stop(admwrk_ctx_t *ctx, const stop_data_t *stop_data)
 {
-  return admwrk_exec_command(thr_nb, &adm_service_rdev,
+  return admwrk_exec_command(ctx, &adm_service_rdev,
 			     RPC_SERVICE_RDEV_STOP,
 			     stop_data, sizeof(*stop_data));
 }
@@ -828,7 +828,7 @@ rdev_stop(int thr_nb, const stop_data_t *stop_data)
  * - write the new table of broken disks on all disks that are up,
  * - requires a recovery RESOURCE of service NBD.
  */
-static void rdev_check_down_local(int thr_nb, void *msg)
+static void rdev_check_down_local(admwrk_ctx_t *ctx, void *msg)
 {
   exa_nodeid_t nodeid;
   admwrk_request_t handle;
@@ -956,7 +956,7 @@ static void rdev_check_down_local(int thr_nb, void *msg)
   /* Update the table of broken disks and increment its version. */
   rdev_update_broken_disks();
 
-  admwrk_ack(thr_nb, EXA_SUCCESS);
+  admwrk_ack(ctx, EXA_SUCCESS);
 }
 
 
@@ -964,9 +964,9 @@ static void rdev_check_down_local(int thr_nb, void *msg)
  * Cluster command for recovery CHECK of service RDEV.
  * Just call the local command.
  */
-static int rdev_check_down(int thr_nb)
+static int rdev_check_down(admwrk_ctx_t *ctx)
 {
-  return admwrk_exec_command(thr_nb, &adm_service_rdev,
+  return admwrk_exec_command(ctx, &adm_service_rdev,
 			     RPC_SERVICE_RDEV_CHECK_DOWN, NULL, 0);
 }
 
@@ -977,7 +977,7 @@ static int rdev_check_down(int thr_nb)
  * - request a recovery RESOURCE.
  */
 static int
-rdev_diskadd(int thr_nb, struct adm_node *node, struct adm_disk *disk,
+rdev_diskadd(admwrk_ctx_t *ctx, struct adm_node *node, struct adm_disk *disk,
 	     const char *path)
 {
   int ret;

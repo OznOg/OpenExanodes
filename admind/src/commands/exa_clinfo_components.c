@@ -48,7 +48,7 @@ struct components_reply
 };
 
 
-void local_clinfo_components(int thr_nb, void *msg)
+void local_clinfo_components(admwrk_ctx_t *ctx, void *msg)
 {
   struct components_reply reply;
   char line[EXA_MAXSIZE_LINE + 1];
@@ -115,11 +115,11 @@ error:
       reply.modules[i] = true;
 #endif
   COMPILE_TIME_ASSERT(sizeof(reply) <= ADM_MAILBOX_PAYLOAD_PER_NODE);
-  admwrk_reply(thr_nb, &reply, sizeof(reply));
+  admwrk_reply(ctx, &reply, sizeof(reply));
 }
 
 
-int cluster_clinfo_components(int thr_nb, xmlNodePtr exanodes_node)
+int cluster_clinfo_components(admwrk_ctx_t *ctx, xmlNodePtr exanodes_node)
 {
   exa_nodeid_t nodeid;
   xmlNodePtr software_node;
@@ -152,7 +152,7 @@ int cluster_clinfo_components(int thr_nb, xmlNodePtr exanodes_node)
 
   exalog_debug("RPC_ADM_CLINFO_COMPONENTS");
 
-  admwrk_run_command(thr_nb, &adm_service_admin, &rpc, RPC_ADM_CLINFO_COMPONENTS, NULL, 0);
+  admwrk_run_command(ctx, &adm_service_admin, &rpc, RPC_ADM_CLINFO_COMPONENTS, NULL, 0);
 
   while (admwrk_get_reply(&rpc, &nodeid, &reply, sizeof(reply), &ret))
   {

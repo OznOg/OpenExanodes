@@ -11,8 +11,8 @@
 
 #include <libxml/tree.h>
 
-void local_clinfo_volume(int thr_nb, void *msg);
-int cluster_clinfo_volumes(int thr_nb, xmlNodePtr group_node,
+void local_clinfo_volume(admwrk_ctx_t *ctx, void *msg);
+int cluster_clinfo_volumes(admwrk_ctx_t *ctx, xmlNodePtr group_node,
 			   struct adm_group *group,
 			   bool get_fs_info, bool get_fs_size);
 

@@ -46,7 +46,7 @@ typedef struct {
 } volume_request_t;
 
 
-void local_clinfo_volume(int thr_nb, void *msg)
+void local_clinfo_volume(admwrk_ctx_t *ctx, void *msg)
 {
   struct volume_reply reply;
   volume_request_t *request;
@@ -58,11 +58,11 @@ void local_clinfo_volume(int thr_nb, void *msg)
 				     &reply.info);
 
   COMPILE_TIME_ASSERT(sizeof(reply) <= ADM_MAILBOX_PAYLOAD_PER_NODE);
-  admwrk_reply(thr_nb, &reply, sizeof(reply));
+  admwrk_reply(ctx, &reply, sizeof(reply));
 }
 
 
-int cluster_clinfo_volumes(int thr_nb, xmlNodePtr group_node,
+int cluster_clinfo_volumes(admwrk_ctx_t *ctx, xmlNodePtr group_node,
 			   struct adm_group *group,
 			   bool get_fs_info, bool get_fs_size)
 {
@@ -99,7 +99,7 @@ int cluster_clinfo_volumes(int thr_nb, xmlNodePtr group_node,
 
       exalog_debug("RPC_ADM_CLINFO_VOLUME(%s)", volume->name);
 
-      admwrk_run_command(thr_nb, &adm_service_admin, &rpc, RPC_ADM_CLINFO_VOLUME, &request, sizeof(request));
+      admwrk_run_command(ctx, &adm_service_admin, &rpc, RPC_ADM_CLINFO_VOLUME, &request, sizeof(request));
 
       while (admwrk_get_reply(&rpc, &nodeid, &reply, sizeof(reply), &ret))
         {
@@ -158,7 +158,7 @@ int cluster_clinfo_volumes(int thr_nb, xmlNodePtr group_node,
       return ret;
 
     /* Generate the 'export' children of the 'volume' XML node */
-    ret = cluster_clinfo_export_by_volume(thr_nb, volume_node, &volume->uuid);
+    ret = cluster_clinfo_export_by_volume(ctx, volume_node, &volume->uuid);
     if (ret != EXA_SUCCESS)
 	return ret;
 
@@ -177,7 +177,7 @@ int cluster_clinfo_volumes(int thr_nb, xmlNodePtr group_node,
 	    return -EXA_ERR_XML_ADD;
 	  }
 	fs_fill_data_from_config(&fs_data, volume->filesystem);
-	ret = cluster_clinfo_filesystem(thr_nb, fs_node, &fs_data, get_fs_size);
+	ret = cluster_clinfo_filesystem(ctx, fs_node, &fs_data, get_fs_size);
 	if (ret)
 	  return ret;
       }

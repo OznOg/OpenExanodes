@@ -36,7 +36,7 @@ __export(EXA_ADM_FSDELETE) struct fsdelete_params
  * VRT code will automatically delete associated FS info.
  */
 static void
-cluster_fsdelete(int thr_nb, void *data, cl_error_desc_t *err_desc)
+cluster_fsdelete(admwrk_ctx_t *ctx, void *data, cl_error_desc_t *err_desc)
 {
   const struct fsdelete_params *params = data;
   fs_data_t fs;
@@ -52,7 +52,7 @@ cluster_fsdelete(int thr_nb, void *data, cl_error_desc_t *err_desc)
   error_val = fscommands_params_get_fs(params->group_name, params->volume_name,
 				       &fs, NULL, false);
   if (error_val == EXA_SUCCESS)
-      error_val = vrt_master_volume_delete(thr_nb, fs_get_volume(&fs), false);
+      error_val = vrt_master_volume_delete(ctx, fs_get_volume(&fs), false);
 
   if (error_val != EXA_SUCCESS)
     {

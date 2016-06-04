@@ -51,7 +51,7 @@ void inst_get_nodes_down(const struct adm_service *service,
                          exa_nodeset_t* nodes);
 
 /* functions for rpc.c in run_command */
-void inst_get_current_membership(int thr_nb, const struct adm_service *service,
+void inst_get_current_membership(admwrk_ctx_t *ctx, const struct adm_service *service,
                                  exa_nodeset_t *membership);
 
 bool inst_is_node_down_rec(exa_nodeid_t nid);
@@ -66,6 +66,6 @@ int inst_check_blockable_event(void);
 
 inst_op_t inst_compute_recovery(void);
 
-void adm_hierarchy_run_stop(int thr_nb, const stop_data_t *nodes_to_stop, cl_error_desc_t *err_desc);
+void adm_hierarchy_run_stop(admwrk_ctx_t *ctx, const stop_data_t *nodes_to_stop, cl_error_desc_t *err_desc);
 #endif
 

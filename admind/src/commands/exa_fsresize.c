@@ -32,7 +32,7 @@ __export(EXA_ADM_FSRESIZE) struct fsresize_params
  * - Resize it on the specified nodes, using FS specific function.
  */
 static void
-cluster_fsresize(int thr_nb, void *data, cl_error_desc_t *err_desc)
+cluster_fsresize(admwrk_ctx_t *ctx, void *data, cl_error_desc_t *err_desc)
 {
   const struct fsresize_params *params = data;
   fs_data_t fs;
@@ -68,7 +68,7 @@ cluster_fsresize(int thr_nb, void *data, cl_error_desc_t *err_desc)
 
   /* Check it can be resized. Then resize it. */
   EXA_ASSERT(fs_definition->resize_fs);
-  error_val = fs_definition->resize_fs(thr_nb, &fs, params->sizeKB);
+  error_val = fs_definition->resize_fs(ctx, &fs, params->sizeKB);
   if (error_val != EXA_SUCCESS)
     {
       set_error(err_desc, error_val, NULL);
@@ -76,7 +76,7 @@ cluster_fsresize(int thr_nb, void *data, cl_error_desc_t *err_desc)
     }
 
   /* Need an update of the "size" value */
-  error_val = fs_update_tree(thr_nb, &fs);
+  error_val = fs_update_tree(ctx, &fs);
   if (error_val != EXA_SUCCESS)
     {
       set_error(err_desc, error_val, NULL);

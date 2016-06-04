@@ -45,7 +45,7 @@ typedef struct
 } export_request_t;
 
 
-void local_clinfo_export(int thr_nb, void *msg)
+void local_clinfo_export(admwrk_ctx_t *ctx, void *msg)
 {
     export_reply_t reply;
     export_request_t *request;
@@ -65,7 +65,7 @@ void local_clinfo_export(int thr_nb, void *msg)
 				     &reply.info);
 
     COMPILE_TIME_ASSERT(sizeof(reply) <= ADM_MAILBOX_PAYLOAD_PER_NODE);
-    admwrk_reply(thr_nb, &reply, sizeof(reply));
+    admwrk_reply(ctx, &reply, sizeof(reply));
 }
 
 
@@ -81,7 +81,7 @@ typedef struct
     unsigned int iqn_num;
 } get_nth_iqn_request_t;
 
-void local_clinfo_get_nth_iqn(int thr_nb, void *msg)
+void local_clinfo_get_nth_iqn(admwrk_ctx_t *ctx, void *msg)
 {
   get_nth_iqn_reply_t reply;
   get_nth_iqn_request_t *request = (get_nth_iqn_request_t *)msg;
@@ -92,10 +92,10 @@ void local_clinfo_get_nth_iqn(int thr_nb, void *msg)
                                                &reply.iqn);
 
   COMPILE_TIME_ASSERT(sizeof(reply) <= ADM_MAILBOX_PAYLOAD_PER_NODE);
-  admwrk_reply(thr_nb, &reply, sizeof(reply));
+  admwrk_reply(ctx, &reply, sizeof(reply));
 }
 
-static int cluster_clinfo_export(int thr_nb, xmlNodePtr father_node,
+static int cluster_clinfo_export(admwrk_ctx_t *ctx, xmlNodePtr father_node,
 				 const export_info_t *export_info)
 {
     admwrk_request_t rpc;
@@ -143,7 +143,7 @@ static int cluster_clinfo_export(int thr_nb, xmlNodePtr father_node,
 
     /* Get the export_info structure */
     uuid_copy(&info_request.export, &export_info->uuid);
-    admwrk_run_command(thr_nb, &adm_service_admin, &rpc, RPC_ADM_CLINFO_EXPORT,
+    admwrk_run_command(ctx, &adm_service_admin, &rpc, RPC_ADM_CLINFO_EXPORT,
 		       &info_request, sizeof(info_request));
 
     compound_ret = EXA_SUCCESS;
@@ -230,7 +230,7 @@ static int cluster_clinfo_export(int thr_nb, xmlNodePtr father_node,
 	get_nth_iqn_reply_t iqn_reply;
 
 	found_iqn = false;
-	admwrk_run_command(thr_nb, &adm_service_admin, &rpc, RPC_ADM_CLINFO_GET_NTH_IQN,
+	admwrk_run_command(ctx, &adm_service_admin, &rpc, RPC_ADM_CLINFO_GET_NTH_IQN,
 			   &iqn_request, sizeof(iqn_request));
 
 	while (admwrk_get_reply(&rpc, &nodeid, &iqn_reply, sizeof(iqn_reply), &ret))
@@ -287,7 +287,7 @@ static int cluster_clinfo_export(int thr_nb, xmlNodePtr father_node,
     return compound_ret;
 }
 
-int cluster_clinfo_export_by_volume(int thr_nb, xmlNodePtr father_node,
+int cluster_clinfo_export_by_volume(admwrk_ctx_t *ctx, xmlNodePtr father_node,
 				    const exa_uuid_t *volume_uuid)
 {
     export_info_t *export_infos;
@@ -307,7 +307,7 @@ int cluster_clinfo_export_by_volume(int thr_nb, xmlNodePtr father_node,
 	if (!uuid_is_equal(&export_infos[i].uuid , volume_uuid))
 	    continue;
 
-	result = cluster_clinfo_export(thr_nb, father_node, &export_infos[i]);
+	result = cluster_clinfo_export(ctx, father_node, &export_infos[i]);
     }
 
     os_free(export_infos);

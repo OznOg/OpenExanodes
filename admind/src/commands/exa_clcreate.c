@@ -55,7 +55,7 @@ __export(EXA_ADM_CLCREATE) struct clcreate_params
 /*---------------------------------------------------------------------------*/
 
 static void
-cluster_clcreate(int thr_nb, void *data, cl_error_desc_t *err_desc)
+cluster_clcreate(admwrk_ctx_t *ctx, void *data, cl_error_desc_t *err_desc)
 {
   char *hostname = ((struct clcreate_params *)data)->hostname;
   xmlDocPtr license = ((struct clcreate_params *)data)->license;

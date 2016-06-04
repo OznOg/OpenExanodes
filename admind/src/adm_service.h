@@ -57,28 +57,28 @@ struct adm_service
   adm_service_id_t id;
 
   /* The following methods should be called on the leader only. */
-  int (* init)(int thr_nb);
-  int (* recover)(int thr_nb);
-  int (* resume)(int thr_nb);
-  int (* suspend)(int thr_nb);
-  int (* stop)(int thr_nb, const stop_data_t *stop_data);
-  int (* shutdown)(int thr_nb);
-  int (* check_down)(int thr_nb);
-  int (* check_up)(int thr_nb);
+  int (* init)(admwrk_ctx_t *ctx);
+  int (* recover)(admwrk_ctx_t *ctx);
+  int (* resume)(admwrk_ctx_t *ctx);
+  int (* suspend)(admwrk_ctx_t *ctx);
+  int (* stop)(admwrk_ctx_t *ctx, const stop_data_t *stop_data);
+  int (* shutdown)(admwrk_ctx_t *ctx);
+  int (* check_down)(admwrk_ctx_t *ctx);
+  int (* check_up)(admwrk_ctx_t *ctx);
 
   /* The following methods should be called on all nodes. */
-  int (* diskadd)(int thr_nb, struct adm_node *node, struct adm_disk *disk,
+  int (* diskadd)(admwrk_ctx_t *ctx, struct adm_node *node, struct adm_disk *disk,
 		  const char *path);
   /* The diskdel method cannot assume that the adm_disk is still part
    * of the containing adm_node. */
-  void (* diskdel)(int thr_nb, struct adm_node *node, struct adm_disk *disk);
-  int (* nodeadd)(int thr_nb, struct adm_node *node);
-  void (* nodeadd_commit)(int thr_nb, struct adm_node *node);
+  void (* diskdel)(admwrk_ctx_t *ctx, struct adm_node *node, struct adm_disk *disk);
+  int (* nodeadd)(admwrk_ctx_t *ctx, struct adm_node *node);
+  void (* nodeadd_commit)(admwrk_ctx_t *ctx, struct adm_node *node);
   /* Before deleting, ask the service if its's allowed */
-  int (* check_nodedel)(int thr_nb, struct adm_node *node);
+  int (* check_nodedel)(admwrk_ctx_t *ctx, struct adm_node *node);
   /* The nodedel method cannot assume that the adm_node is still part
    * of the containing adm_cluster. */
-  void (* nodedel)(int thr_nb, struct adm_node *node);
+  void (* nodedel)(admwrk_ctx_t *ctx, struct adm_node *node);
 
   struct {
     rpc_command_t id;

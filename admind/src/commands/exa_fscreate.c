@@ -55,7 +55,7 @@ struct fscreate_info
 };
 
 static exa_error_code
-pre_local_create_fs(int thr_nb, fs_data_t *fs);
+pre_local_create_fs(admwrk_ctx_t *ctx, fs_data_t *fs);
 
 /** \brief Implements the fscreate command
  *
@@ -66,7 +66,7 @@ pre_local_create_fs(int thr_nb, fs_data_t *fs);
  *   of new volumes is done through specific FS function
  * - Update status to OK in the config file.
  */
-static void cluster_fscreate(int thr_nb, void *data, cl_error_desc_t *err_desc)
+static void cluster_fscreate(admwrk_ctx_t *ctx, void *data, cl_error_desc_t *err_desc)
 {
   struct fscreate_params *fs_param = data;
   int error_val = EXA_SUCCESS, error_delete;
@@ -116,7 +116,7 @@ static void cluster_fscreate(int thr_nb, void *data, cl_error_desc_t *err_desc)
     }
 
   /* FIXME use cluster_vlcreate in place of vrt_master_volume_create */
-  error_val = vrt_master_volume_create(thr_nb,
+  error_val = vrt_master_volume_create(ctx,
                                        group,
 				       fs_param->volume_name,
                                        EXPORT_BDEV,
@@ -163,7 +163,7 @@ static void cluster_fscreate(int thr_nb, void *data, cl_error_desc_t *err_desc)
     }
 
   /* Write to tree, with INPROGRESS status */
-  error_val = fs_update_tree(thr_nb, &new_fs);
+  error_val = fs_update_tree(ctx, &new_fs);
   if (error_val != EXA_SUCCESS)
     goto volume_delete;
 
@@ -172,13 +172,13 @@ static void cluster_fscreate(int thr_nb, void *data, cl_error_desc_t *err_desc)
     /* Perform clustered preparation specific to fs type */
     if (fs_definition->pre_create_fs)
     {
-        error_val = fs_definition->pre_create_fs(thr_nb, &new_fs);
+        error_val = fs_definition->pre_create_fs(ctx, &new_fs);
         if (error_val != EXA_SUCCESS)
             goto volume_delete;
     }
 
   /* Really create */
-  error_val = pre_local_create_fs(thr_nb, &new_fs);
+  error_val = pre_local_create_fs(ctx, &new_fs);
 
   if (error_val != EXA_SUCCESS)
     goto volume_delete;
@@ -188,7 +188,7 @@ static void cluster_fscreate(int thr_nb, void *data, cl_error_desc_t *err_desc)
   /* Set transaction to COMMITTED */
   new_fs.transaction = 1;
 
-  error_val = fs_update_tree(thr_nb, &new_fs);
+  error_val = fs_update_tree(ctx, &new_fs);
   if (error_val != EXA_SUCCESS)
     goto volume_delete;
 
@@ -213,7 +213,7 @@ volume_delete:
    * back to an invalid status and cannot be started. The only way
    * out is to fsdelete it.
    */
-  error_delete = vrt_master_volume_delete(thr_nb, volume, false);
+  error_delete = vrt_master_volume_delete(ctx, volume, false);
   if (error_delete != EXA_SUCCESS)
     {
       exalog_error("Cannot delete file system: %s", exa_error_msg(error_delete));
@@ -229,7 +229,7 @@ volume_delete:
  * and then run the local command on that node to create the fs.
  */
 static exa_error_code
-pre_local_create_fs(int thr_nb, fs_data_t *fs)
+pre_local_create_fs(admwrk_ctx_t *ctx, fs_data_t *fs)
 {
     int ret = EXA_SUCCESS;
     int error_val;
@@ -254,7 +254,7 @@ pre_local_create_fs(int thr_nb, fs_data_t *fs)
         exa_nodeset_reset(&nodelist);
         exa_nodeset_add(&nodelist, node_id);
 
-        ret = vrt_master_volume_start(thr_nb, volume, &nodelist,
+        ret = vrt_master_volume_start(ctx, volume, &nodelist,
                                       false /* readonly */,
                                       false /* print_warning */);
         if (ret == EXA_SUCCESS)
@@ -262,12 +262,12 @@ pre_local_create_fs(int thr_nb, fs_data_t *fs)
             info.nodeid = node_id;
             /* TODO FIXME Use adm_service_fs instead of adm_service_vrt? */
             error_val =
-                admwrk_exec_command(thr_nb, &adm_service_vrt,
+                admwrk_exec_command(ctx, &adm_service_vrt,
                             RPC_ADM_FSCREATE, &info, sizeof(info));
 
-            ret = lum_master_export_unpublish(thr_nb, &volume->uuid, &nodelist, false);
+            ret = lum_master_export_unpublish(ctx, &volume->uuid, &nodelist, false);
             if (ret == EXA_SUCCESS)
-                ret = vrt_master_volume_stop(thr_nb, volume, &nodelist,
+                ret = vrt_master_volume_stop(ctx, volume, &nodelist,
                                              false /* force */,
                                              ADM_GOAL_CHANGE_VOLUME,
                                              false /* print_warning */);
@@ -278,7 +278,7 @@ pre_local_create_fs(int thr_nb, fs_data_t *fs)
         {
             /* TODO FIXME This is just a workaround
                for the problem of too much volumes started */
-            vrt_master_volume_stop(thr_nb, volume, &nodelist,
+            vrt_master_volume_stop(ctx, volume, &nodelist,
                                 false /* force */,
                                 ADM_GOAL_CHANGE_VOLUME,
                                 false /* print_warning */);
@@ -290,7 +290,7 @@ pre_local_create_fs(int thr_nb, fs_data_t *fs)
 
 
 static void
-local_exa_fscreate(int thr_nb, void *msg)
+local_exa_fscreate(admwrk_ctx_t *ctx, void *msg)
 {
     int ret = EXA_SUCCESS;
     struct fscreate_info *info = msg;
@@ -310,11 +310,11 @@ local_exa_fscreate(int thr_nb, void *msg)
     }
 
     EXA_ASSERT(fs_definition->create_fs);
-    ret = fs_definition->create_fs(thr_nb, &info->fs);
+    ret = fs_definition->create_fs(ctx, &info->fs);
 
 local_exa_fscreate_end:
     exalog_debug("local_exa_fscreate() = %s", exa_error_msg(ret));
-    admwrk_ack(thr_nb, ret);
+    admwrk_ack(ctx, ret);
 }
 
 

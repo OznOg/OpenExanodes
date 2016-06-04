@@ -39,7 +39,7 @@ __export(EXA_ADM_FSCHECK) struct fscheck_params
  * - Update the XML tree for a specific filesystem name, setting nodes goal to started.
  */
 static void
-cluster_fscheck(int thr_nb, void *data, cl_error_desc_t *err_desc)
+cluster_fscheck(admwrk_ctx_t *ctx, void *data, cl_error_desc_t *err_desc)
 {
   const struct fscheck_params *params = data;
   exa_nodeset_t nodes_down;
@@ -75,7 +75,7 @@ cluster_fscheck(int thr_nb, void *data, cl_error_desc_t *err_desc)
 
   /* Check it can be used and started. */
   EXA_ASSERT(fs_definition->check_before_start);
-  error_val = fs_definition->check_before_start(thr_nb, &check_fs);
+  error_val = fs_definition->check_before_start(ctx, &check_fs);
   if (error_val != EXA_SUCCESS)
     {
       set_error(err_desc, error_val, NULL);
@@ -92,7 +92,7 @@ cluster_fscheck(int thr_nb, void *data, cl_error_desc_t *err_desc)
 
   /* Run the real check */
   EXA_ASSERT(fs_definition->check_fs);
-  error_val = fs_definition->check_fs(thr_nb, &check_fs, params->options,
+  error_val = fs_definition->check_fs(ctx, &check_fs, params->options,
 				      node_id, params->repair);
 
   set_error(err_desc, error_val, NULL);

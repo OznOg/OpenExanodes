@@ -10,6 +10,7 @@
 #define __SERVICE_VRT_H__
 
 #include "admind/src/admind.h"
+#include "admind/src/rpc.h"
 #include "examsg/include/examsg.h"
 #include "lum/export/include/export.h"
 
@@ -21,33 +22,33 @@ int service_vrt_prepare_group(struct adm_group *group);
 int local_exa_dgstart_vrt_start(struct adm_group *group);
 
 /* volume commands */
-int vrt_master_volume_stop(int thr_nb, struct adm_volume *volume,
+int vrt_master_volume_stop(admwrk_ctx_t *ctx, struct adm_volume *volume,
                            const exa_nodeset_t *nodelist, bool force,
                            adm_goal_change_t goal_change, bool print_warning);
 
-int vrt_master_volume_start(int thr_nb, struct adm_volume *volume,
+int vrt_master_volume_start(admwrk_ctx_t *ctx, struct adm_volume *volume,
 			    const exa_nodeset_t *nodelist, uint32_t readonly,
                             bool print_warning);
 
-int vrt_master_volume_start_all(int thr_nb, struct adm_group *group);
+int vrt_master_volume_start_all(admwrk_ctx_t *ctx, struct adm_group *group);
 
-int vrt_master_volume_delete_all(int thr_nb, struct adm_group *group,
+int vrt_master_volume_delete_all(admwrk_ctx_t *ctx, struct adm_group *group,
 				 bool metadata_recovery);
 
-int vrt_master_volume_delete(int thr_nb, struct adm_volume *volume,
+int vrt_master_volume_delete(admwrk_ctx_t *ctx, struct adm_volume *volume,
 			     bool metadata_recovery);
 
-int vrt_master_volume_create(int thr_nb, struct adm_group *, const char* volume_name,
+int vrt_master_volume_create(admwrk_ctx_t *ctx, struct adm_group *, const char* volume_name,
 			     export_type_t export_type, uint64_t sizeKB,
 			     int isprivate, uint32_t readahead);
 
-int vrt_master_volume_resize(int thr_nb, struct adm_volume *volume,
+int vrt_master_volume_resize(admwrk_ctx_t *ctx, struct adm_volume *volume,
 			     uint64_t sizeKB);
 
-int vrt_master_volume_tune_readahead(int thr_nb, const struct adm_volume *volume,
+int vrt_master_volume_tune_readahead(admwrk_ctx_t *ctx, const struct adm_volume *volume,
 				     uint32_t read_ahead);
 
-int adm_vrt_group_sync_sb(int thr_nb, struct adm_group *group);
+int adm_vrt_group_sync_sb(admwrk_ctx_t *ctx, struct adm_group *group);
 
 int service_vrt_group_stop(struct adm_group *group, bool force);
 
@@ -59,7 +60,7 @@ int service_vrt_group_stop(struct adm_group *group, bool force);
  *
  * @return EXA_SUCCESS or -ADMIND_ERR_NODE_DOWN in case of a node failure
  */
-int vrt_group_sync_sb_versions(int thr_nb, struct adm_group *group);
+int vrt_group_sync_sb_versions(admwrk_ctx_t *ctx, struct adm_group *group);
 
 /* Volume manipulations helpers, for commands that need vrt rebuild and metadata
  * threads suspending/resuming with barriers.
@@ -77,7 +78,7 @@ int vrt_group_sync_sb_versions(int thr_nb, struct adm_group *group);
  *          The thread suspending itself never fails, so no other error code
  *          will be returned.
  */
-int vrt_group_suspend_threads_barrier(int thr_nb, const exa_uuid_t *group_uuid);
+int vrt_group_suspend_threads_barrier(admwrk_ctx_t *ctx, const exa_uuid_t *group_uuid);
 
 /**
  * Resume the VRT rebuild and metadata flush threads for the given groupon all
@@ -91,7 +92,7 @@ int vrt_group_suspend_threads_barrier(int thr_nb, const exa_uuid_t *group_uuid);
  *          The thread resuming itself never fails, so no other error code
  *          will be returned.
  */
-int vrt_group_resume_threads_barrier(int thr_nb, const exa_uuid_t *group_uuid);
+int vrt_group_resume_threads_barrier(admwrk_ctx_t *ctx, const exa_uuid_t *group_uuid);
 
 
 #endif /* __SERVICE_VRT_H__ */

@@ -36,11 +36,11 @@ __export(EXA_ADM_GETCONFIGCLUSTER) __no_param;
  * copy of the configuration XML tree and send it back to the user
  * interface.
  *
- * \param [in] thr_nb: thread id.
+ * \param [in] ctx: thread id.
  */
 /*------------------------------------------------------------------------------*/
 static void
-cluster_get_config(int thr_nb, void *dummy, cl_error_desc_t *err_desc)
+cluster_get_config(admwrk_ctx_t *ctx, void *dummy, cl_error_desc_t *err_desc)
 {
   char *buffer = NULL;
   int size;

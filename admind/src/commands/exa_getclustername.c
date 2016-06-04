@@ -23,7 +23,7 @@ __export(EXA_ADM_GET_CLUSTER_NAME) __no_param;
  * Just return the current cluster name
  */
 static void
-cluster_get_cluster_name(int thr_nb, void *dummy, cl_error_desc_t *err_desc)
+cluster_get_cluster_name(admwrk_ctx_t *ctx, void *dummy, cl_error_desc_t *err_desc)
 {
   if (!adm_cluster.created)
     {

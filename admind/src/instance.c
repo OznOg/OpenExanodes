@@ -538,7 +538,23 @@ inst_op_t inst_compute_recovery(void)
  *
  * \return void
  */
-void inst_get_current_membership(int thr_nb, const struct adm_service *service,
+void inst_get_current_membership_cmd(admwrk_ctx_t *ctx, const struct adm_service *service,
+                                 exa_nodeset_t *membership)
+{
+    /* Special case for local recovery down when there is no quorum.  We handle
+     * an instance down for ourself so we have to take part in the local commands
+     * and barriers. For now, this is needed only for nodestop command. */
+    if (!evmgr_has_quorum())
+    {
+	exa_nodeset_reset(membership);
+	exa_nodeset_add(membership, adm_my_id);
+	return;
+    }
+
+    inst_get_nodes_up(service, membership);
+}
+
+void inst_get_current_membership_rec(admwrk_ctx_t *ctx, const struct adm_service *service,
                                  exa_nodeset_t *membership)
 {
     /* Special case for local recovery down when there is no quorum.  We handle
@@ -553,31 +569,23 @@ void inst_get_current_membership(int thr_nb, const struct adm_service *service,
 
     inst_get_nodes_up(service, membership);
 
-    /* FIXME for sure, what is coming next is a really ugly hack....
-     * This function is supposed to return the mship on which a command must be
-     * done, but as it does not really know what is going on (because this is
-     * called inside rpc.c) it tries to guess the result by looking at the
-     * thread id.... */
-    if (thr_nb == RECOVERY_THR_ID)
-    {
-	/* As the rpc is supposed to be done only on node that are making
-	 * part of the recovery process, it is needed to add the instances
-	 * that are not marked "up" but that are involved. */
-	if (state_of(service->id)->op_in_progress == INST_OP_UP)
+    /* As the rpc is supposed to be done only on node that are making
+     * part of the recovery process, it is needed to add the instances
+     * that are not marked "up" but that are involved. */
+    if (state_of(service->id)->op_in_progress == INST_OP_UP)
 	    exa_nodeset_sum(membership, &state_of(service->id)->involved_in_op);
 
-	/* On another hand, instances that are going down are removed from
-	 * the participants. */
-	if (state_of(service->id)->op_in_progress == INST_OP_DOWN)
+    /* On another hand, instances that are going down are removed from
+     * the participants. */
+    if (state_of(service->id)->op_in_progress == INST_OP_DOWN)
 	    exa_nodeset_substract(membership, &state_of(service->id)->involved_in_op);
 
-        /* We remove the nodes for which a check down is needed. This is a fix
-         * for the bug #4589 which happened when a check down was required and
-         * a node down was detected before the recovery for the check down had
-         * begun. */
-	if (state_of(service->id)->op_in_progress == INST_OP_CHECK_DOWN)
-            exa_nodeset_substract(membership, &state_of(service->id)->down_needed);
-    }
+    /* We remove the nodes for which a check down is needed. This is a fix
+     * for the bug #4589 which happened when a check down was required and
+     * a node down was detected before the recovery for the check down had
+     * begun. */
+    if (state_of(service->id)->op_in_progress == INST_OP_CHECK_DOWN)
+	    exa_nodeset_substract(membership, &state_of(service->id)->down_needed);
 }
 
 /* --- inst_is_node_down ------------------------------------------ */
@@ -892,7 +900,7 @@ int inst_check_blockable_event(void)
 }
 
 static void
-inst_sync_before_recovery(int thr_nb, cl_error_desc_t *err_desc)
+inst_sync_before_recovery(admwrk_ctx_t *ctx, cl_error_desc_t *err_desc)
 {
   int ret = EXA_SUCCESS;
   const struct adm_service *service;
@@ -921,7 +929,7 @@ inst_sync_before_recovery(int thr_nb, cl_error_desc_t *err_desc)
     exa_nodeset_copy(&msg.committed_up, &state->committed_up);
 
     /* Send the message */
-    ret = admwrk_exec_command(thr_nb, service, RPC_INST_SYNC_BEFORE_RECOVERY, &msg, sizeof(msg));
+    ret = admwrk_exec_command(ctx, service, RPC_INST_SYNC_BEFORE_RECOVERY, &msg, sizeof(msg));
     EXA_ASSERT(ret == EXA_SUCCESS || ret == -ADMIND_ERR_NODE_DOWN);
 
     /* Synchronization was interrupted by a node down, thus a new comutation
@@ -941,13 +949,13 @@ inst_sync_before_recovery(int thr_nb, cl_error_desc_t *err_desc)
 /**
  * Local function called with EXAMSG_INST_SYNC_BEFORE_RECOVERY
  *
- * \param[in] thr_nb      Thread number
+ * \param[in] ctx      Thread number
  * \param[in] data        data received
  *
  * \return void
  */
 static void
-inst_local_sync_before_recovery(int thr_nb, void *data)
+inst_local_sync_before_recovery(admwrk_ctx_t *ctx, void *data)
 {
   inst_sync_before_recovery_t *msg = data;
   adm_service_state_t *state;
@@ -977,11 +985,11 @@ inst_local_sync_before_recovery(int thr_nb, void *data)
 
   UNLOCK();
 
-  admwrk_ack(thr_nb, EXA_SUCCESS);
+  admwrk_ack(ctx, EXA_SUCCESS);
 }
 
 static void
-__inst_sync_after_recovery(int thr_nb, const struct adm_service *service,
+__inst_sync_after_recovery(admwrk_ctx_t *ctx, const struct adm_service *service,
                            const exa_nodeset_t *committed_up,
                            uint32_t nb_check_handled)
 {
@@ -995,7 +1003,7 @@ __inst_sync_after_recovery(int thr_nb, const struct adm_service *service,
   exa_nodeset_copy(&msg.committed_up, committed_up);
 
   /* Send the message */
-  ret = admwrk_exec_command(thr_nb, service, RPC_INST_SYNC_AFTER_RECOVERY, &msg, sizeof(msg));
+  ret = admwrk_exec_command(ctx, service, RPC_INST_SYNC_AFTER_RECOVERY, &msg, sizeof(msg));
   /* ignore -ADMIND_ERR_NODE_DOWN errors because the commit operation worked on
    * all nodes that are *alive*; those which dies are not important here */
   EXA_ASSERT(ret == EXA_SUCCESS || ret == -ADMIND_ERR_NODE_DOWN);
@@ -1013,7 +1021,7 @@ __inst_sync_after_recovery(int thr_nb, const struct adm_service *service,
  * \return void
  */
 static void
-inst_sync_after_recovery(int thr_nb, const struct adm_service *service,
+inst_sync_after_recovery(admwrk_ctx_t *ctx, const struct adm_service *service,
 	                 uint32_t nb_check_handled)
 {
   const adm_service_state_t *state = state_of(service->id);
@@ -1034,7 +1042,7 @@ inst_sync_after_recovery(int thr_nb, const struct adm_service *service,
     exa_nodeset_substract(&committed_up, &state->involved_in_op);
 
   /* No need to lock because we don't touch csupd_up and *_check */
-  __inst_sync_after_recovery(thr_nb, service, &committed_up, nb_check_handled);
+  __inst_sync_after_recovery(ctx, service, &committed_up, nb_check_handled);
 }
 
 
@@ -1048,7 +1056,7 @@ inst_sync_after_recovery(int thr_nb, const struct adm_service *service,
  * \return void
  */
 static void
-inst_local_sync_after_recovery(int thr_nb, void *data)
+inst_local_sync_after_recovery(admwrk_ctx_t *ctx, void *data)
 {
   inst_sync_after_recovery_t *msg = data;
   adm_service_state_t *state;
@@ -1108,35 +1116,35 @@ inst_local_sync_after_recovery(int thr_nb, void *data)
   exalog_debug("=== After recovery %s (end) ===", adm_service_name(msg->service_id));
   inst_dump();
 
-  admwrk_ack(thr_nb, EXA_SUCCESS);
+  admwrk_ack(ctx, EXA_SUCCESS);
 }
 
 static void
-inst_set_leaderable(int thr_nb, adm_service_id_t id)
+inst_set_leaderable(admwrk_ctx_t *ctx, adm_service_id_t id)
 {
-  admwrk_exec_command(thr_nb, adm_services[id], RPC_INST_SET_LEADERABLE, NULL, 0);
+  admwrk_exec_command(ctx, adm_services[id], RPC_INST_SET_LEADERABLE, NULL, 0);
 }
 
 static void
-inst_local_set_leaderable(int thr_nb, void *dummy)
+inst_local_set_leaderable(admwrk_ctx_t *ctx, void *dummy)
 {
   exalog_debug("I'm now leaderable");
 
   /* Allow this node to become leader. */
   evmgr_mship_set_local_started(true);
 
-  admwrk_ack(thr_nb, EXA_SUCCESS);
+  admwrk_ack(ctx, EXA_SUCCESS);
 }
 
 /* --- adm_hierarchy_run_stop ---------------------------------------- */
 /** \brief Stop the hierarchy: take all services from the specified
  * hierarchy and put them in the state "stopped".
  *
- * \param[in] thr_nb      Thread number
+ * \param[in] ctx      Thread number
  *
  * \return 0 in case of success
  */
-void adm_hierarchy_run_stop(int thr_nb, const stop_data_t *stop_data, cl_error_desc_t *err_desc)
+void adm_hierarchy_run_stop(admwrk_ctx_t *ctx, const stop_data_t *stop_data, cl_error_desc_t *err_desc)
 {
   const struct adm_service *s;
   int error_val = EXA_SUCCESS;
@@ -1147,12 +1155,12 @@ void adm_hierarchy_run_stop(int thr_nb, const stop_data_t *stop_data, cl_error_d
   {
     exa_nodeset_t committed_up;
     exalog_info("stop service %s", adm_service_name(s->id));
-    error_val = s->suspend ? s->suspend(thr_nb) : EXA_SUCCESS;
+    error_val = s->suspend ? s->suspend(ctx) : EXA_SUCCESS;
     if (error_val != EXA_SUCCESS)
       break;
-    error_val = s->stop ? s->stop(thr_nb, stop_data) : EXA_SUCCESS;
+    error_val = s->stop ? s->stop(ctx, stop_data) : EXA_SUCCESS;
     if (s->resume)
-      s->resume(thr_nb);
+      s->resume(ctx);
     if (error_val)
       break;
 
@@ -1164,7 +1172,7 @@ void adm_hierarchy_run_stop(int thr_nb, const stop_data_t *stop_data, cl_error_d
      * even if it is really hugly */
     exa_nodeset_copy(&committed_up, &state_of(s->id)->committed_up);
     exa_nodeset_substract(&committed_up, &stop_data->nodes_to_stop);
-    __inst_sync_after_recovery(thr_nb, s, &committed_up, 0);
+    __inst_sync_after_recovery(ctx, s, &committed_up, 0);
   }
 
   set_error(err_desc, error_val, NULL);
@@ -1175,11 +1183,11 @@ void adm_hierarchy_run_stop(int thr_nb, const stop_data_t *stop_data, cl_error_d
 /** \brief Shutdown the hierarchy: take all services from the specified
  * hierarchy and put them from the state "stopped" to the state "down".
  *
- * \param[in] thr_nb      Thread number
+ * \param[in] ctx      Thread number
  *
  * \return 0 in case of success
  */
-static void adm_hierarchy_run_shutdown(int thr_nb, void *data, cl_error_desc_t *err_desc)
+static void adm_hierarchy_run_shutdown(admwrk_ctx_t *ctx, void *data, cl_error_desc_t *err_desc)
 {
   const struct adm_service *s;
   int error_val = EXA_SUCCESS;
@@ -1190,7 +1198,7 @@ static void adm_hierarchy_run_shutdown(int thr_nb, void *data, cl_error_desc_t *
   adm_service_for_each_reverse(s)
   {
     exalog_info("shutdown service %s", adm_service_name(s->id));
-    error_val = s->shutdown ? s->shutdown(thr_nb) : EXA_SUCCESS;
+    error_val = s->shutdown ? s->shutdown(ctx) : EXA_SUCCESS;
 
     /* Continue shutdown anyway that's the best we can possibly do */
     if (error_val != EXA_SUCCESS)
@@ -1204,11 +1212,11 @@ static void adm_hierarchy_run_shutdown(int thr_nb, void *data, cl_error_desc_t *
 /** \brief Init the hierarchy: take all services from the specified
  * hierarchy and put them from the state down to the state "stopped".
  *
- * \param[in] thr_nb      Thread number
+ * \param[in] ctx      Thread number
  *
  * \return 0 in case of success
  */
-static void adm_hierarchy_run_init(int thr_nb, void *data, cl_error_desc_t *err_desc)
+static void adm_hierarchy_run_init(admwrk_ctx_t *ctx, void *data, cl_error_desc_t *err_desc)
 {
   const struct adm_service *s;
   int error_val = EXA_SUCCESS;
@@ -1220,11 +1228,11 @@ static void adm_hierarchy_run_init(int thr_nb, void *data, cl_error_desc_t *err_
   adm_service_for_each(s)
   {
     exalog_info("init service %s", adm_service_name(s->id));
-    error_val = s->init ? s->init(thr_nb) : EXA_SUCCESS;
+    error_val = s->init ? s->init(ctx) : EXA_SUCCESS;
     if (error_val != EXA_SUCCESS)
     {
       exalog_error("init failed: %s", exa_error_msg(error_val));
-      adm_hierarchy_run_shutdown(thr_nb, data, err_desc);
+      adm_hierarchy_run_shutdown(ctx, data, err_desc);
       set_error(err_desc, error_val, NULL);
       return;
     }
@@ -1253,7 +1261,7 @@ static void log_recovery(adm_service_id_t sid)
     }
 }
 
-static void __recovery_up_down_resource(int thr_nb,
+static void __recovery_up_down_resource(admwrk_ctx_t *ctx,
                                         cl_error_desc_t *err_desc)
 {
     const struct adm_service *service, *prev_service;
@@ -1281,7 +1289,7 @@ static void __recovery_up_down_resource(int thr_nb,
         if (state_of((s)->id)->op_in_progress != INST_OP_NOTHING) \
         { \
 	  exalog_debug(#step " service %s", adm_service_name((s)->id)); \
-	  (err_desc)->code = (s)->step ? (s)->step(thr_nb) : EXA_SUCCESS; \
+	  (err_desc)->code = (s)->step ? (s)->step(ctx) : EXA_SUCCESS; \
 	  if ((err_desc)->code != EXA_SUCCESS) \
 	  { \
 	      set_error((err_desc), (err_desc)->code, \
@@ -1324,7 +1332,7 @@ static void __recovery_up_down_resource(int thr_nb,
 
 	if (state_of((prev_service)->id)->op_in_progress != INST_OP_NOTHING)
 	    /* sync membership change for service N - 1 */
-	    inst_sync_after_recovery(thr_nb, prev_service, 0);
+	    inst_sync_after_recovery(ctx, prev_service, 0);
 
 	log_recovery(service->id);
 
@@ -1339,7 +1347,7 @@ static void __recovery_up_down_resource(int thr_nb,
 
     if (state_of((prev_service)->id)->op_in_progress != INST_OP_NOTHING)
 	/* sync membership change for last service */
-	inst_sync_after_recovery(thr_nb, prev_service, 0);
+	inst_sync_after_recovery(ctx, prev_service, 0);
 
     set_success(err_desc);
 }
@@ -1348,13 +1356,13 @@ static void __recovery_up_down_resource(int thr_nb,
 /** \brief Do a recovery of the hierarchy: take all services from the
  * specified hierarchy and do a "suspend, recovery and resume".
  *
- * \param[in]     thr_nb      Thread number
+ * \param[in]     ctx      Thread number
  * \param[in]     data        *(inst_op_t *)data is the recovery to perform
  * \param[in:out] err_desc    Error descriptor
  */
 
 static void
-adm_hierarchy_run_recovery(int thr_nb, void *data, cl_error_desc_t *err_desc)
+adm_hierarchy_run_recovery(admwrk_ctx_t *ctx, void *data, cl_error_desc_t *err_desc)
 {
   const struct adm_service *s;
   inst_op_t op = *(inst_op_t *)data;
@@ -1362,7 +1370,7 @@ adm_hierarchy_run_recovery(int thr_nb, void *data, cl_error_desc_t *err_desc)
   exalog_debug("hierarchy_run_recovery %s: start", inst_op2str(op));
 
   /* Synchronize instance states on nodes */
-  inst_sync_before_recovery(thr_nb, err_desc);
+  inst_sync_before_recovery(ctx, err_desc);
   if (err_desc->code)
       return;
 
@@ -1377,11 +1385,11 @@ adm_hierarchy_run_recovery(int thr_nb, void *data, cl_error_desc_t *err_desc)
 	if (s->check_down && nb_check_handled > 0)
 	{
 	  exalog_info("check service %s", adm_service_name(s->id));
-	  set_error(err_desc, s->check_down(thr_nb), NULL);
+	  set_error(err_desc, s->check_down(ctx), NULL);
 	}
 
 	/* commit membership change for this instances */
-	inst_sync_after_recovery(thr_nb, s, nb_check_handled);
+	inst_sync_after_recovery(ctx, s, nb_check_handled);
       }
       break;
 
@@ -1392,7 +1400,7 @@ adm_hierarchy_run_recovery(int thr_nb, void *data, cl_error_desc_t *err_desc)
 
 	if (s->check_up && nb_check_handled > 0)
 	{
-	  set_error(err_desc, s->check_up(thr_nb), NULL);
+	  set_error(err_desc, s->check_up(ctx), NULL);
 	  if (err_desc->code != EXA_SUCCESS)
 	    break; /* careful adm_service_for_each is a loop, break here
 		    * just terminate the loop
@@ -1400,7 +1408,7 @@ adm_hierarchy_run_recovery(int thr_nb, void *data, cl_error_desc_t *err_desc)
 	}
 
 	/* commit membership change for this instances */
-	inst_sync_after_recovery(thr_nb, s, nb_check_handled);
+	inst_sync_after_recovery(ctx, s, nb_check_handled);
       }
       break;
 
@@ -1413,13 +1421,13 @@ adm_hierarchy_run_recovery(int thr_nb, void *data, cl_error_desc_t *err_desc)
 	 this case, any new comer will not be in the same state than the nodes that
 	 already finished their recovery of some service.  */
       if (op == INST_OP_UP && exa_nodeset_is_empty(&state_of(ADM_SERVICE_FIRST)->committed_up))
-	inst_set_leaderable(thr_nb, ADM_SERVICE_FIRST);
+	inst_set_leaderable(ctx, ADM_SERVICE_FIRST);
 
-      __recovery_up_down_resource(thr_nb, err_desc);
+      __recovery_up_down_resource(ctx, err_desc);
 
       /* Allow completely recovered up nodes to become leader. */
       if (op == INST_OP_UP && err_desc->code == EXA_SUCCESS)
-	inst_set_leaderable(thr_nb, ADM_SERVICE_LAST);
+	inst_set_leaderable(ctx, ADM_SERVICE_LAST);
 
       break;
 

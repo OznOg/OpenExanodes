@@ -11,9 +11,9 @@
 
 #include <libxml/tree.h>
 
-void local_clinfo_group_disk(int thr_nb, void *msg);
-int cluster_clinfo_group_disks(int thr_nb, xmlNodePtr group_node, struct adm_group *group);
-int cluster_clinfo_groups(int thr_nb, xmlNodePtr exanodes_node,
+void local_clinfo_group_disk(admwrk_ctx_t *ctx, void *msg);
+int cluster_clinfo_group_disks(admwrk_ctx_t *ctx, xmlNodePtr group_node, struct adm_group *group);
+int cluster_clinfo_groups(admwrk_ctx_t *ctx, xmlNodePtr exanodes_node,
 			  bool get_disks_info, bool get_vl_info,
 			  bool get_fs_info, bool get_fs_size);
 

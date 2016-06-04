@@ -68,7 +68,7 @@ struct vlcreate_info
     lun_t  lun;
 };
 
-static void __vrt_master_volume_create (int thr_nb, struct adm_group *group,
+static void __vrt_master_volume_create (admwrk_ctx_t *ctx, struct adm_group *group,
                                         const char *volume_name,
                                         export_type_t export_type,
                                         uint64_t sizeKB, int isprivate,
@@ -77,9 +77,9 @@ static void __vrt_master_volume_create (int thr_nb, struct adm_group *group,
 
 /** \brief Implements the vlcreate command
  *
- * \param thr_nb: the thread number
+ * \param ctx: the thread number
  */
-static void cluster_vlcreate(int thr_nb, void *data,
+static void cluster_vlcreate(admwrk_ctx_t *ctx, void *data,
                              cl_error_desc_t *err_desc)
 {
     const struct vlcreate_params *params = data;
@@ -122,7 +122,7 @@ static void cluster_vlcreate(int thr_nb, void *data,
         return;
     }
 
-    __vrt_master_volume_create(thr_nb, group, params->volume_name, export_type,
+    __vrt_master_volume_create(ctx, group, params->volume_name, export_type,
                                params->size, params->private, params->readahead, lun,
                                err_desc);
 
@@ -133,7 +133,7 @@ static void cluster_vlcreate(int thr_nb, void *data,
  * @param size the size of the new volume in kilobytes
  */
 
-static void __vrt_master_volume_create (int thr_nb, struct adm_group *group,
+static void __vrt_master_volume_create (admwrk_ctx_t *ctx, struct adm_group *group,
                                         const char *volume_name,
                                         export_type_t export_type,
                                         uint64_t sizeKB, int isprivate,
@@ -261,7 +261,7 @@ static void __vrt_master_volume_create (int thr_nb, struct adm_group *group,
         return;
     }
 
-    admwrk_run_command(thr_nb, &adm_service_admin, &handle, RPC_ADM_VLCREATE,
+    admwrk_run_command(ctx, &adm_service_admin, &handle, RPC_ADM_VLCREATE,
                        &info, sizeof(info));
     /* Examine replies in order to filter return values.
      * The priority of return values is the following (in descending order):
@@ -289,18 +289,18 @@ static void __vrt_master_volume_create (int thr_nb, struct adm_group *group,
 
 /* This function is kept as a wrapper for compatibility purpose with FS.
  * But FS doesn not work on GA, anyway.... */
-int vrt_master_volume_create (int thr_nb, struct adm_group *group,
+int vrt_master_volume_create (admwrk_ctx_t *ctx, struct adm_group *group,
                               const char *volume_name, export_type_t export_type,
                               uint64_t sizeKB, int isprivate, uint32_t readaheadKB)
 {
     cl_error_desc_t err_desc;
-    __vrt_master_volume_create(thr_nb, group, volume_name, export_type, sizeKB,
+    __vrt_master_volume_create(ctx, group, volume_name, export_type, sizeKB,
 	                       isprivate, readaheadKB, LUN_NONE, &err_desc);
     return err_desc.code;
 }
 
 static void
-local_exa_vlcreate (int thr_nb, void *msg)
+local_exa_vlcreate (admwrk_ctx_t *ctx, void *msg)
 {
     struct adm_group *group;
     struct adm_volume *volume;
@@ -322,11 +322,11 @@ local_exa_vlcreate (int thr_nb, void *msg)
         ret = -ADMIND_ERR_UNKNOWN_GROUPNAME;
 
     /*** Barrier: "cmd_params_get", getting parameters ***/
-    barrier_ret = admwrk_barrier(thr_nb, ret, "Getting parameters");
+    barrier_ret = admwrk_barrier(ctx, ret, "Getting parameters");
     if (barrier_ret != EXA_SUCCESS)
         goto local_exa_vlcreate_end_no_resume; /* Nothing to undo */
 
-    ret = vrt_group_suspend_threads_barrier(thr_nb, &group->uuid);
+    ret = vrt_group_suspend_threads_barrier(ctx, &group->uuid);
     if (ret != EXA_SUCCESS)
         goto local_exa_vlcreate_end;
 
@@ -352,7 +352,7 @@ local_exa_vlcreate (int thr_nb, void *msg)
 
 update_barrier:
     /*** Barrier: "xml_update", update XML configuration ***/
-    barrier_ret = admwrk_barrier(thr_nb, ret, "Updating XML configuration");
+    barrier_ret = admwrk_barrier(ctx, ret, "Updating XML configuration");
     if (barrier_ret == -ADMIND_ERR_NODE_DOWN)
         goto metadata_corruption;
     else if (barrier_ret != EXA_SUCCESS)
@@ -362,7 +362,7 @@ update_barrier:
     ret = conf_save_synchronous();
 
     /*** Barrier: "xml_save", save configuration file ***/
-    barrier_ret = admwrk_barrier(thr_nb, ret, "Saving configuration file");
+    barrier_ret = admwrk_barrier(ctx, ret, "Saving configuration file");
     if (barrier_ret == -ADMIND_ERR_NODE_DOWN)
         goto metadata_corruption;
     else if (barrier_ret != EXA_SUCCESS)
@@ -374,17 +374,17 @@ update_barrier:
                                    volume->size);
 
     /*** Barrier: "vrt_volume_create", volume creation ***/
-    barrier_ret = admwrk_barrier(thr_nb, ret, "Creating logical volume");
+    barrier_ret = admwrk_barrier(ctx, ret, "Creating logical volume");
     if (barrier_ret == -ADMIND_ERR_NODE_DOWN)
         goto metadata_corruption;
     else if (barrier_ret != EXA_SUCCESS)
         goto undo_vrt_volume_create;
 
     /*** Action: group sync SB ***/
-    ret = adm_vrt_group_sync_sb(thr_nb, group);
+    ret = adm_vrt_group_sync_sb(ctx, group);
 
     /*** Barrier: "adm_vrt_group_sync_sb", Syncing metadata on disk ***/
-    barrier_ret = admwrk_barrier(thr_nb, ret,
+    barrier_ret = admwrk_barrier(ctx, ret,
                                  "Syncing metadata on disk");
     if (barrier_ret == -ADMIND_ERR_NODE_DOWN)
         goto metadata_corruption;
@@ -433,7 +433,7 @@ undo_vrt_volume_create:
                                                 &group->uuid, &volume->uuid);
     else
         rollback_ret = -ADMIND_ERR_NOTHINGTODO;
-    barrier_ret = admwrk_barrier(thr_nb, rollback_ret, "undo_vrt_volume_create");
+    barrier_ret = admwrk_barrier(ctx, rollback_ret, "undo_vrt_volume_create");
     if (barrier_ret == -ADMIND_ERR_NODE_DOWN)
         goto metadata_corruption;
     force_undo = true;
@@ -459,14 +459,14 @@ undo_xml_update:
     }
     else
         rollback_ret = -ADMIND_ERR_NOTHINGTODO;
-    barrier_ret = admwrk_barrier(thr_nb, rollback_ret, "undo_xml_update");
+    barrier_ret = admwrk_barrier(ctx, rollback_ret, "undo_xml_update");
     if (barrier_ret == -ADMIND_ERR_NODE_DOWN)
         goto metadata_corruption;
     force_undo = true;
 
     /* Always save the configuration file after rollback */
     rollback_ret = conf_save_synchronous();
-    barrier_ret = admwrk_barrier(thr_nb, rollback_ret, "conf_save_synchronous");
+    barrier_ret = admwrk_barrier(ctx, rollback_ret, "conf_save_synchronous");
     if (barrier_ret == -ADMIND_ERR_NODE_DOWN)
         goto metadata_corruption;
 
@@ -477,7 +477,7 @@ metadata_corruption:
     ret = -ADMIND_ERR_METADATA_CORRUPTION;
 
 local_exa_vlcreate_end:
-    barrier_ret = vrt_group_resume_threads_barrier(thr_nb, &group->uuid);
+    barrier_ret = vrt_group_resume_threads_barrier(ctx, &group->uuid);
     /* What to do if that fails... I don't know. */
     if (barrier_ret != 0)
         ret = barrier_ret;
@@ -485,7 +485,7 @@ local_exa_vlcreate_end:
 local_exa_vlcreate_end_no_resume:
 
     exalog_debug("local_exa_vlcreate() = %s", exa_error_msg(ret));
-    admwrk_ack(thr_nb, ret);
+    admwrk_ack(ctx, ret);
 }
 
 /**

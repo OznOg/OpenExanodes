@@ -30,7 +30,7 @@ extern exa_nodeid_t adm_my_id;
 static os_daemon_t monitor_daemon;
 
 static int
-monitor_init(int thr_nb)
+monitor_init(int ctx)
 {
   char examd_path[OS_PATH_MAX];
   int ret;
@@ -59,7 +59,7 @@ monitor_init(int thr_nb)
 
 
 static void
-monitor_recover_local(int thr_nb, void *msg)
+monitor_recover_local(admwrk_ctx_t *ctx, void *msg)
 {
     int ret = EXA_SUCCESS;
     int barrier_ret;
@@ -76,23 +76,23 @@ monitor_recover_local(int thr_nb, void *msg)
 				      adm_cluster.monitoring_parameters.snmpd_port);
 
     }
-    barrier_ret = admwrk_barrier(thr_nb, ret, "Starting monitoring");
+    barrier_ret = admwrk_barrier(ctx, ret, "Starting monitoring");
     if (barrier_ret != EXA_SUCCESS)
     {
 	md_client_control_stop(adm_wt_get_localmb());
 	adm_cluster.monitoring_parameters.started = false;
     }
-    admwrk_ack(thr_nb, barrier_ret);
+    admwrk_ack(ctx, barrier_ret);
 }
 
 
 
 static int
-monitor_recover(int thr_nb)
+monitor_recover(int ctx)
 {
     if (adm_cluster.monitoring_parameters.started)
     {
-	return admwrk_exec_command(thr_nb, &adm_service_monitor,
+	return admwrk_exec_command(ctx, &adm_service_monitor,
 				   RPC_SERVICE_MONITOR_RECOVER,
 				   &adm_cluster.monitoring_parameters,
 				   sizeof(struct adm_cluster_monitoring));
@@ -103,7 +103,7 @@ monitor_recover(int thr_nb)
 
 
 static int
-monitor_shutdown(int thr_nb)
+monitor_shutdown(int ctx)
 {
     /* Stop the md daemon */
     if (adm_monitor_terminate(EXA_DAEMON_MONITORD) != 0)

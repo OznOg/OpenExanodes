@@ -63,7 +63,7 @@ struct vlstop_info
 /** \brief Implements the vlstop command
  */
 static void
-cluster_vlstop(int thr_nb, void *data, cl_error_desc_t *err_desc)
+cluster_vlstop(admwrk_ctx_t *ctx, void *data, cl_error_desc_t *err_desc)
 {
   const struct vlstop_params *params = data;
   struct adm_group *group;
@@ -135,9 +135,9 @@ cluster_vlstop(int thr_nb, void *data, cl_error_desc_t *err_desc)
 	}
     }
 
-  error_val = lum_master_export_unpublish(thr_nb, &volume->uuid, &nodelist, params->force);
+  error_val = lum_master_export_unpublish(ctx, &volume->uuid, &nodelist, params->force);
   if (error_val == EXA_SUCCESS)
-      error_val = vrt_master_volume_stop(thr_nb, volume, &nodelist, params->force,
+      error_val = vrt_master_volume_stop(ctx, volume, &nodelist, params->force,
                                          ADM_GOAL_CHANGE_VOLUME, true /* print_warning */);
   set_error(err_desc, error_val, NULL);
 
@@ -146,7 +146,7 @@ cluster_vlstop(int thr_nb, void *data, cl_error_desc_t *err_desc)
 
 /* FIXME Should probably be moved to service_vrt.c */
 int
-vrt_master_volume_stop(int thr_nb, struct adm_volume *volume,
+vrt_master_volume_stop(admwrk_ctx_t *ctx, struct adm_volume *volume,
                        const exa_nodeset_t *nodelist, bool force,
                        adm_goal_change_t goal_change, bool print_warning)
 {
@@ -164,12 +164,12 @@ vrt_master_volume_stop(int thr_nb, struct adm_volume *volume,
   info.force = force;
   info.print_warning = print_warning;
 
-  return admwrk_exec_command(thr_nb, &adm_service_admin,
+  return admwrk_exec_command(ctx, &adm_service_admin,
                              RPC_ADM_VLSTOP, &info, sizeof(info));
 }
 
 static void
-local_exa_vlstop (int thr_nb, void *msg)
+local_exa_vlstop (admwrk_ctx_t *ctx, void *msg)
 {
   struct adm_group *group;
   struct adm_volume *volume = NULL;
@@ -203,7 +203,7 @@ local_exa_vlstop (int thr_nb, void *msg)
 
 check_barrier:
   /*** Barrier: "check_xml", check that the volume exists in the XML tree ***/
-  barrier_ret = admwrk_barrier(thr_nb, ret, "Checking XML configuration");
+  barrier_ret = admwrk_barrier(ctx, ret, "Checking XML configuration");
   if (!info->force && barrier_ret != EXA_SUCCESS)
     goto local_exa_vlstop_end;
 
@@ -235,7 +235,7 @@ check_barrier:
   /* We need to examine all return values because some errors are
    * benign.
    */
-  barrier_ret = admwrk_barrier(thr_nb, ret, "Stopping the logical volume");
+  barrier_ret = admwrk_barrier(ctx, ret, "Stopping the logical volume");
   if (barrier_ret == -VRT_INFO_VOLUME_ALREADY_STOPPED)
     barrier_ret = EXA_SUCCESS;
   if (!info->force && barrier_ret != EXA_SUCCESS)
@@ -254,7 +254,7 @@ check_barrier:
   }
 
  local_exa_vlstop_end:
-  admwrk_ack(thr_nb, barrier_ret);
+  admwrk_ack(ctx, barrier_ret);
 }
 
 /**

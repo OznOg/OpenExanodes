@@ -28,7 +28,7 @@ __export(EXA_ADM_CLMONITORSTOP) __no_param;
 
 
 static void
-cluster_clmonitorstop(int thr_nb, void *data, cl_error_desc_t *err_desc)
+cluster_clmonitorstop(admwrk_ctx_t *ctx, void *data, cl_error_desc_t *err_desc)
 {
   int ret;
 
@@ -44,7 +44,7 @@ cluster_clmonitorstop(int thr_nb, void *data, cl_error_desc_t *err_desc)
       return;
   }
 
-  ret = admwrk_exec_command(thr_nb, &adm_service_admin, RPC_ADM_CLMONITORSTOP,
+  ret = admwrk_exec_command(ctx, &adm_service_admin, RPC_ADM_CLMONITORSTOP,
                             NULL, 0);
 
   if (ret != EXA_SUCCESS)
@@ -60,14 +60,14 @@ cluster_clmonitorstop(int thr_nb, void *data, cl_error_desc_t *err_desc)
 
 
 static void
-local_clmonitorstop(int thr_nb, void *msg)
+local_clmonitorstop(admwrk_ctx_t *ctx, void *msg)
 {
     int ret, barrier_ret;
 
     adm_cluster.monitoring_parameters.started = false;
 
     ret = conf_save_synchronous();
-    barrier_ret = admwrk_barrier(thr_nb, ret, "Saving configuration");
+    barrier_ret = admwrk_barrier(ctx, ret, "Saving configuration");
     if (barrier_ret != EXA_SUCCESS)
     {
 	adm_cluster.monitoring_parameters.started = true;
@@ -76,7 +76,7 @@ local_clmonitorstop(int thr_nb, void *msg)
 
     ret = md_client_control_stop(adm_wt_get_localmb());
 
-    barrier_ret = admwrk_barrier(thr_nb, ret, "Stopping monitoring");
+    barrier_ret = admwrk_barrier(ctx, ret, "Stopping monitoring");
     if (barrier_ret != EXA_SUCCESS)
     {
 	adm_cluster.monitoring_parameters.started = true;
@@ -89,7 +89,7 @@ local_clmonitorstop(int thr_nb, void *msg)
     }
 
 local_exa_clmonitorstop_end:
-    admwrk_ack(thr_nb, barrier_ret);
+    admwrk_ack(ctx, barrier_ret);
 
 }
 

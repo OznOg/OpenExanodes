@@ -8,6 +8,7 @@
 #include "admind/src/rpc.h"
 
 #include "os/include/os_error.h"
+#include "os/include/os_mem.h"
 #include "os/include/strlcpy.h"
 #include "os/include/os_stdio.h"
 
@@ -34,6 +35,27 @@ struct rpc_barrier_data {
   int  pad;
   char error_msg[EXA_MAXSIZE_ERR_MESSAGE + 1];
 };
+
+typedef struct admwrk_ctx_t
+{
+  barrier_t bar; /**< barrier private stuff */
+
+  char reply[EXAMSG_PAYLOAD_MAX]; /**< Reply data of the local command */
+  size_t reply_size;              /**< Size of the reply */
+  bool (*inst_is_node_down)(exa_nodeid_t nid);
+  void (*inst_get_current_membership)(struct admwrk_ctx_t *ctx, const struct adm_service *service,
+                                 exa_nodeset_t *membership);
+} admwrk_ctx_t;
+
+admwrk_ctx_t *admwrk_ctx_alloc()
+{
+    return os_malloc(sizeof(admwrk_ctx_t));
+}
+
+void admwrk_ctx_free(admwrk_ctx_t *ctx)
+{
+   os_free(ctx);
+}
 
 /**
  * Send an examsg. Same as examsgSend(), but that always use examsg loopback
@@ -67,16 +89,15 @@ admwrk_send(ExamsgHandle mh, ExamsgID to, const exa_nodeset_t *dest_nodes,
  *
  * Execute a local command with information described by the rpc_cmd_t param.
  *
- * @param[in]  thr_nb      current thread number
+ * @param[in]  ctx      current thread number
  * @param[in]  admwrk_cmd  data/metadata of the rpc command.
  *
  * Upon returning, the reply is available in ctx->reply.
  * FIXME this is really ugly. A output buffer should probably be provided
  * to the local command.
  */
-static void admwrk_exec_local_cmd(int thr_nb, const rpc_cmd_t *admwrk_cmd)
+static void admwrk_exec_local_cmd(admwrk_ctx_t *ctx, const rpc_cmd_t *admwrk_cmd)
 {
-  admwrk_ctx_t *ctx = admwrk_ctx();
   LocalCommand localCommand;
 
   EXA_ASSERT(exa_nodeset_contains(&admwrk_cmd->mship, adm_my_id));
@@ -85,16 +106,16 @@ static void admwrk_exec_local_cmd(int thr_nb, const rpc_cmd_t *admwrk_cmd)
   ctx->bar.rank  = 0;
   ctx->bar.nodes = admwrk_cmd->mship;
 
-  if (thr_nb == RECOVERY_THR_ID)
-      ctx->inst_is_node_down = inst_is_node_down_rec;
-  else
-      ctx->inst_is_node_down = inst_is_node_down_cmd;
+// FIXME  if (ctx == RECOVERY_THR_ID)
+//      ctx->inst_is_node_down = inst_is_node_down_rec;
+//  else
+//      ctx->inst_is_node_down = inst_is_node_down_cmd;
 
   /* find the local command */
   localCommand = rpc_command_get(admwrk_cmd->command);
 
   /* Execute the command */
-  localCommand(thr_nb, (void *)admwrk_cmd->data);
+  localCommand(ctx, (void *)admwrk_cmd->data);
 }
 
 /**
@@ -105,21 +126,20 @@ static void admwrk_exec_local_cmd(int thr_nb, const rpc_cmd_t *admwrk_cmd)
  * EXAMSG_SERVICE_LOCALCMD message, it just has to call this function in order
  * to execute the local command
  *
- * @param[in]  thr_nb  current thread number
+ * @param[in]  ctx  current thread number
  * @param[in]  msg     EXAMSG_SERVICE_LOCALCMD message containing the rpc_cmd_t
  *                     command and data.
  * @param[in]  from    ExamsgMID of the requester
  */
-void admwrk_handle_localcmd_msg(int thr_nb, const Examsg *msg, ExamsgMID *from)
+void admwrk_handle_localcmd_msg(admwrk_ctx_t *ctx, const Examsg *msg, ExamsgMID *from)
 {
-  admwrk_ctx_t *ctx = admwrk_ctx();
   exa_nodeset_t dest_nodes;
   int ret;
 
   EXA_ASSERT(msg->any.type == EXAMSG_SERVICE_LOCALCMD);
 
   /* The payload of the examsg is a rpc_cmd_t */
-  admwrk_exec_local_cmd(thr_nb, (rpc_cmd_t *)msg->payload);
+  admwrk_exec_local_cmd(ctx, (rpc_cmd_t *)msg->payload);
 
   exalog_debug("<<<%s>>> send ack to request", adm_wt_get_name());
   EXA_ASSERT(strcmp(from->host, ""));
@@ -139,7 +159,7 @@ void admwrk_handle_localcmd_msg(int thr_nb, const Examsg *msg, ExamsgMID *from)
  * Run a local command on all nodes. Do not block. The caller should
  * get individual replies with admwrk_get_ack().
  *
- * @param[in]  thr_nb     current thread number
+ * @param[in]  ctx     current thread number
  * @param[in]  service    the service that run this command
  * @param[out] handle     handle for this RPC (it should be allocated on the
  *                        caller stack)
@@ -148,7 +168,7 @@ void admwrk_handle_localcmd_msg(int thr_nb, const Examsg *msg, ExamsgMID *from)
  * @param[in]  size       size of request
  */
 void
-admwrk_run_command(int thr_nb, const struct adm_service *service,
+admwrk_run_command(admwrk_ctx_t *ctx, const struct adm_service *service,
 		   admwrk_request_t *handle, int command,
 		   const void *__request, size_t size)
 {
@@ -161,15 +181,15 @@ admwrk_run_command(int thr_nb, const struct adm_service *service,
 
   /* Initialize the handle */
 
-  inst_get_current_membership(thr_nb, service, &nodes);
+  ctx->inst_get_current_membership(ctx, service, &nodes);
 
   /* set the failure detector. It is specific for each thread as the
    * recovery thread just needs to be informed about down events and
    * the other threads need to know about instances that are actually down */
-  if (thr_nb == RECOVERY_THR_ID)
-      handle->is_node_down = inst_is_node_down_rec;
-  else
-      handle->is_node_down = inst_is_node_down_cmd;
+// FIXME  if (ctx == RECOVERY_THR_ID)
+//      handle->is_node_down = inst_is_node_down_rec;
+//  else
+//      handle->is_node_down = inst_is_node_down_cmd;
 
   handle->type = EXAMSG_SERVICE_REPLY;
   handle->mh   = adm_wt_get_inboxmb();
@@ -192,7 +212,7 @@ admwrk_run_command(int thr_nb, const struct adm_service *service,
 		     "admwrk_send() returned %d", ret);
 
   /* Execute myself the local command */
-  admwrk_exec_local_cmd(thr_nb, request);
+  admwrk_exec_local_cmd(ctx, request);
 }
 
 
@@ -201,7 +221,7 @@ admwrk_run_command(int thr_nb, const struct adm_service *service,
 /**
  * Run a local command on all nodes and returns its global status.
  *
- * @param[in]  thr_nb     current thread number
+ * @param[in]  ctx     current thread number
  * @param[in]  service    the service that run this command
  * @param[in]  command    the id of the command to execute
  * @param[in]  request    arbitrary structure containing the request parameters
@@ -213,7 +233,7 @@ admwrk_run_command(int thr_nb, const struct adm_service *service,
  *             faulting nodes else.
  */
 int
-admwrk_exec_command(int thr_nb, const struct adm_service *service,
+admwrk_exec_command(admwrk_ctx_t *ctx, const struct adm_service *service,
 	            int command, const void *request, size_t size)
 {
   exa_nodeid_t nodeid;
@@ -221,7 +241,7 @@ admwrk_exec_command(int thr_nb, const struct adm_service *service,
   int ret = EXA_SUCCESS;
   int err;
 
-  admwrk_run_command(thr_nb, service, &handle, command, request, size);
+  admwrk_run_command(ctx, service, &handle, command, request, size);
 
   while (admwrk_get_ack(&handle, &nodeid, &err))
   {
@@ -249,7 +269,7 @@ admwrk_exec_command(int thr_nb, const struct adm_service *service,
  * If each node does a broadcast, each node can get the message from
  * each other by calling admwrk_get_bcast().
  *
- * @param[in]  thr_nb     current thread number
+ * @param[in]  ctx     current thread number
  * @param[out] handle     handle for this RPC (it should be allocated on the
  *                        caller stack)
  * @param[in]  type       the type id of the message to send
@@ -454,7 +474,7 @@ admwrk_get_reply(admwrk_request_t *handle, exa_nodeid_t *nodeid,
  * call admwrk_get_ack() until it returns false, it is not allowed to
  * break the loop.
  *
- * @param[in] thr_nb Admind thread number
+ * @param[in] ctx Admind thread number
  *
  * @param[in] handle The admwrk_request handle
  *
@@ -504,15 +524,13 @@ admwrk_get_bcast(admwrk_request_t *handle, exa_nodeid_t *nodeid,
  * Reply to a command without an Examsg. To be used when called by
  * admwrk_run_command().
  *
- * @param[in]  thr_nb   current thread number
+ * @param[in]  ctx   current thread number
  * @param[in]  reply    data
  * @param[in]  size     size of data
  */
 void
-admwrk_reply(int thr_nb, void *__reply, size_t size)
+admwrk_reply(admwrk_ctx_t *ctx, void *__reply, size_t size)
 {
-  admwrk_ctx_t *ctx = admwrk_ctx();
-
   memcpy(ctx->reply, __reply, size);
   ctx->reply_size = size;
 }
@@ -522,7 +540,7 @@ admwrk_reply(int thr_nb, void *__reply, size_t size)
 /**
  * Does a barrier in a local command.
  *
- * @param[in]  thr_nb      current thread number
+ * @param[in]  ctx      current thread number
  * @param[in]  request     Examsg containing the request parameters
  * @param[in]  from        ExamsgMID of the resquest
  * @param[in]  err         a status that will be sent to all nodes
@@ -536,7 +554,7 @@ admwrk_reply(int thr_nb, void *__reply, size_t size)
  *             faulting nodes else.
  */
 int
-admwrk_barrier_msg(int thr_nb, int err, const char *step, const char *fmt, ...)
+admwrk_barrier_msg(admwrk_ctx_t *ctx, int err, const char *step, const char *fmt, ...)
 {
   admwrk_request_t handle;
   exa_nodeid_t nodeid;
@@ -559,7 +577,7 @@ admwrk_barrier_msg(int thr_nb, int err, const char *step, const char *fmt, ...)
     strlcpy(msg.error_msg, exa_error_msg(err), sizeof(msg.error_msg));
 
 
-  admwrk_bcast(admwrk_ctx(), &handle, EXAMSG_SERVICE_BARRIER, &msg, sizeof(msg));
+  admwrk_bcast(ctx, &handle, EXAMSG_SERVICE_BARRIER, &msg, sizeof(msg));
   /* initialize return values */
 
   /* get replies */

@@ -29,11 +29,11 @@ __export(EXA_ADM_SETLICENSE) struct setlicense_params
 
 /** \brief Clusterized setlicense command
  *
- * \param[in] thr_nb	Worker thread id.
+ * \param[in] ctx	Worker thread id.
  */
 
 static void
-cluster_setlicense(int thr_nb, void *data, cl_error_desc_t *err_desc)
+cluster_setlicense(admwrk_ctx_t *ctx, void *data, cl_error_desc_t *err_desc)
 {
     struct setlicense_params *params = (struct setlicense_params*)data;
     xmlDocPtr license_dptr = params->license;

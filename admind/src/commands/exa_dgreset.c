@@ -23,7 +23,7 @@ __export(EXA_ADM_DGRESET) struct dgreset_params
 };
 
 
-static void cluster_dgreset(int thr_nb, void *data, cl_error_desc_t *err_desc)
+static void cluster_dgreset(admwrk_ctx_t *ctx, void *data, cl_error_desc_t *err_desc)
 {
     const struct dgreset_params *params = data;
     admwrk_request_t handle;
@@ -44,7 +44,7 @@ static void cluster_dgreset(int thr_nb, void *data, cl_error_desc_t *err_desc)
         return;
     }
 
-    admwrk_run_command(thr_nb, &adm_service_admin, &handle, RPC_ADM_DGRESET,
+    admwrk_run_command(ctx, &adm_service_admin, &handle, RPC_ADM_DGRESET,
                        &group->uuid, sizeof(group->uuid));
 
     error_val = EXA_SUCCESS;
@@ -60,14 +60,14 @@ static void cluster_dgreset(int thr_nb, void *data, cl_error_desc_t *err_desc)
         set_success(err_desc);
 }
 
-static void local_exa_dgreset(int thr_nb, void *msg)
+static void local_exa_dgreset(admwrk_ctx_t *ctx, void *msg)
 {
     int error_val;
     exa_uuid_t *group_uuid = msg;
 
     error_val = vrt_client_group_reset(adm_wt_get_localmb(), group_uuid);
 
-    admwrk_ack(thr_nb, error_val);
+    admwrk_ack(ctx, error_val);
 }
 
 /**
