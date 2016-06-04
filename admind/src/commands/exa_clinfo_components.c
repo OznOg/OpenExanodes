@@ -125,7 +125,6 @@ int cluster_clinfo_components(admwrk_ctx_t *ctx, xmlNodePtr exanodes_node)
   xmlNodePtr software_node;
   xmlNodePtr modules_node;
   int ret;
-  admwrk_request_t rpc;
   struct components_reply reply;
   int dummy;
   exa_nodeset_t todo;
@@ -152,9 +151,9 @@ int cluster_clinfo_components(admwrk_ctx_t *ctx, xmlNodePtr exanodes_node)
 
   exalog_debug("RPC_ADM_CLINFO_COMPONENTS");
 
-  admwrk_run_command(ctx, &adm_service_admin, &rpc, RPC_ADM_CLINFO_COMPONENTS, NULL, 0);
+  admwrk_run_command(ctx, &adm_service_admin, RPC_ADM_CLINFO_COMPONENTS, NULL, 0);
 
-  while (admwrk_get_reply(&rpc, &nodeid, &reply, sizeof(reply), &ret))
+  while (admwrk_get_reply(ctx, &nodeid, &reply, sizeof(reply), &ret))
   {
     int node_down;
     xmlNodePtr software_node_node;
@@ -336,7 +335,7 @@ int cluster_clinfo_components(admwrk_ctx_t *ctx, xmlNodePtr exanodes_node)
   return EXA_SUCCESS;
 
 error:
-  while (admwrk_get_reply(&rpc, &nodeid, &reply, sizeof(reply), &dummy));
+  while (admwrk_get_reply(ctx, &nodeid, &reply, sizeof(reply), &dummy));
   return ret;
 }
 

@@ -272,7 +272,6 @@ static void local_lum_recover(admwrk_ctx_t *ctx, void *msg)
   uint64_t version, best_version = EXPORTS_VERSION_DEFAULT;
   uint64_t exports_version = lum_exports_get_version();
   exa_nodeid_t best_node_id = EXA_NODEID_NONE;
-  admwrk_request_t handle;
   exa_nodeid_t nodeid;
   int ret, chunk_ret;
   int i, elements_to_sync = 0;
@@ -315,11 +314,11 @@ static void local_lum_recover(admwrk_ctx_t *ctx, void *msg)
   local_lum_get_listen_addresses(&tmp_addr);
 
   /* Exchange target listen addresses */
-  admwrk_bcast(admwrk_ctx(), &handle, EXAMSG_SERVICE_LUM_TARGET_LISTEN_ADDRESSES,
+  admwrk_bcast(admwrk_ctx(), EXAMSG_SERVICE_LUM_TARGET_LISTEN_ADDRESSES,
 	       &tmp_addr, sizeof(tmp_addr));
 
   ret = EXA_SUCCESS;
-  while (admwrk_get_bcast(&handle, &nodeid, &tmp_addr, sizeof(tmp_addr), &chunk_ret))
+  while (admwrk_get_bcast(ctx, &nodeid, &tmp_addr, sizeof(tmp_addr), &chunk_ret))
   {
       if (ret != -ADMIND_ERR_NODE_DOWN && chunk_ret != EXA_SUCCESS)
           ret = chunk_ret;
@@ -354,10 +353,10 @@ static void local_lum_recover(admwrk_ctx_t *ctx, void *msg)
       return;
   }
   /* Exchange exports file version number */
-  admwrk_bcast(admwrk_ctx(), &handle, EXAMSG_SERVICE_LUM_EXPORTS_VERSION,
+  admwrk_bcast(admwrk_ctx(), EXAMSG_SERVICE_LUM_EXPORTS_VERSION,
 	       &exports_version, sizeof(exports_version));
 
-  while (admwrk_get_bcast(&handle, &nodeid, &version, sizeof(version), &ret))
+  while (admwrk_get_bcast(ctx, &nodeid, &version, sizeof(version), &ret))
   {
       if (ret == -ADMIND_ERR_NODE_DOWN)
           continue;
@@ -405,7 +404,7 @@ static void local_lum_recover(admwrk_ctx_t *ctx, void *msg)
   if (am_best)
   {
       exalog_debug("sending number of elements to sync: %d", elements_to_sync);
-      admwrk_bcast(admwrk_ctx(), &handle, EXAMSG_SERVICE_LUM_EXPORTS_NUMBER,
+      admwrk_bcast(admwrk_ctx(), EXAMSG_SERVICE_LUM_EXPORTS_NUMBER,
                    &elements_to_sync, sizeof(elements_to_sync));
   }
   else
@@ -415,10 +414,10 @@ static void local_lum_recover(admwrk_ctx_t *ctx, void *msg)
           lum_exports_clear();
           elements_to_sync = 0;
       }
-      admwrk_bcast(admwrk_ctx(), &handle, EXAMSG_SERVICE_LUM_EXPORTS_NUMBER, NULL, 0);
+      admwrk_bcast(admwrk_ctx(), EXAMSG_SERVICE_LUM_EXPORTS_NUMBER, NULL, 0);
   }
 
-  while (admwrk_get_bcast(&handle, &nodeid,
+  while (admwrk_get_bcast(ctx, &nodeid,
                           need_update ? &i : NULL,
                           need_update ? sizeof(i) : 0,
                           &chunk_ret))
@@ -456,15 +455,15 @@ static void local_lum_recover(admwrk_ctx_t *ctx, void *msg)
                        UUID_VAL(adm_export_get_uuid(adm_export)));
 
           EXA_ASSERT(adm_export_serialize(adm_export, buf, buf_size) == buf_size);
-          admwrk_bcast(admwrk_ctx(), &handle, EXAMSG_SERVICE_LUM_EXPORTS_EXPORT,
+          admwrk_bcast(admwrk_ctx(), EXAMSG_SERVICE_LUM_EXPORTS_EXPORT,
                        buf, buf_size);
       }
       else
-          admwrk_bcast(admwrk_ctx(), &handle, EXAMSG_SERVICE_LUM_EXPORTS_EXPORT,
+          admwrk_bcast(admwrk_ctx(), EXAMSG_SERVICE_LUM_EXPORTS_EXPORT,
                        NULL, 0);
 
       /* receive the export for those needing it */
-      while (admwrk_get_bcast(&handle, &nodeid,
+      while (admwrk_get_bcast(ctx, &nodeid,
                               need_update ? buf : NULL,
                               need_update ? buf_size : 0,
                               &chunk_ret))
@@ -574,7 +573,6 @@ int lum_master_export_unpublish(admwrk_ctx_t *ctx, const exa_uuid_t *uuid,
                                 const exa_nodeset_t *nodelist, bool force)
 {
     lum_unpublish_args_t args;
-    admwrk_request_t handle;
     exa_nodeid_t nodeid;
     int err, res = EXA_SUCCESS;
 
@@ -589,10 +587,10 @@ int lum_master_export_unpublish(admwrk_ctx_t *ctx, const exa_uuid_t *uuid,
     uuid_copy(&args.uuid, uuid);
     exa_nodeset_copy(&args.nodelist, nodelist);
 
-    admwrk_run_command(ctx, &adm_service_lum, &handle,
+    admwrk_run_command(ctx, &adm_service_lum,
                        RPC_SERVICE_LUM_UNPUBLISH, &args, sizeof(args));
 
-    while (admwrk_get_ack(&handle, &nodeid, &err))
+    while (admwrk_get_ack(ctx, &nodeid, &err))
     {
         if (err == -ADMIND_ERR_NODE_DOWN)
             res = -ADMIND_ERR_NODE_DOWN;

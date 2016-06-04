@@ -90,7 +90,6 @@ exa_error_code clustered_start_fs(admwrk_ctx_t *ctx, const exa_nodeset_t* nodes,
 {
   int ret, err, final_err;
   startstop_info_t info;
-  admwrk_request_t handle;
   exa_nodeset_t start_failed;
   exa_nodeset_t all_nodes_to_start;
   exa_nodeset_iter_t iter_node;
@@ -155,8 +154,8 @@ exa_error_code clustered_start_fs(admwrk_ctx_t *ctx, const exa_nodeset_t* nodes,
 	  info.read_only = exa_nodeset_contains(nodes_read_only, current_node);
 
 	  /* Call start. Sort for each node. */
-	  admwrk_run_command(ctx, MY_SERVICE_ID, &handle, RPC_SERVICE_FS_STARTSTOP, &info, sizeof(info));
-	  while (admwrk_get_ack(&handle, &nodeid, &err))
+	  admwrk_run_command(ctx, MY_SERVICE_ID, RPC_SERVICE_FS_STARTSTOP, &info, sizeof(info));
+	  while (admwrk_get_ack(ctx, &nodeid, &err))
 	    {
 	      exalog_debug("FS start (mount) >>> reply from node %u, err=%d",
 			   nodeid, err);
@@ -212,7 +211,6 @@ exa_error_code clustered_stop_fs(admwrk_ctx_t *ctx, const exa_nodeset_t *nodes,
   exa_nodeid_t nodeid;
   int ret,err;
   startstop_info_t info;
-  admwrk_request_t handle;
   int unload=0;
   int ret_unload=0;
   struct adm_group *group = fs_get_volume(fs)->group;
@@ -252,8 +250,8 @@ exa_error_code clustered_stop_fs(admwrk_ctx_t *ctx, const exa_nodeset_t *nodes,
   exa_nodeset_copy(&info.nodes, nodes);
 
   /* Call stop. Sort for each node. */
-  admwrk_run_command(ctx, MY_SERVICE_ID, &handle, RPC_SERVICE_FS_STARTSTOP, &info, sizeof(info));
-  while (admwrk_get_ack(&handle, &nodeid, &err))
+  admwrk_run_command(ctx, MY_SERVICE_ID, RPC_SERVICE_FS_STARTSTOP, &info, sizeof(info));
+  while (admwrk_get_ack(ctx, &nodeid, &err))
   {
     exalog_debug("FS stop (unmount) >>> reply from %u, err=%d",
 		 nodeid, err);

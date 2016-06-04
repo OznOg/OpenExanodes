@@ -106,15 +106,14 @@ static void
 admin_verify_license_unicity(admwrk_ctx_t *ctx)
 {
   exa_nodeid_t nodeid;
-  admwrk_request_t handle;
   int err;
   const exa_uuid_t *license_uuid = adm_license_get_uuid(exanodes_license);
 
-  admwrk_run_command(ctx, &adm_service_admin, &handle,
+  admwrk_run_command(ctx, &adm_service_admin,
 		     RPC_SERVICE_ADMIND_CHECK_LICENSE, license_uuid,
 		     sizeof(exa_uuid_t));
 
-  while (admwrk_get_ack(&handle, &nodeid, &err))
+  while (admwrk_get_ack(ctx, &nodeid, &err))
   {
     exalog_debug("%s: license UUID comparison returned %d on '%s'",
 		 adm_wt_get_name(), err,
@@ -239,7 +238,6 @@ admin_recover_local(admwrk_ctx_t *ctx, void *msg)
   uint64_t best_version;
   uint64_t worst_version;
   exa_nodeid_t best_node_id;
-  admwrk_request_t rpc;
   exa_nodeid_t nodeid;
   char *buffer;
   int best;
@@ -265,10 +263,10 @@ admin_recover_local(admwrk_ctx_t *ctx, void *msg)
 
   ret = admwrk_barrier(ctx, tm_err, "Sending token manager status");
 
-  admwrk_bcast(admwrk_ctx(), &rpc, EXAMSG_SERVICE_ADMIND_VERSION_ID,
+  admwrk_bcast(admwrk_ctx(), EXAMSG_SERVICE_ADMIND_VERSION_ID,
 	       &info, sizeof(info));
 
-  while (admwrk_get_bcast(&rpc, &nodeid, &info, sizeof(info), &ret))
+  while (admwrk_get_bcast(ctx, &nodeid, &info, sizeof(info), &ret))
   {
     if (ret == -ADMIND_ERR_NODE_DOWN)
       continue;
@@ -335,12 +333,12 @@ admin_recover_local(admwrk_ctx_t *ctx, void *msg)
       exalog_debug("bcast chunk pos=%d, size=%d", pos, chunk_size);
 
       /* only the best sends chunks */
-      admwrk_bcast(admwrk_ctx(), &rpc, EXAMSG_SERVICE_ADMIND_CONFIG_CHUNK,
+      admwrk_bcast(admwrk_ctx(), EXAMSG_SERVICE_ADMIND_CONFIG_CHUNK,
 	      buffer + pos, best ? chunk_size : 0);
 
       /* if the node already has a good buffer, just throw away the messages by
        * passing NULL and 0 for buffer and size */
-      while (admwrk_get_bcast(&rpc, &nodeid,
+      while (admwrk_get_bcast(ctx, &nodeid,
 		  (adm_cluster.version == best_version) ? NULL : tmp_buf,
 		  (adm_cluster.version == best_version) ? 0 : chunk_size,
 		  &chunk_ret))

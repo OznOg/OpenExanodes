@@ -50,7 +50,6 @@ int cluster_clinfo_monitoring(admwrk_ctx_t *ctx, xmlNodePtr cluster_node)
 {
   struct monitoring_reply reply;
   exa_nodeid_t nodeid;
-  admwrk_request_t rpc;
   int ret;
   xmlNodePtr monitoring_node;
   exa_nodeset_t monitoring_started_nodes;
@@ -73,8 +72,8 @@ int cluster_clinfo_monitoring(admwrk_ctx_t *ctx, xmlNodePtr cluster_node)
 				 adm_cluster.monitoring_parameters.snmpd_port);
 
   exalog_debug("RPC_ADM_CLINFO_MONITORING");
-  admwrk_run_command(ctx, &adm_service_monitor, &rpc, RPC_ADM_CLINFO_MONITORING, NULL, 0);
-  while (admwrk_get_reply(&rpc, &nodeid, &reply, sizeof(reply), &ret))
+  admwrk_run_command(ctx, &adm_service_monitor, RPC_ADM_CLINFO_MONITORING, NULL, 0);
+  while (admwrk_get_reply(ctx, &nodeid, &reply, sizeof(reply), &ret))
   {
       if ((ret == -ADMIND_ERR_NODE_DOWN) || (reply.status == MD_SERVICE_STOPPED))
       {

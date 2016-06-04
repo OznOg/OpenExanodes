@@ -16,15 +16,6 @@
 
 struct adm_service;
 
-/** Structure to handle RPC replies */
-typedef struct admwrk_request_t
-{
-  ExamsgType type;            /**< identifier of the expected reply type */
-  exa_nodeset_t waiting_for;  /**< bitmap of the nodes we are waiting for */
-  ExamsgHandle mh;            /**< Examsg handle to use */
-  bool (*is_node_down)(exa_nodeid_t nid);
-} admwrk_request_t;
-
 typedef struct admwrk_ctx_t admwrk_ctx_t;
 
 admwrk_ctx_t *admwrk_ctx_alloc();
@@ -33,9 +24,9 @@ void admwrk_ctx_free(admwrk_ctx_t *ctx);
 void admwrk_handle_localcmd_msg(admwrk_ctx_t *ctx, const Examsg *msg, ExamsgMID *from);
 
 void admwrk_run_command(admwrk_ctx_t *ctx, const struct adm_service *service,
-                        admwrk_request_t *handle, int command,
+                        int command,
 			const void *request, size_t size);
-int admwrk_get_ack(admwrk_request_t *handle, exa_nodeid_t *nodeid, int *err);
+int admwrk_get_ack(admwrk_ctx_t *ctx, exa_nodeid_t *nodeid, int *err);
 
 void admwrk_reply(admwrk_ctx_t *ctx, void *__reply, size_t size);
 
@@ -49,11 +40,11 @@ static inline void admwrk_ack(admwrk_ctx_t *ctx, int err)
   admwrk_reply(ctx, &err, sizeof(err));
 }
 
-void admwrk_bcast  (admwrk_ctx_t *ctx, admwrk_request_t *handle,
+void admwrk_bcast  (admwrk_ctx_t *ctx,
 		    int type, const void *out, size_t size);
-int admwrk_get_reply(admwrk_request_t *handle, exa_nodeid_t *nodeid,
+int admwrk_get_reply(admwrk_ctx_t *ctx, exa_nodeid_t *nodeid,
 		     void *reply, size_t size, int *err);
-int admwrk_get_bcast(admwrk_request_t *handle, exa_nodeid_t *nodeid,
+int admwrk_get_bcast(admwrk_ctx_t *ctx, exa_nodeid_t *nodeid,
 	             void *reply, size_t size, int *err);
 
 static inline int admwrk_barrier(admwrk_ctx_t *ctx, int err, const char *step)

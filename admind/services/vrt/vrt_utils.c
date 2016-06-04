@@ -22,7 +22,6 @@
 
 int vrt_group_sync_sb_versions(admwrk_ctx_t *ctx, struct adm_group *group)
 {
-    admwrk_request_t rpc;
     exa_nodeid_t nid;
     sb_serialized_t sb_ser;
     int err;
@@ -32,8 +31,8 @@ int vrt_group_sync_sb_versions(admwrk_ctx_t *ctx, struct adm_group *group)
     sb_version_serialize(group->sb_version, &sb_ser);
 
     /* Exchange exports file version number */
-    admwrk_bcast(admwrk_ctx(), &rpc, EXAMSG_SERVICE_VRT_SB_SYNC, &sb_ser, sizeof(sb_ser));
-    while (admwrk_get_bcast(&rpc, &nid, &sb_ser, sizeof(sb_ser), &err))
+    admwrk_bcast(admwrk_ctx(), EXAMSG_SERVICE_VRT_SB_SYNC, &sb_ser, sizeof(sb_ser));
+    while (admwrk_get_bcast(ctx, &nid, &sb_ser, sizeof(sb_ser), &err))
     {
         if (err == -ADMIND_ERR_NODE_DOWN)
             continue;
@@ -61,7 +60,6 @@ int adm_vrt_group_sync_sb(admwrk_ctx_t *ctx, struct adm_group *group)
   bool group_is_started_somewhere = false;
   int ret;
   int barrier_ret = EXA_SUCCESS;
-  admwrk_request_t rpc;
   struct adm_disk *disk;
   int nb_nodes_with_writable_disks = 0;
   int nb_nodes_with_disks_in_group = 0;
@@ -87,8 +85,8 @@ int adm_vrt_group_sync_sb(admwrk_ctx_t *ctx, struct adm_group *group)
       }
   }
 
-  admwrk_bcast(admwrk_ctx(), &rpc, EXAMSG_SERVICE_VRT_SB_SYNC, &info, sizeof(info));
-  while (admwrk_get_bcast(&rpc, &nid, &reply, sizeof(reply), &ret))
+  admwrk_bcast(admwrk_ctx(), EXAMSG_SERVICE_VRT_SB_SYNC, &info, sizeof(info));
+  while (admwrk_get_bcast(ctx, &nid, &reply, sizeof(reply), &ret))
   {
     if (ret == -ADMIND_ERR_NODE_DOWN)
     {

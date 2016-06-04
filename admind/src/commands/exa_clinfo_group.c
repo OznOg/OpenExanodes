@@ -159,7 +159,6 @@ int cluster_clinfo_group_disks(admwrk_ctx_t *ctx, xmlNodePtr group_node, struct 
       exa_nodeid_t nodeid;
       disk_rebuild_info_reply_t reply;
       disk_rebuild_info_request_t request;
-      admwrk_request_t rpc;
       uint64_t size_to_rebuild = 0;
       uint64_t rebuilt_size = 0;
       int global_ret= EXA_SUCCESS;
@@ -190,10 +189,10 @@ int cluster_clinfo_group_disks(admwrk_ctx_t *ctx, xmlNodePtr group_node, struct 
       strlcpy(request.node_name, node->name, sizeof(request.node_name));
       uuid_copy(&request.device_uuid, &disk->vrt_uuid);
 
-      admwrk_run_command(ctx, &adm_service_vrt, &rpc,
+      admwrk_run_command(ctx, &adm_service_vrt,
                          RPC_ADM_CLINFO_GROUP_DISK, &request, sizeof(request));
 
-      while (admwrk_get_reply(&rpc, &nodeid, &reply, sizeof(reply), &ret))
+      while (admwrk_get_reply(ctx, &nodeid, &reply, sizeof(reply), &ret))
       {
           if (ret == -ADMIND_ERR_NODE_DOWN)
               continue;

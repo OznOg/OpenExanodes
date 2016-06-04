@@ -26,7 +26,6 @@ __export(EXA_ADM_DGCHECK) struct dgcheck_params
 static void cluster_dgcheck(admwrk_ctx_t *ctx, void *data, cl_error_desc_t *err_desc)
 {
     const struct dgcheck_params *params = data;
-    admwrk_request_t handle;
     struct adm_group *group;
     int error_val, reply_ret;
 
@@ -45,11 +44,11 @@ static void cluster_dgcheck(admwrk_ctx_t *ctx, void *data, cl_error_desc_t *err_
         return;
     }
 
-    admwrk_run_command(ctx, &adm_service_admin, &handle, RPC_ADM_DGCHECK,
+    admwrk_run_command(ctx, &adm_service_admin, RPC_ADM_DGCHECK,
                        &group->uuid, sizeof(group->uuid));
 
     error_val = EXA_SUCCESS;
-    while (admwrk_get_ack(&handle, NULL, &reply_ret))
+    while (admwrk_get_ack(ctx, NULL, &reply_ret))
     {
         if (reply_ret != EXA_SUCCESS)
             error_val = reply_ret;

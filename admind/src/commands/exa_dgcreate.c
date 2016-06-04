@@ -353,7 +353,6 @@ static int local_exa_dgcreate_config_add(admwrk_ctx_t *ctx, struct dgcreate_info
     exa_nodeid_t nodeid;
     exa_uuid_t vrt_uuids[info->nb_disks];
     char buffer[sizeof(vrt_uuids)];
-    admwrk_request_t handle;
     struct adm_group *group;
     int ret = EXA_SUCCESS, down_ret = EXA_SUCCESS;
     int i;
@@ -369,11 +368,11 @@ static int local_exa_dgcreate_config_add(admwrk_ctx_t *ctx, struct dgcreate_info
 	for(i = 0; i < info->nb_disks; i++)
 	    uuid_generate(&vrt_uuids[i]);
 
-    admwrk_bcast(admwrk_ctx(), &handle, EXAMSG_SERVICE_RDEV_DEAD_INFO,
+    admwrk_bcast(ctx, EXAMSG_SERVICE_RDEV_DEAD_INFO,
 		 adm_is_leader() ? vrt_uuids : NULL,
 		 adm_is_leader() ? sizeof(vrt_uuids) : 0);
 
-    while (admwrk_get_bcast(&handle, &nodeid, buffer, sizeof(buffer), &down_ret))
+    while (admwrk_get_bcast(ctx, &nodeid, buffer, sizeof(buffer), &down_ret))
     {
 	/* get data on non leader nodes */
 	if (!adm_is_leader()

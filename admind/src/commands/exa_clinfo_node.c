@@ -112,15 +112,14 @@ static int cluster_clinfo_node_disks(admwrk_ctx_t *ctx, xmlNodePtr cluster_node)
 {
   struct node_disk_reply reply[NBMAX_DISKS_PER_NODE];
   exa_nodeid_t nodeid;
-  admwrk_request_t rpc;
   int ret = EXA_SUCCESS;
   int err;
 
   exalog_debug("RPC_ADM_CLINFO_NODE_DISKS");
 
-  admwrk_run_command(ctx, &adm_service_rdev, &rpc, RPC_ADM_CLINFO_NODE_DISKS, NULL, 0);
+  admwrk_run_command(ctx, &adm_service_rdev, RPC_ADM_CLINFO_NODE_DISKS, NULL, 0);
 
-  while (admwrk_get_reply(&rpc, &nodeid, reply, sizeof(reply), &err))
+  while (admwrk_get_reply(ctx, &nodeid, reply, sizeof(reply), &err))
   {
     struct adm_disk *disk;
     xmlNodePtr node_node;
@@ -178,7 +177,7 @@ static int cluster_clinfo_node_disks(admwrk_ctx_t *ctx, xmlNodePtr cluster_node)
 
 error:
   /* Get remaining replies */
-  while (admwrk_get_reply(&rpc, &nodeid, &reply, sizeof(reply), &err));
+  while (admwrk_get_reply(ctx, &nodeid, &reply, sizeof(reply), &err));
   return ret;
 }
 

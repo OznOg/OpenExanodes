@@ -40,7 +40,6 @@ int cluster_clinfo_filesystem(admwrk_ctx_t *ctx, xmlNodePtr fs_node,
   exa_nodeid_t nodeid;
   struct fs_info_reply reply;
   fs_request_t request;
-  admwrk_request_t rpc;
   exa_nodeset_t status_mounted = EXA_NODESET_EMPTY;
   exa_nodeset_t status_mounted_ro = EXA_NODESET_EMPTY;
   uint64_t size = 0;
@@ -55,9 +54,9 @@ int cluster_clinfo_filesystem(admwrk_ctx_t *ctx, xmlNodePtr fs_node,
       strlcpy(request.devpath, fs->devpath, sizeof(request.devpath));
       exa_nodeset_reset(&request.nodeliststatfs);
       exalog_debug("RPC_ADM_CLINFO_FS1(%s)", fs_get_name(fs));
-      admwrk_run_command(ctx, &adm_service_fs, &rpc, RPC_ADM_CLINFO_FS,
+      admwrk_run_command(ctx, &adm_service_fs, RPC_ADM_CLINFO_FS,
 			 &request, sizeof(request));
-      while (admwrk_get_reply(&rpc, &nodeid, &reply, sizeof(reply), &ret))
+      while (admwrk_get_reply(ctx, &nodeid, &reply, sizeof(reply), &ret))
 	{
 	  if (ret == -ADMIND_ERR_NODE_DOWN)
 	    continue;
@@ -78,9 +77,9 @@ int cluster_clinfo_filesystem(admwrk_ctx_t *ctx, xmlNodePtr fs_node,
           exalog_debug("RPC_ADM_CLINFO_FS2(%s)",
 		       fs_get_name(fs));
 
-	  admwrk_run_command(ctx, &adm_service_fs, &rpc, RPC_ADM_CLINFO_FS, &request, sizeof(request));
+	  admwrk_run_command(ctx, &adm_service_fs, RPC_ADM_CLINFO_FS, &request, sizeof(request));
 
-	  while (admwrk_get_reply(&rpc, &nodeid, &reply, sizeof(reply), &ret))
+	  while (admwrk_get_reply(ctx, &nodeid, &reply, sizeof(reply), &ret))
 	    {
 	      if (ret == -ADMIND_ERR_NODE_DOWN)
 		continue;

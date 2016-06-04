@@ -23,6 +23,15 @@
 #include "admind/src/adm_workthread.h"
 #include "log/include/log.h"
 
+/** Structure to handle RPC replies */
+typedef struct admwrk_request_t
+{
+  ExamsgType type;            /**< identifier of the expected reply type */
+  exa_nodeset_t waiting_for;  /**< bitmap of the nodes we are waiting for */
+  ExamsgHandle mh;            /**< Examsg handle to use */
+  bool (*is_node_down)(exa_nodeid_t nid);
+} admwrk_request_t;
+
 typedef struct rpc_cmd {
   exa_nodeset_t mship;
   rpc_command_t command; /**< rpc command id */
@@ -44,6 +53,7 @@ typedef struct barrier {
 typedef struct admwrk_ctx_t
 {
   barrier_t bar; /**< barrier private stuff */
+  admwrk_request_t rpc;
 
   char reply[EXAMSG_PAYLOAD_MAX]; /**< Reply data of the local command */
   size_t reply_size;              /**< Size of the reply */
@@ -174,11 +184,12 @@ void admwrk_handle_localcmd_msg(admwrk_ctx_t *ctx, const Examsg *msg, ExamsgMID 
  */
 void
 admwrk_run_command(admwrk_ctx_t *ctx, const struct adm_service *service,
-		   admwrk_request_t *handle, int command,
+		   int command,
 		   const void *__request, size_t size)
 {
   char buffer[sizeof(rpc_cmd_t) + size];
   rpc_cmd_t *request = (rpc_cmd_t *)buffer;
+  admwrk_request_t *handle = &ctx->rpc;
   exa_nodeset_t nodes;
   int ret;
 
@@ -242,13 +253,12 @@ admwrk_exec_command(admwrk_ctx_t *ctx, const struct adm_service *service,
 	            int command, const void *request, size_t size)
 {
   exa_nodeid_t nodeid;
-  admwrk_request_t handle;
   int ret = EXA_SUCCESS;
   int err;
 
-  admwrk_run_command(ctx, service, &handle, command, request, size);
+  admwrk_run_command(ctx, service, command, request, size);
 
-  while (admwrk_get_ack(&handle, &nodeid, &err))
+  while (admwrk_get_ack(ctx, &nodeid, &err))
   {
     exalog_debug("%s: '%s' acked with %s (%d) to command %d",
 		 adm_wt_get_name(), adm_cluster_get_node_by_id(nodeid)->name,
@@ -282,10 +292,11 @@ admwrk_exec_command(admwrk_ctx_t *ctx, const struct adm_service *service,
  * @param[in]  size       size of the data
  */
 void
-admwrk_bcast(admwrk_ctx_t *ctx, admwrk_request_t *handle,
+admwrk_bcast(admwrk_ctx_t *ctx, 
 	     int type, const void *out, size_t size)
 {
   barrier_t *bar = &ctx->bar;
+  admwrk_request_t *handle = &ctx->rpc;
   int ret;
 
   bar->rank++;
@@ -375,12 +386,13 @@ admwrk_recv_msg(admwrk_request_t *handle, struct timeval *timeout,
  * @return     false if we got all replies, true otherwise.
  */
 static int
-admwrk_get_msg(admwrk_request_t *handle, exa_nodeid_t *_nodeid,
+admwrk_get_msg(admwrk_ctx_t *ctx, exa_nodeid_t *_nodeid,
 	       void *buf, size_t size, int *err)
 {
 #define CHECK_DOWN_TIMEOUT (struct timeval){ .tv_sec = 0, .tv_usec = 100000 }
   struct timeval timeout = CHECK_DOWN_TIMEOUT;
   exa_nodeid_t nodeid = EXA_NODEID_NONE;
+  admwrk_request_t *handle = &ctx->rpc;
   int ret;
 
   /* Finish the loop if there is no more node to wait for. */
@@ -446,10 +458,10 @@ admwrk_get_msg(admwrk_request_t *handle, exa_nodeid_t *_nodeid,
 /* --- admwrk_get_reply ------------------------------------------- */
 
 int
-admwrk_get_reply(admwrk_request_t *handle, exa_nodeid_t *nodeid,
+admwrk_get_reply(admwrk_ctx_t *ctx, exa_nodeid_t *nodeid,
 		 void *reply, size_t size, int *err)
 {
-  admwrk_ctx_t *ctx = admwrk_ctx();
+  admwrk_request_t *handle = &ctx->rpc;
   int retval;
 
   /* Special case for local commands executed on the node that issued
@@ -466,7 +478,7 @@ admwrk_get_reply(admwrk_request_t *handle, exa_nodeid_t *nodeid,
     return true;
   }
 
-  retval = admwrk_get_msg(handle, nodeid, reply, size, err);
+  retval = admwrk_get_msg(ctx, nodeid, reply, size, err);
 
   return retval;
 }
@@ -486,11 +498,11 @@ admwrk_get_reply(admwrk_request_t *handle, exa_nodeid_t *nodeid,
  * @param[out] err   The ack
  */
 int
-admwrk_get_ack(admwrk_request_t *handle, exa_nodeid_t *nodeid, int *err)
+admwrk_get_ack(admwrk_ctx_t *ctx, exa_nodeid_t *nodeid, int *err)
 {
   int ret, success;
 
-  ret = admwrk_get_reply(handle, nodeid, err, sizeof(*err), &success);
+  ret = admwrk_get_reply(ctx, nodeid, err, sizeof(*err), &success);
 
   if(success != EXA_SUCCESS)
     *err = success;
@@ -517,10 +529,10 @@ admwrk_get_ack(admwrk_request_t *handle, exa_nodeid_t *nodeid, int *err)
  * @param[out] err   The ack
  */
 int
-admwrk_get_bcast(admwrk_request_t *handle, exa_nodeid_t *nodeid,
+admwrk_get_bcast(admwrk_ctx_t *ctx, exa_nodeid_t *nodeid,
 	         void *reply, size_t size, int *err)
 {
-  return admwrk_get_msg(handle, nodeid, reply, size, err);
+  return admwrk_get_msg(ctx, nodeid, reply, size, err);
 }
 
 /* --- admwrk_reply ---------------------------------------- */
@@ -561,7 +573,6 @@ admwrk_reply(admwrk_ctx_t *ctx, void *__reply, size_t size)
 int
 admwrk_barrier_msg(admwrk_ctx_t *ctx, int err, const char *step, const char *fmt, ...)
 {
-  admwrk_request_t handle;
   exa_nodeid_t nodeid;
   struct rpc_barrier_data msg;
   struct rpc_barrier_data rcv;
@@ -582,12 +593,12 @@ admwrk_barrier_msg(admwrk_ctx_t *ctx, int err, const char *step, const char *fmt
     strlcpy(msg.error_msg, exa_error_msg(err), sizeof(msg.error_msg));
 
 
-  admwrk_bcast(ctx, &handle, EXAMSG_SERVICE_BARRIER, &msg, sizeof(msg));
+  admwrk_bcast(ctx, EXAMSG_SERVICE_BARRIER, &msg, sizeof(msg));
   /* initialize return values */
 
   /* get replies */
 
-  while (admwrk_get_bcast(&handle, &nodeid, &rcv, sizeof(rcv), &err))
+  while (admwrk_get_bcast(ctx, &nodeid, &rcv, sizeof(rcv), &err))
   {
     exalog_debug("%s: barrier from %s, step=%s, err=%d, rcv.err=%d (%s)",
 		 adm_wt_get_name(), adm_cluster_get_node_by_id(nodeid)->name,

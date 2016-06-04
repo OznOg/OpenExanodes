@@ -91,12 +91,11 @@ const fs_definition_t* fs_iterate_over_fs_definition(const fs_definition_t* curr
 int fs_get_data_device_offline(admwrk_ctx_t *ctx, fs_data_t* fs)
 {
   int offline = false;
-  admwrk_request_t handle;
   int ret;
 
-  admwrk_run_command(ctx, &adm_service_fs, &handle, RPC_SERVICE_FS_DEVICE_STATUS,
+  admwrk_run_command(ctx, &adm_service_fs, RPC_SERVICE_FS_DEVICE_STATUS,
 		     &fs->volume_uuid, sizeof(fs->volume_uuid));
-  while(admwrk_get_ack(&handle, NULL, &ret))
+  while(admwrk_get_ack(ctx, NULL, &ret))
     if (ret)
       offline = true;
 
@@ -513,7 +512,6 @@ exa_error_code generic_fs_get_started_nodes(admwrk_ctx_t *ctx,fs_data_t* fs_to_t
   exa_nodeid_t nodeid;
   exa_error_code is_broken=EXA_SUCCESS;
   int error_val;
-  admwrk_request_t fs_rpc;
   struct fs_info_reply fs_reply;
   fs_request_t fs_request;
   const fs_definition_t* fs_definition=fs_get_definition(fs_to_test->fstype);
@@ -527,8 +525,8 @@ exa_error_code generic_fs_get_started_nodes(admwrk_ctx_t *ctx,fs_data_t* fs_to_t
   strlcpy(fs_request.mountpoint, fs_to_test->mountpoint, sizeof(fs_request.mountpoint));
   strlcpy(fs_request.devpath, fs_to_test->devpath, sizeof(fs_request.devpath));
   exa_nodeset_reset( &fs_request.nodeliststatfs );
-  admwrk_run_command(ctx, MY_SERVICE_ID, &fs_rpc, RPC_ADM_CLINFO_FS, &fs_request, sizeof(fs_request));
-  while (admwrk_get_reply(&fs_rpc, &nodeid, &fs_reply, sizeof(fs_reply), &error_val))
+  admwrk_run_command(ctx, MY_SERVICE_ID, RPC_ADM_CLINFO_FS, &fs_request, sizeof(fs_request));
+  while (admwrk_get_reply(ctx, &nodeid, &fs_reply, sizeof(fs_reply), &error_val))
     {
       if (error_val == -ADMIND_ERR_NODE_DOWN)
 	{

@@ -594,7 +594,6 @@ typedef struct broken_table_info_t
 
 static int rdev_synchronise_broken_disk_table(admwrk_ctx_t *ctx)
 {
-    admwrk_request_t rpc;
     exa_nodeid_t nodeid;
     int ret;
 
@@ -610,10 +609,10 @@ static int rdev_synchronise_broken_disk_table(admwrk_ctx_t *ctx)
     local_broken_table = broken_disk_table_get(broken_disks);
     memcpy(info.broken_table, local_broken_table, sizeof(info.broken_table));
 
-    admwrk_bcast(admwrk_ctx(), &rpc, EXAMSG_SERVICE_RDEV_BROKEN_DISKS_EXCHANGE,
+    admwrk_bcast(admwrk_ctx(), EXAMSG_SERVICE_RDEV_BROKEN_DISKS_EXCHANGE,
                  &info, sizeof(info));
 
-    while (admwrk_get_bcast(&rpc, &nodeid, &reply, sizeof(reply), &ret))
+    while (admwrk_get_bcast(ctx, &nodeid, &reply, sizeof(reply), &ret))
     {
         if (ret == -ADMIND_ERR_NODE_DOWN)
             continue;
@@ -659,7 +658,6 @@ rdev_recover_local(admwrk_ctx_t *ctx, void *msg)
   size_t info_size;
   struct adm_disk *disk;
   struct adm_node *node;
-  admwrk_request_t rpc;
   int down_ret;
   int ret;
   int i = -1;
@@ -695,8 +693,8 @@ rdev_recover_local(admwrk_ctx_t *ctx, void *msg)
     info_size += sizeof(info.disk[i]);
   }
 
-  admwrk_bcast(admwrk_ctx(), &rpc, EXAMSG_SERVICE_RDEV_VERSION, &info, info_size);
-  while (admwrk_get_bcast(&rpc, &nodeid, &info, sizeof(info), &down_ret))
+  admwrk_bcast(admwrk_ctx(), EXAMSG_SERVICE_RDEV_VERSION, &info, info_size);
+  while (admwrk_get_bcast(ctx, &nodeid, &info, sizeof(info), &down_ret))
   {
     if (down_ret == -ADMIND_ERR_NODE_DOWN)
       continue;
@@ -831,7 +829,6 @@ rdev_stop(admwrk_ctx_t *ctx, const stop_data_t *stop_data)
 static void rdev_check_down_local(admwrk_ctx_t *ctx, void *msg)
 {
   exa_nodeid_t nodeid;
-  admwrk_request_t handle;
   struct {
     bool broken;
     bool new_up;
@@ -889,10 +886,10 @@ static void rdev_check_down_local(admwrk_ctx_t *ctx, void *msg)
 
   /* Synchronize broken status of disks between nodes. */
 
-  admwrk_bcast(admwrk_ctx(), &handle, EXAMSG_SERVICE_RDEV_DEAD_INFO,
+  admwrk_bcast(admwrk_ctx(), EXAMSG_SERVICE_RDEV_DEAD_INFO,
 	       &info, info_size);
 
-  while (admwrk_get_bcast(&handle, &nodeid, &info, sizeof(info), &ret_down))
+  while (admwrk_get_bcast(ctx, &nodeid, &info, sizeof(info), &ret_down))
   {
     /* The check should not be interrupted when a node crash. It should just
        continue without this node and return SUCCESS. */

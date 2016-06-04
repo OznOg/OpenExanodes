@@ -479,7 +479,6 @@ nbd_recover_clientd_open_session(admwrk_ctx_t *ctx, exa_nodeset_t *nodes_up,
   } info;
   exa_nodeid_t nodeid;
   exa_nodeset_t graph[EXA_MAX_NODES_NUMBER];
-  admwrk_request_t handle;
   struct adm_node *node;
   int ret_down;
   int ret;
@@ -542,9 +541,9 @@ nbd_recover_clientd_open_session(admwrk_ctx_t *ctx, exa_nodeset_t *nodes_up,
   ret = EXA_SUCCESS;
 
   COMPILE_TIME_ASSERT(sizeof(info) <= ADM_MAILBOX_PAYLOAD_PER_NODE);
-  admwrk_bcast(admwrk_ctx(), &handle, EXAMSG_SERVICE_NBD_CLIQUE, &info, sizeof(info));
+  admwrk_bcast(admwrk_ctx(), EXAMSG_SERVICE_NBD_CLIQUE, &info, sizeof(info));
 
-  while (admwrk_get_bcast(&handle, &nodeid, &info, sizeof(info), &ret_down))
+  while (admwrk_get_bcast(ctx, &nodeid, &info, sizeof(info), &ret_down))
   {
     if (ret_down == -ADMIND_ERR_NODE_DOWN ||
         info.ret == -ADMIND_ERR_NODE_DOWN)
@@ -612,7 +611,6 @@ nbd_recover_clientd_device_import(admwrk_ctx_t *ctx,
 				  struct nbd_recover_disk_info *info)
 {
   exa_nodeid_t nodeid;
-  admwrk_request_t handle;
   int ret_down;
   int retval = EXA_SUCCESS;
 
@@ -620,10 +618,10 @@ nbd_recover_clientd_device_import(admwrk_ctx_t *ctx,
    * info from nodes already up, and formerly up nodes need info about new
    * comers */
   COMPILE_TIME_ASSERT(sizeof(*info) * NBMAX_DISKS <= ADM_MAILBOX_PAYLOAD_PER_NODE * EXA_MAX_NODES_NUMBER);
-  admwrk_bcast(admwrk_ctx(), &handle, EXAMSG_SERVICE_NBD_DISKS_INFO,
+  admwrk_bcast(admwrk_ctx(), EXAMSG_SERVICE_NBD_DISKS_INFO,
                info, sizeof(*info) * adm_node_nb_disks(adm_myself()));
 
-  while (admwrk_get_bcast(&handle, &nodeid, info, sizeof(*info) * NBMAX_DISKS_PER_NODE, &ret_down))
+  while (admwrk_get_bcast(ctx, &nodeid, info, sizeof(*info) * NBMAX_DISKS_PER_NODE, &ret_down))
   {
     struct adm_node *node;
     struct adm_disk *disk;

@@ -142,7 +142,6 @@ static void __vrt_master_volume_create (admwrk_ctx_t *ctx, struct adm_group *gro
 {
     int ret;
     int reply_ret;
-    admwrk_request_t handle;
     struct vlcreate_info info;
     struct vrt_group_info group_info;
     uint64_t free_size, allowed_size;
@@ -261,7 +260,7 @@ static void __vrt_master_volume_create (admwrk_ctx_t *ctx, struct adm_group *gro
         return;
     }
 
-    admwrk_run_command(ctx, &adm_service_admin, &handle, RPC_ADM_VLCREATE,
+    admwrk_run_command(ctx, &adm_service_admin, RPC_ADM_VLCREATE,
                        &info, sizeof(info));
     /* Examine replies in order to filter return values.
      * The priority of return values is the following (in descending order):
@@ -270,7 +269,7 @@ static void __vrt_master_volume_create (admwrk_ctx_t *ctx, struct adm_group *gro
      * o other errors
      */
     ret = EXA_SUCCESS;
-    while (admwrk_get_ack(&handle, NULL, &reply_ret))
+    while (admwrk_get_ack(ctx, NULL, &reply_ret))
     {
         if (reply_ret == -ADMIND_ERR_METADATA_CORRUPTION)
             ret = -ADMIND_ERR_METADATA_CORRUPTION;

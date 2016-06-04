@@ -68,7 +68,6 @@ get_nbd_stats(admwrk_ctx_t *ctx, bool reset)
     adm_node_for_each_disk(node, disk)
     {
       exa_nodeid_t nodeid;
-      admwrk_request_t req;
       struct nbd_stats_reply reply_nbd;
       struct nbd_stats_request nbdreq;
       int errval;
@@ -78,11 +77,11 @@ get_nbd_stats(admwrk_ctx_t *ctx, bool reset)
       strlcpy(nbdreq.disk_path, disk->path, sizeof(nbdreq.disk_path));
       uuid_copy(&nbdreq.device_uuid, &disk->uuid);
 
-      admwrk_run_command(ctx, &adm_service_nbd, &req,
+      admwrk_run_command(ctx, &adm_service_nbd,
 			 RPC_SERVICE_ADMIND_GETNBDSTATS,
 			 &nbdreq, sizeof(nbdreq));
 
-      while (admwrk_get_reply(&req, &nodeid, &reply_nbd, sizeof(reply_nbd),
+      while (admwrk_get_reply(ctx, &nodeid, &reply_nbd, sizeof(reply_nbd),
 			      &errval))
 	{
 	  char nodetag[128 /* large enougth for tags */ + EXA_MAXSIZE_NODENAME];
@@ -140,18 +139,17 @@ get_vrt_stats(admwrk_ctx_t *ctx, bool reset)
       exa_nodeid_t nodeid;
       struct vrt_stats_request request;
       struct vrt_stats_reply reply_vrt;
-      admwrk_request_t req;
       int errval;
 
       request.reset = reset;
       uuid_copy(&request.group_uuid, &group->uuid);
       strlcpy(request.volume_name, volume->name, sizeof(request.volume_name));
 
-      admwrk_run_command(ctx, &adm_service_vrt, &req,
+      admwrk_run_command(ctx, &adm_service_vrt,
 			 RPC_SERVICE_ADMIND_GETVRTSTATS,
 			 &request, sizeof(request));
 
-      while (admwrk_get_reply(&req, &nodeid, &reply_vrt, sizeof(reply_vrt),
+      while (admwrk_get_reply(ctx, &nodeid, &reply_vrt, sizeof(reply_vrt),
 			      &errval))
 	{
 	  char nodetag[128 /*large enougth for tags bellow */

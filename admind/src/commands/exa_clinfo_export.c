@@ -98,7 +98,6 @@ void local_clinfo_get_nth_iqn(admwrk_ctx_t *ctx, void *msg)
 static int cluster_clinfo_export(admwrk_ctx_t *ctx, xmlNodePtr father_node,
 				 const export_info_t *export_info)
 {
-    admwrk_request_t rpc;
     export_request_t info_request;
     export_reply_t info_reply;
     xmlNodePtr export_node;
@@ -143,11 +142,11 @@ static int cluster_clinfo_export(admwrk_ctx_t *ctx, xmlNodePtr father_node,
 
     /* Get the export_info structure */
     uuid_copy(&info_request.export, &export_info->uuid);
-    admwrk_run_command(ctx, &adm_service_admin, &rpc, RPC_ADM_CLINFO_EXPORT,
+    admwrk_run_command(ctx, &adm_service_admin, RPC_ADM_CLINFO_EXPORT,
 		       &info_request, sizeof(info_request));
 
     compound_ret = EXA_SUCCESS;
-    while (admwrk_get_reply(&rpc, &nodeid, &info_reply, sizeof(info_reply), &ret))
+    while (admwrk_get_reply(ctx, &nodeid, &info_reply, sizeof(info_reply), &ret))
     {
 	if (ret == -ADMIND_ERR_NODE_DOWN)
 	    continue;
@@ -230,10 +229,10 @@ static int cluster_clinfo_export(admwrk_ctx_t *ctx, xmlNodePtr father_node,
 	get_nth_iqn_reply_t iqn_reply;
 
 	found_iqn = false;
-	admwrk_run_command(ctx, &adm_service_admin, &rpc, RPC_ADM_CLINFO_GET_NTH_IQN,
+	admwrk_run_command(ctx, &adm_service_admin, RPC_ADM_CLINFO_GET_NTH_IQN,
 			   &iqn_request, sizeof(iqn_request));
 
-	while (admwrk_get_reply(&rpc, &nodeid, &iqn_reply, sizeof(iqn_reply), &ret))
+	while (admwrk_get_reply(ctx, &nodeid, &iqn_reply, sizeof(iqn_reply), &ret))
 	{
 	    xmlNodePtr iqn_node;
 

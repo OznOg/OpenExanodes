@@ -81,7 +81,6 @@ int cluster_clinfo_volumes(admwrk_ctx_t *ctx, xmlNodePtr group_node,
 
   adm_group_for_each_volume(group, volume)
   {
-    admwrk_request_t rpc;
     volume_request_t request;
     struct volume_reply reply;
     exa_nodeset_t status_stopped = EXA_NODESET_EMPTY;
@@ -99,9 +98,9 @@ int cluster_clinfo_volumes(admwrk_ctx_t *ctx, xmlNodePtr group_node,
 
       exalog_debug("RPC_ADM_CLINFO_VOLUME(%s)", volume->name);
 
-      admwrk_run_command(ctx, &adm_service_admin, &rpc, RPC_ADM_CLINFO_VOLUME, &request, sizeof(request));
+      admwrk_run_command(ctx, &adm_service_admin, RPC_ADM_CLINFO_VOLUME, &request, sizeof(request));
 
-      while (admwrk_get_reply(&rpc, &nodeid, &reply, sizeof(reply), &ret))
+      while (admwrk_get_reply(ctx, &nodeid, &reply, sizeof(reply), &ret))
         {
           if (ret == -ADMIND_ERR_NODE_DOWN)
             continue;

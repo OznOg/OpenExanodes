@@ -397,7 +397,6 @@ static int local_vrt_recover_restart_group_volumes(struct adm_group *group)
 static int local_vrt_resync_group(admwrk_ctx_t *ctx, struct adm_group *group)
 {
     exa_nodeid_t nodeid;
-    admwrk_request_t handle;
     int err = EXA_SUCCESS, bcast_err = EXA_SUCCESS, barrier_err;
     bool group_was_synched = false, synched = group->synched;
     exa_nodeset_t nodes_up, nodes_going_up, nodes_going_down;
@@ -410,8 +409,8 @@ static int local_vrt_resync_group(admwrk_ctx_t *ctx, struct adm_group *group)
      * resynched by a previous recovery up or if it is still needed. */
     if (!exa_nodeset_is_empty(&nodes_going_up))
     {
-        admwrk_bcast(admwrk_ctx(), &handle, EXAMSG_SERVICE_VRT_RESYNC, &synched, sizeof(synched));
-        while (admwrk_get_bcast(&handle, &nodeid, &synched, sizeof(synched), &bcast_err))
+        admwrk_bcast(admwrk_ctx(), EXAMSG_SERVICE_VRT_RESYNC, &synched, sizeof(synched));
+        while (admwrk_get_bcast(ctx, &nodeid, &synched, sizeof(synched), &bcast_err))
         {
             if (bcast_err != EXA_SUCCESS)
                 err = bcast_err;
@@ -691,7 +690,6 @@ static int local_vrt_group_check_up(admwrk_ctx_t *ctx, struct adm_group *group)
     int i;
     struct vrt_reintegrate_synchro reintegrate_synchro_local[NBMAX_DISKS_PER_NODE];
     struct vrt_reintegrate_synchro reintegrate_synchro_global[NBMAX_DISKS_PER_GROUP];
-    admwrk_request_t handle;
     struct adm_disk *disk;
     int ret_down;
     bool reintegrate_needed;
@@ -750,10 +748,10 @@ static int local_vrt_group_check_up(admwrk_ctx_t *ctx, struct adm_group *group)
     /* all nodes send their reintegrate info about their own disks */
     COMPILE_TIME_ASSERT(sizeof(reintegrate_synchro_global) <=
             ADM_MAILBOX_PAYLOAD_PER_NODE * EXA_MAX_NODES_NUMBER);
-    admwrk_bcast(admwrk_ctx(), &handle, EXAMSG_SERVICE_VRT_REINTEGRATE_INFO,
+    admwrk_bcast(admwrk_ctx(), EXAMSG_SERVICE_VRT_REINTEGRATE_INFO,
             reintegrate_synchro_local, msg_size);
     ret = EXA_SUCCESS;
-    while (admwrk_get_bcast(&handle, &nodeid, reintegrate_synchro_local,
+    while (admwrk_get_bcast(ctx, &nodeid, reintegrate_synchro_local,
                 sizeof(reintegrate_synchro_local), &ret_down))
     {
         if (ret_down != EXA_SUCCESS && ret_down != -ADMIND_ERR_NODE_DOWN)

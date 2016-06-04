@@ -108,7 +108,6 @@ vrt_master_volume_delete (admwrk_ctx_t *ctx, struct adm_volume *volume,
 {
   int ret;
   int reply_ret;
-  admwrk_request_t handle;
   struct vldelete_info info;
   memset(&info, 0, sizeof(info));
 
@@ -130,7 +129,7 @@ vrt_master_volume_delete (admwrk_ctx_t *ctx, struct adm_volume *volume,
   strlcpy(info.volume_name, volume->name, EXA_MAXSIZE_VOLUMENAME + 1);
   info.metadata_recovery = metadata_recovery;
 
-  admwrk_run_command(ctx, &adm_service_admin, &handle, RPC_ADM_VLDELETE, &info, sizeof(info));
+  admwrk_run_command(ctx, &adm_service_admin, RPC_ADM_VLDELETE, &info, sizeof(info));
   /* Examine replies in order to filter return values.
    * The priority of return values is the following (in descending order):
    * o ADMIND_ERR_METADATA_CORRUPTION
@@ -138,7 +137,7 @@ vrt_master_volume_delete (admwrk_ctx_t *ctx, struct adm_volume *volume,
    * o other errors
    */
   ret = EXA_SUCCESS;
-  while (admwrk_get_ack(&handle, NULL, &reply_ret))
+  while (admwrk_get_ack(ctx, NULL, &reply_ret))
   {
     if (reply_ret == -ADMIND_ERR_METADATA_CORRUPTION)
       ret = -ADMIND_ERR_METADATA_CORRUPTION;
