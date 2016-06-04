@@ -36,6 +36,11 @@ struct rpc_barrier_data {
   char error_msg[EXA_MAXSIZE_ERR_MESSAGE + 1];
 };
 
+typedef struct barrier {
+  int           rank;
+  exa_nodeset_t nodes;
+} barrier_t;
+
 typedef struct admwrk_ctx_t
 {
   barrier_t bar; /**< barrier private stuff */

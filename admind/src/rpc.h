@@ -25,11 +25,6 @@ typedef struct admwrk_request_t
   bool (*is_node_down)(exa_nodeid_t nid);
 } admwrk_request_t;
 
-typedef struct barrier {
-  int           rank;
-  exa_nodeset_t nodes;
-} barrier_t;
-
 typedef struct admwrk_ctx_t admwrk_ctx_t;
 
 admwrk_ctx_t *admwrk_ctx_alloc();
