@@ -76,7 +76,7 @@ admwrk_send(ExamsgHandle mh, ExamsgID to, const exa_nodeset_t *dest_nodes,
  */
 static void admwrk_exec_local_cmd(int thr_nb, const rpc_cmd_t *admwrk_cmd)
 {
-  admwrk_ctx_t *ctx = adm_wt_get_admwrk_ctx();
+  admwrk_ctx_t *ctx = admwrk_ctx();
   LocalCommand localCommand;
 
   EXA_ASSERT(exa_nodeset_contains(&admwrk_cmd->mship, adm_my_id));
@@ -112,7 +112,7 @@ static void admwrk_exec_local_cmd(int thr_nb, const rpc_cmd_t *admwrk_cmd)
  */
 void admwrk_handle_localcmd_msg(int thr_nb, const Examsg *msg, ExamsgMID *from)
 {
-  admwrk_ctx_t *ctx = adm_wt_get_admwrk_ctx();
+  admwrk_ctx_t *ctx = admwrk_ctx();
   exa_nodeset_t dest_nodes;
   int ret;
 
@@ -424,7 +424,7 @@ int
 admwrk_get_reply(admwrk_request_t *handle, exa_nodeid_t *nodeid,
 		 void *reply, size_t size, int *err)
 {
-  admwrk_ctx_t *ctx = adm_wt_get_admwrk_ctx();
+  admwrk_ctx_t *ctx = admwrk_ctx();
   int retval;
 
   /* Special case for local commands executed on the node that issued
@@ -511,7 +511,7 @@ admwrk_get_bcast(admwrk_request_t *handle, exa_nodeid_t *nodeid,
 void
 admwrk_reply(int thr_nb, void *__reply, size_t size)
 {
-  admwrk_ctx_t *ctx = adm_wt_get_admwrk_ctx();
+  admwrk_ctx_t *ctx = admwrk_ctx();
 
   memcpy(ctx->reply, __reply, size);
   ctx->reply_size = size;
@@ -559,7 +559,7 @@ admwrk_barrier_msg(int thr_nb, int err, const char *step, const char *fmt, ...)
     strlcpy(msg.error_msg, exa_error_msg(err), sizeof(msg.error_msg));
 
 
-  admwrk_bcast(adm_wt_get_admwrk_ctx(), &handle, EXAMSG_SERVICE_BARRIER, &msg, sizeof(msg));
+  admwrk_bcast(admwrk_ctx(), &handle, EXAMSG_SERVICE_BARRIER, &msg, sizeof(msg));
   /* initialize return values */
 
   /* get replies */
