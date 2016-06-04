@@ -610,7 +610,7 @@ static int rdev_synchronise_broken_disk_table(int thr_nb)
     local_broken_table = broken_disk_table_get(broken_disks);
     memcpy(info.broken_table, local_broken_table, sizeof(info.broken_table));
 
-    admwrk_bcast(thr_nb, &rpc, EXAMSG_SERVICE_RDEV_BROKEN_DISKS_EXCHANGE,
+    admwrk_bcast(admwrk_ctx(), &rpc, EXAMSG_SERVICE_RDEV_BROKEN_DISKS_EXCHANGE,
                  &info, sizeof(info));
 
     while (admwrk_get_bcast(&rpc, &nodeid, &reply, sizeof(reply), &ret))
@@ -695,7 +695,7 @@ rdev_recover_local(int thr_nb, void *msg)
     info_size += sizeof(info.disk[i]);
   }
 
-  admwrk_bcast(thr_nb, &rpc, EXAMSG_SERVICE_RDEV_VERSION, &info, info_size);
+  admwrk_bcast(admwrk_ctx(), &rpc, EXAMSG_SERVICE_RDEV_VERSION, &info, info_size);
   while (admwrk_get_bcast(&rpc, &nodeid, &info, sizeof(info), &down_ret))
   {
     if (down_ret == -ADMIND_ERR_NODE_DOWN)
@@ -889,7 +889,7 @@ static void rdev_check_down_local(int thr_nb, void *msg)
 
   /* Synchronize broken status of disks between nodes. */
 
-  admwrk_bcast(thr_nb, &handle, EXAMSG_SERVICE_RDEV_DEAD_INFO,
+  admwrk_bcast(admwrk_ctx(), &handle, EXAMSG_SERVICE_RDEV_DEAD_INFO,
 	       &info, info_size);
 
   while (admwrk_get_bcast(&handle, &nodeid, &info, sizeof(info), &ret_down))

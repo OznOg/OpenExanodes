@@ -82,6 +82,8 @@ ExamsgHandle adm_wt_get_barmb(bool even);
 
 admwrk_ctx_t *adm_wt_get_admwrk_ctx(void);
 
+static inline admwrk_ctx_t *admwrk_ctx(void) { return adm_wt_get_admwrk_ctx(); }
+
 const char *adm_wt_get_name(void);
 
 

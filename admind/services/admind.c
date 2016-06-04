@@ -267,7 +267,7 @@ admin_recover_local(int thr_nb, void *msg)
 
   ret = admwrk_barrier(thr_nb, tm_err, "Sending token manager status");
 
-  admwrk_bcast(thr_nb, &rpc, EXAMSG_SERVICE_ADMIND_VERSION_ID,
+  admwrk_bcast(admwrk_ctx(), &rpc, EXAMSG_SERVICE_ADMIND_VERSION_ID,
 	       &info, sizeof(info));
 
   while (admwrk_get_bcast(&rpc, &nodeid, &info, sizeof(info), &ret))
@@ -337,7 +337,7 @@ admin_recover_local(int thr_nb, void *msg)
       exalog_debug("bcast chunk pos=%d, size=%d", pos, chunk_size);
 
       /* only the best sends chunks */
-      admwrk_bcast(thr_nb, &rpc, EXAMSG_SERVICE_ADMIND_CONFIG_CHUNK,
+      admwrk_bcast(admwrk_ctx(), &rpc, EXAMSG_SERVICE_ADMIND_CONFIG_CHUNK,
 	      buffer + pos, best ? chunk_size : 0);
 
       /* if the node already has a good buffer, just throw away the messages by

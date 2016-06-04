@@ -410,7 +410,7 @@ static int local_vrt_resync_group(int thr_nb, struct adm_group *group)
      * resynched by a previous recovery up or if it is still needed. */
     if (!exa_nodeset_is_empty(&nodes_going_up))
     {
-        admwrk_bcast(thr_nb, &handle, EXAMSG_SERVICE_VRT_RESYNC, &synched, sizeof(synched));
+        admwrk_bcast(admwrk_ctx(), &handle, EXAMSG_SERVICE_VRT_RESYNC, &synched, sizeof(synched));
         while (admwrk_get_bcast(&handle, &nodeid, &synched, sizeof(synched), &bcast_err))
         {
             if (bcast_err != EXA_SUCCESS)
@@ -750,7 +750,7 @@ static int local_vrt_group_check_up(int thr_nb, struct adm_group *group)
     /* all nodes send their reintegrate info about their own disks */
     COMPILE_TIME_ASSERT(sizeof(reintegrate_synchro_global) <=
             ADM_MAILBOX_PAYLOAD_PER_NODE * EXA_MAX_NODES_NUMBER);
-    admwrk_bcast(thr_nb, &handle, EXAMSG_SERVICE_VRT_REINTEGRATE_INFO,
+    admwrk_bcast(admwrk_ctx(), &handle, EXAMSG_SERVICE_VRT_REINTEGRATE_INFO,
             reintegrate_synchro_local, msg_size);
     ret = EXA_SUCCESS;
     while (admwrk_get_bcast(&handle, &nodeid, reintegrate_synchro_local,

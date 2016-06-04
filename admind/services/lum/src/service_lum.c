@@ -315,7 +315,7 @@ static void local_lum_recover(int thr_nb, void *msg)
   local_lum_get_listen_addresses(&tmp_addr);
 
   /* Exchange target listen addresses */
-  admwrk_bcast(thr_nb, &handle, EXAMSG_SERVICE_LUM_TARGET_LISTEN_ADDRESSES,
+  admwrk_bcast(admwrk_ctx(), &handle, EXAMSG_SERVICE_LUM_TARGET_LISTEN_ADDRESSES,
 	       &tmp_addr, sizeof(tmp_addr));
 
   ret = EXA_SUCCESS;
@@ -354,7 +354,7 @@ static void local_lum_recover(int thr_nb, void *msg)
       return;
   }
   /* Exchange exports file version number */
-  admwrk_bcast(thr_nb, &handle, EXAMSG_SERVICE_LUM_EXPORTS_VERSION,
+  admwrk_bcast(admwrk_ctx(), &handle, EXAMSG_SERVICE_LUM_EXPORTS_VERSION,
 	       &exports_version, sizeof(exports_version));
 
   while (admwrk_get_bcast(&handle, &nodeid, &version, sizeof(version), &ret))
@@ -405,7 +405,7 @@ static void local_lum_recover(int thr_nb, void *msg)
   if (am_best)
   {
       exalog_debug("sending number of elements to sync: %d", elements_to_sync);
-      admwrk_bcast(thr_nb, &handle, EXAMSG_SERVICE_LUM_EXPORTS_NUMBER,
+      admwrk_bcast(admwrk_ctx(), &handle, EXAMSG_SERVICE_LUM_EXPORTS_NUMBER,
                    &elements_to_sync, sizeof(elements_to_sync));
   }
   else
@@ -415,7 +415,7 @@ static void local_lum_recover(int thr_nb, void *msg)
           lum_exports_clear();
           elements_to_sync = 0;
       }
-      admwrk_bcast(thr_nb, &handle, EXAMSG_SERVICE_LUM_EXPORTS_NUMBER, NULL, 0);
+      admwrk_bcast(admwrk_ctx(), &handle, EXAMSG_SERVICE_LUM_EXPORTS_NUMBER, NULL, 0);
   }
 
   while (admwrk_get_bcast(&handle, &nodeid,
@@ -456,11 +456,11 @@ static void local_lum_recover(int thr_nb, void *msg)
                        UUID_VAL(adm_export_get_uuid(adm_export)));
 
           EXA_ASSERT(adm_export_serialize(adm_export, buf, buf_size) == buf_size);
-          admwrk_bcast(thr_nb, &handle, EXAMSG_SERVICE_LUM_EXPORTS_EXPORT,
+          admwrk_bcast(admwrk_ctx(), &handle, EXAMSG_SERVICE_LUM_EXPORTS_EXPORT,
                        buf, buf_size);
       }
       else
-          admwrk_bcast(thr_nb, &handle, EXAMSG_SERVICE_LUM_EXPORTS_EXPORT,
+          admwrk_bcast(admwrk_ctx(), &handle, EXAMSG_SERVICE_LUM_EXPORTS_EXPORT,
                        NULL, 0);
 
       /* receive the export for those needing it */

@@ -32,7 +32,7 @@ int vrt_group_sync_sb_versions(int thr_nb, struct adm_group *group)
     sb_version_serialize(group->sb_version, &sb_ser);
 
     /* Exchange exports file version number */
-    admwrk_bcast(thr_nb, &rpc, EXAMSG_SERVICE_VRT_SB_SYNC, &sb_ser, sizeof(sb_ser));
+    admwrk_bcast(admwrk_ctx(), &rpc, EXAMSG_SERVICE_VRT_SB_SYNC, &sb_ser, sizeof(sb_ser));
     while (admwrk_get_bcast(&rpc, &nid, &sb_ser, sizeof(sb_ser), &err))
     {
         if (err == -ADMIND_ERR_NODE_DOWN)
@@ -87,7 +87,7 @@ int adm_vrt_group_sync_sb(int thr_nb, struct adm_group *group)
       }
   }
 
-  admwrk_bcast(thr_nb, &rpc, EXAMSG_SERVICE_VRT_SB_SYNC, &info, sizeof(info));
+  admwrk_bcast(admwrk_ctx(), &rpc, EXAMSG_SERVICE_VRT_SB_SYNC, &info, sizeof(info));
   while (admwrk_get_bcast(&rpc, &nid, &reply, sizeof(reply), &ret))
   {
     if (ret == -ADMIND_ERR_NODE_DOWN)

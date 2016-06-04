@@ -542,7 +542,7 @@ nbd_recover_clientd_open_session(int thr_nb, exa_nodeset_t *nodes_up,
   ret = EXA_SUCCESS;
 
   COMPILE_TIME_ASSERT(sizeof(info) <= ADM_MAILBOX_PAYLOAD_PER_NODE);
-  admwrk_bcast(thr_nb, &handle, EXAMSG_SERVICE_NBD_CLIQUE, &info, sizeof(info));
+  admwrk_bcast(admwrk_ctx(), &handle, EXAMSG_SERVICE_NBD_CLIQUE, &info, sizeof(info));
 
   while (admwrk_get_bcast(&handle, &nodeid, &info, sizeof(info), &ret_down))
   {
@@ -620,7 +620,7 @@ nbd_recover_clientd_device_import(int thr_nb,
    * info from nodes already up, and formerly up nodes need info about new
    * comers */
   COMPILE_TIME_ASSERT(sizeof(*info) * NBMAX_DISKS <= ADM_MAILBOX_PAYLOAD_PER_NODE * EXA_MAX_NODES_NUMBER);
-  admwrk_bcast(thr_nb, &handle, EXAMSG_SERVICE_NBD_DISKS_INFO,
+  admwrk_bcast(admwrk_ctx(), &handle, EXAMSG_SERVICE_NBD_DISKS_INFO,
                info, sizeof(*info) * adm_node_nb_disks(adm_myself()));
 
   while (admwrk_get_bcast(&handle, &nodeid, info, sizeof(*info) * NBMAX_DISKS_PER_NODE, &ret_down))

@@ -369,7 +369,7 @@ static int local_exa_dgcreate_config_add(int thr_nb, struct dgcreate_info *info,
 	for(i = 0; i < info->nb_disks; i++)
 	    uuid_generate(&vrt_uuids[i]);
 
-    admwrk_bcast(thr_nb, &handle, EXAMSG_SERVICE_RDEV_DEAD_INFO,
+    admwrk_bcast(admwrk_ctx(), &handle, EXAMSG_SERVICE_RDEV_DEAD_INFO,
 		 adm_is_leader() ? vrt_uuids : NULL,
 		 adm_is_leader() ? sizeof(vrt_uuids) : 0);
 

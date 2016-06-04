@@ -37,6 +37,7 @@ typedef struct admwrk_ctx_t
 
   char reply[EXAMSG_PAYLOAD_MAX]; /**< Reply data of the local command */
   size_t reply_size;              /**< Size of the reply */
+  bool (*inst_is_node_down)(exa_nodeid_t nid);
 } admwrk_ctx_t;
 
 void admwrk_handle_localcmd_msg(int thr_nb, const Examsg *msg, ExamsgMID *from);
@@ -58,7 +59,7 @@ static inline void admwrk_ack(int thr_nb, int err)
   admwrk_reply(thr_nb, &err, sizeof(err));
 }
 
-void admwrk_bcast  (int thr_nb, admwrk_request_t *handle,
+void admwrk_bcast  (admwrk_ctx_t *ctx, admwrk_request_t *handle,
 		    int type, const void *out, size_t size);
 int admwrk_get_reply(admwrk_request_t *handle, exa_nodeid_t *nodeid,
 		     void *reply, size_t size, int *err);

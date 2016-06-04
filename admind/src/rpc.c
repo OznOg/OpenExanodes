@@ -85,6 +85,11 @@ static void admwrk_exec_local_cmd(int thr_nb, const rpc_cmd_t *admwrk_cmd)
   ctx->bar.rank  = 0;
   ctx->bar.nodes = admwrk_cmd->mship;
 
+  if (thr_nb == RECOVERY_THR_ID)
+      ctx->inst_is_node_down = inst_is_node_down_rec;
+  else
+      ctx->inst_is_node_down = inst_is_node_down_cmd;
+
   /* find the local command */
   localCommand = rpc_command_get(admwrk_cmd->command);
 
@@ -252,10 +257,10 @@ admwrk_exec_command(int thr_nb, const struct adm_service *service,
  * @param[in]  size       size of the data
  */
 void
-admwrk_bcast(int thr_nb, admwrk_request_t *handle,
+admwrk_bcast(admwrk_ctx_t *ctx, admwrk_request_t *handle,
 	     int type, const void *out, size_t size)
 {
-  barrier_t *bar = &adm_wt_get_admwrk_ctx()->bar;
+  barrier_t *bar = &ctx->bar;
   int ret;
 
   bar->rank++;
@@ -265,10 +270,7 @@ admwrk_bcast(int thr_nb, admwrk_request_t *handle,
   handle->type        = type;
   handle->waiting_for = bar->nodes;
   handle->mh          = adm_wt_get_barmb(bar->rank % 2);
-  if (thr_nb == RECOVERY_THR_ID)
-      handle->is_node_down = inst_is_node_down_rec;
-  else
-      handle->is_node_down = inst_is_node_down_cmd;
+  handle->is_node_down = ctx->inst_is_node_down;
 
   /* Send the request */
 
@@ -557,7 +559,7 @@ admwrk_barrier_msg(int thr_nb, int err, const char *step, const char *fmt, ...)
     strlcpy(msg.error_msg, exa_error_msg(err), sizeof(msg.error_msg));
 
 
-  admwrk_bcast(thr_nb, &handle, EXAMSG_SERVICE_BARRIER, &msg, sizeof(msg));
+  admwrk_bcast(adm_wt_get_admwrk_ctx(), &handle, EXAMSG_SERVICE_BARRIER, &msg, sizeof(msg));
   /* initialize return values */
 
   /* get replies */
