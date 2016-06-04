@@ -253,9 +253,6 @@ typedef struct ExamsgAny {
   {									\
     COMPILE_TIME_ASSERT(sizeof(typename)				\
 			<= EXAMSG_MSG_MAX);	                        \
-      /* this function calls this function so that it is not signaled*/ \
-      /* as unused by compilator */                                     \
-      __ ## typename ## _check_size();                                  \
   }									\
   /** \endcond */
 

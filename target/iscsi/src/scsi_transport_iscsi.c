@@ -1747,7 +1747,7 @@ static int text_command_t(TARGET_SESSION_T *sess, unsigned char *header)
         /* FIXME I think this should be moved to the negociation module */
         if (ptr->is_rx_offer)
         {
-            if (ptr->offer_rx && !strcmp(ptr->offer_rx, "All")
+            if (!strcmp(ptr->offer_rx, "All")
                 && !param_list_value_is_equal(sess->params, "SessionType", "Discovery"))
             {
                 if (param_text_add("SendTargets", "Reject",
