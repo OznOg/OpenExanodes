@@ -557,17 +557,7 @@ void inst_get_current_membership_cmd(const struct adm_service *service,
 void inst_get_current_membership_rec(const struct adm_service *service,
                                  exa_nodeset_t *membership)
 {
-    /* Special case for local recovery down when there is no quorum.  We handle
-     * an instance down for ourself so we have to take part in the local commands
-     * and barriers. For now, this is needed only for nodestop command. */
-    if (!evmgr_has_quorum())
-    {
-	exa_nodeset_reset(membership);
-	exa_nodeset_add(membership, adm_my_id);
-	return;
-    }
-
-    inst_get_nodes_up(service, membership);
+    inst_get_current_membership_cmd(service, membership);
 
     /* As the rpc is supposed to be done only on node that are making
      * part of the recovery process, it is needed to add the instances
