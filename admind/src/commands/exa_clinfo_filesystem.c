@@ -50,14 +50,19 @@ int cluster_clinfo_filesystem(admwrk_ctx_t *ctx, xmlNodePtr fs_node,
 
   if (fs->transaction)
     {
+      exa_nodeset_t nodes;
       strlcpy(request.mountpoint, fs->mountpoint, sizeof(request.mountpoint));
       strlcpy(request.devpath, fs->devpath, sizeof(request.devpath));
       exa_nodeset_reset(&request.nodeliststatfs);
       exalog_debug("RPC_ADM_CLINFO_FS1(%s)", fs_get_name(fs));
-      admwrk_run_command(ctx, &adm_service_fs, RPC_ADM_CLINFO_FS,
+
+      inst_get_current_membership_cmd(&adm_service_fs, &nodes);
+
+      admwrk_run_command(ctx, &nodes, RPC_ADM_CLINFO_FS,
 			 &request, sizeof(request));
-      while (admwrk_get_reply(ctx, &nodeid, &reply, sizeof(reply), &ret))
+      while (!exa_nodeset_is_empty(&nodes))
 	{
+	  admwrk_get_reply(ctx, &nodes, &nodeid, &reply, sizeof(reply), &ret);
 	  if (ret == -ADMIND_ERR_NODE_DOWN)
 	    continue;
 
@@ -77,10 +82,13 @@ int cluster_clinfo_filesystem(admwrk_ctx_t *ctx, xmlNodePtr fs_node,
           exalog_debug("RPC_ADM_CLINFO_FS2(%s)",
 		       fs_get_name(fs));
 
-	  admwrk_run_command(ctx, &adm_service_fs, RPC_ADM_CLINFO_FS, &request, sizeof(request));
+	  inst_get_current_membership_cmd(&adm_service_fs, &nodes);
 
-	  while (admwrk_get_reply(ctx, &nodeid, &reply, sizeof(reply), &ret))
+	  admwrk_run_command(ctx, &nodes, RPC_ADM_CLINFO_FS, &request, sizeof(request));
+
+	  while (!exa_nodeset_is_empty(&nodes))
 	    {
+	      admwrk_get_reply(ctx, &nodes, &nodeid, &reply, sizeof(reply), &ret);
 	      if (ret == -ADMIND_ERR_NODE_DOWN)
 		continue;
 

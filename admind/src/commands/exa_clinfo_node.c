@@ -112,18 +112,23 @@ static int cluster_clinfo_node_disks(admwrk_ctx_t *ctx, xmlNodePtr cluster_node)
 {
   struct node_disk_reply reply[NBMAX_DISKS_PER_NODE];
   exa_nodeid_t nodeid;
+  exa_nodeset_t nodes;
   int ret = EXA_SUCCESS;
   int err;
 
   exalog_debug("RPC_ADM_CLINFO_NODE_DISKS");
 
-  admwrk_run_command(ctx, &adm_service_rdev, RPC_ADM_CLINFO_NODE_DISKS, NULL, 0);
+  inst_get_current_membership_cmd(&adm_service_rdev, &nodes);
 
-  while (admwrk_get_reply(ctx, &nodeid, reply, sizeof(reply), &err))
+  admwrk_run_command(ctx, &nodes, RPC_ADM_CLINFO_NODE_DISKS, NULL, 0);
+
+  while (!exa_nodeset_is_empty(&nodes))
   {
     struct adm_disk *disk;
     xmlNodePtr node_node;
     int i = -1;
+
+    admwrk_get_reply(ctx, &nodes, &nodeid, reply, sizeof(reply), &err);
 
     node_node = xml_get_child(cluster_node, "node", "name", adm_cluster_get_node_by_id(nodeid)->name);
     if (node_node == NULL)
@@ -177,7 +182,8 @@ static int cluster_clinfo_node_disks(admwrk_ctx_t *ctx, xmlNodePtr cluster_node)
 
 error:
   /* Get remaining replies */
-  while (admwrk_get_reply(ctx, &nodeid, &reply, sizeof(reply), &err));
+  while (!exa_nodeset_is_empty(&nodes))
+      admwrk_get_reply(ctx, &nodes, &nodeid, &reply, sizeof(reply), &err);
   return ret;
 }
 

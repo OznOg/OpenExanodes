@@ -181,21 +181,18 @@ void admwrk_handle_localcmd_msg(admwrk_ctx_t *ctx, const Examsg *msg, ExamsgMID 
  * @param[in]  size       size of request
  */
 void
-admwrk_run_command(admwrk_ctx_t *ctx, const struct adm_service *service,
-		   int command,
+admwrk_run_command(admwrk_ctx_t *ctx,
+		   exa_nodeset_t *nodes, int command,
 		   const void *__request, size_t size)
 {
   char buffer[sizeof(rpc_cmd_t) + size];
   rpc_cmd_t *request = (rpc_cmd_t *)buffer;
   admwrk_request_t *handle = &ctx->rpc;
-  exa_nodeset_t nodes;
   int ret;
 
   memcpy(request->data, __request, size);
 
   /* Initialize the handle */
-
-  ctx->inst_get_current_membership(service, &nodes);
 
   /* set the failure detector. It is specific for each thread as the
    * recovery thread just needs to be informed about down events and
@@ -206,20 +203,20 @@ admwrk_run_command(admwrk_ctx_t *ctx, const struct adm_service *service,
 //      handle->is_node_down = inst_is_node_down_cmd;
 
   handle->mh   = adm_wt_get_inboxmb();
-  handle->waiting_for = nodes;
+  handle->waiting_for = *nodes;
 
-  request->mship   = nodes;
+  request->mship   = *nodes;
   request->command = command;
 
   /* Send the request */
 
   exalog_debug("%s send command %d with membership " EXA_NODESET_FMT,
-	       adm_wt_get_name(), command, EXA_NODESET_VAL(&nodes));
+	       adm_wt_get_name(), command, EXA_NODESET_VAL(nodes));
 
-  exa_nodeset_del(&nodes, adm_my_id);
+  exa_nodeset_del(nodes, adm_my_id);
 
   ret = admwrk_send(adm_wt_get_inboxmb(),
-		    examsgOwner(adm_wt_get_inboxmb()), &nodes,
+		    examsgOwner(adm_wt_get_inboxmb()), nodes,
 		    EXAMSG_SERVICE_LOCALCMD, request, sizeof(*request) + size);
   EXA_ASSERT_VERBOSE(ret == sizeof(*request) + size,
 		     "admwrk_send() returned %d", ret);
@@ -253,10 +250,14 @@ admwrk_exec_command(admwrk_ctx_t *ctx, const struct adm_service *service,
   int ret = EXA_SUCCESS;
   int err;
 
-  admwrk_run_command(ctx, service, command, request, size);
+  exa_nodeset_t nodes;
+  ctx->inst_get_current_membership(service, &nodes);
 
-  while (admwrk_get_ack(ctx, &nodeid, &err))
+  admwrk_run_command(ctx, &nodes, command, request, size);
+
+  while (!exa_nodeset_is_empty(&nodes))
   {
+    admwrk_get_ack(ctx, &nodes, &nodeid, &err);
     exalog_debug("%s: '%s' acked with %s (%d) to command %d",
 		 adm_wt_get_name(), adm_cluster_get_node_by_id(nodeid)->name,
 		 exa_error_msg(err), err, command);
@@ -381,7 +382,7 @@ admwrk_recv_msg(ExamsgHandle mh, ExamsgType type, struct timeval *timeout,
  * @return     false if we got all replies, true otherwise.
  */
 static int
-admwrk_get_msg(admwrk_ctx_t *ctx, exa_nodeid_t *_nodeid,
+admwrk_get_msg(admwrk_ctx_t *ctx, exa_nodeset_t *nodes, exa_nodeid_t *_nodeid,
 	       ExamsgType type, void *buf, size_t size, int *err)
 {
 #define CHECK_DOWN_TIMEOUT (struct timeval){ .tv_sec = 0, .tv_usec = 100000 }
@@ -390,22 +391,8 @@ admwrk_get_msg(admwrk_ctx_t *ctx, exa_nodeid_t *_nodeid,
   admwrk_request_t *handle = &ctx->rpc;
   int ret;
 
-  /* Finish the loop if there is no more node to wait for. */
-  /* TODO next test is dumb, this is caller stuff to check that */
-  if (exa_nodeset_is_empty(&handle->waiting_for))
-  {
-    exalog_trace("no more node to wait for");
-    /* The next memset is here to kill the buffer content.
-     * This is here to prevent side effect programming: the caller MUST
-     * take the data when it is relevant, and not expect it to be eventually
-     * relevent... */
-    memset(buf, 0xAA, size);
-    *err = EXA_SUCCESS;
-    return false;
-  }
-
   exalog_trace("awaiting a message for nodes " EXA_NODESET_FMT,
-               EXA_NODESET_VAL(&handle->waiting_for));
+               EXA_NODESET_VAL(nodes));
 
   /* Handle the replies and periodically check for down events;
    * The priority is given for reading messages, as this function relies on the
@@ -419,7 +406,7 @@ admwrk_get_msg(admwrk_ctx_t *ctx, exa_nodeid_t *_nodeid,
   {
     exalog_trace("%s check NODE_DOWN", adm_wt_get_name());
 
-    exa_nodeset_foreach(&handle->waiting_for, nodeid)
+    exa_nodeset_foreach(nodes, nodeid)
     {
 	/* FIXME how can myself be down here ? */
 	if (ctx->inst_is_node_down(nodeid) && nodeid != adm_myself()->id)
@@ -429,7 +416,7 @@ admwrk_get_msg(admwrk_ctx_t *ctx, exa_nodeid_t *_nodeid,
 
 	    exalog_debug("Interrupted by a node down of %d", nodeid);
 
-	    exa_nodeset_del(&handle->waiting_for, nodeid);
+	    exa_nodeset_del(nodes, nodeid);
 	    memset(buf, 0, size);
 	    *err = -ADMIND_ERR_NODE_DOWN;
 	    return true;
@@ -441,7 +428,7 @@ admwrk_get_msg(admwrk_ctx_t *ctx, exa_nodeid_t *_nodeid,
 
   EXA_ASSERT_VERBOSE(ret == EXA_SUCCESS, "examsgWait() returned %d", ret);
 
-  exa_nodeset_del(&handle->waiting_for, nodeid);
+  exa_nodeset_del(nodes, nodeid);
 
   if (_nodeid)
       *_nodeid = nodeid;
@@ -453,18 +440,17 @@ admwrk_get_msg(admwrk_ctx_t *ctx, exa_nodeid_t *_nodeid,
 /* --- admwrk_get_reply ------------------------------------------- */
 
 int
-admwrk_get_reply(admwrk_ctx_t *ctx, exa_nodeid_t *nodeid,
+admwrk_get_reply(admwrk_ctx_t *ctx, exa_nodeset_t *nodes, exa_nodeid_t *nodeid,
 		 void *reply, size_t size, int *err)
 {
-  admwrk_request_t *handle = &ctx->rpc;
   int retval;
 
   /* Special case for local commands executed on the node that issued
      them. */
-  if (adm_nodeset_contains_me(&handle->waiting_for))
+  if (adm_nodeset_contains_me(nodes))
   {
     memcpy(reply, ctx->reply, size);
-    exa_nodeset_del(&handle->waiting_for, adm_my_id);
+    exa_nodeset_del(nodes, adm_my_id);
 
     if (nodeid)
 	*nodeid = adm_my_id;
@@ -473,7 +459,7 @@ admwrk_get_reply(admwrk_ctx_t *ctx, exa_nodeid_t *nodeid,
     return true;
   }
 
-  retval = admwrk_get_msg(ctx, nodeid, EXAMSG_SERVICE_REPLY, reply, size, err);
+  retval = admwrk_get_msg(ctx, nodes, nodeid, EXAMSG_SERVICE_REPLY, reply, size, err);
 
   return retval;
 }
@@ -493,11 +479,11 @@ admwrk_get_reply(admwrk_ctx_t *ctx, exa_nodeid_t *nodeid,
  * @param[out] err   The ack
  */
 int
-admwrk_get_ack(admwrk_ctx_t *ctx, exa_nodeid_t *nodeid, int *err)
+admwrk_get_ack(admwrk_ctx_t *ctx, exa_nodeset_t *nodes, exa_nodeid_t *nodeid, int *err)
 {
   int ret, success;
 
-  ret = admwrk_get_reply(ctx, nodeid, err, sizeof(*err), &success);
+  ret = admwrk_get_reply(ctx, nodes, nodeid, err, sizeof(*err), &success);
 
   if(success != EXA_SUCCESS)
     *err = success;
@@ -527,7 +513,23 @@ int
 admwrk_get_bcast(admwrk_ctx_t *ctx, exa_nodeid_t *nodeid,
 	         ExamsgType type, void *reply, size_t size, int *err)
 {
-  return admwrk_get_msg(ctx, nodeid, type, reply, size, err);
+  admwrk_request_t *handle = &ctx->rpc;
+
+  /* Finish the loop if there is no more node to wait for. */
+  /* TODO next test is dumb, this is caller stuff to check that */
+  if (exa_nodeset_is_empty(&handle->waiting_for))
+  {
+    exalog_trace("no more node to wait for");
+    /* The next memset is here to kill the buffer content.
+     * This is here to prevent side effect programming: the caller MUST
+     * take the data when it is relevant, and not expect it to be eventually
+     * relevent... */
+    memset(reply, 0xAA, size);
+    *err = EXA_SUCCESS;
+    return false;
+  }
+
+  return admwrk_get_msg(ctx, &handle->waiting_for, nodeid, type, reply, size, err);
 }
 
 /* --- admwrk_reply ---------------------------------------- */

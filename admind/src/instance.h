@@ -51,7 +51,9 @@ void inst_get_nodes_down(const struct adm_service *service,
                          exa_nodeset_t* nodes);
 
 /* functions for rpc.c in run_command */
-void inst_get_current_membership(admwrk_ctx_t *ctx, const struct adm_service *service,
+void inst_get_current_membership_cmd(const struct adm_service *service,
+                                 exa_nodeset_t *membership);
+void inst_get_current_membership_rec(const struct adm_service *service,
                                  exa_nodeset_t *membership);
 
 bool inst_is_node_down_rec(exa_nodeid_t nid);

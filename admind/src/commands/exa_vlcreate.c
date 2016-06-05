@@ -23,6 +23,7 @@
 #include "admind/src/adm_command.h"
 #include "admind/src/adm_workthread.h"
 #include "admind/src/admindstate.h"
+#include "admind/src/instance.h"
 #include "admind/src/rpc.h"
 #include "admind/src/saveconf.h"
 #include "admind/src/commands/command_api.h"
@@ -145,6 +146,7 @@ static void __vrt_master_volume_create (admwrk_ctx_t *ctx, struct adm_group *gro
     struct vlcreate_info info;
     struct vrt_group_info group_info;
     uint64_t free_size, allowed_size;
+    exa_nodeset_t nodes;
 
     EXA_ASSERT(group != NULL);
 
@@ -260,7 +262,9 @@ static void __vrt_master_volume_create (admwrk_ctx_t *ctx, struct adm_group *gro
         return;
     }
 
-    admwrk_run_command(ctx, &adm_service_admin, RPC_ADM_VLCREATE,
+    inst_get_current_membership_cmd(&adm_service_admin, &nodes);
+
+    admwrk_run_command(ctx, &nodes, RPC_ADM_VLCREATE,
                        &info, sizeof(info));
     /* Examine replies in order to filter return values.
      * The priority of return values is the following (in descending order):
@@ -269,8 +273,10 @@ static void __vrt_master_volume_create (admwrk_ctx_t *ctx, struct adm_group *gro
      * o other errors
      */
     ret = EXA_SUCCESS;
-    while (admwrk_get_ack(ctx, NULL, &reply_ret))
+    while (!exa_nodeset_is_empty(&nodes))
     {
+        admwrk_get_ack(ctx, &nodes, NULL, &reply_ret);
+
         if (reply_ret == -ADMIND_ERR_METADATA_CORRUPTION)
             ret = -ADMIND_ERR_METADATA_CORRUPTION;
         else if (reply_ret == -ADMIND_ERR_NODE_DOWN &&

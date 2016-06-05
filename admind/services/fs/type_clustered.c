@@ -23,6 +23,7 @@
 #include "admind/src/adm_service.h"
 #include "admind/src/adm_volume.h"
 #include "admind/src/adm_workthread.h"
+#include "admind/src/instance.h"
 #include "os/include/strlcpy.h"
 #include "log/include/log.h"
 #include "fs/include/exa_fsd.h"
@@ -149,14 +150,18 @@ exa_error_code clustered_start_fs(admwrk_ctx_t *ctx, const exa_nodeset_t* nodes,
       while (exa_nodeset_iter(&iter_node, &current_node))
 	{
 	  exa_nodeid_t nodeid;
+	  exa_nodeset_t nodes;
 	  exa_nodeset_reset(&info.nodes);
 	  exa_nodeset_add(&info.nodes, current_node);
 	  info.read_only = exa_nodeset_contains(nodes_read_only, current_node);
 
+	  inst_get_current_membership_cmd(MY_SERVICE_ID, &nodes);
+
 	  /* Call start. Sort for each node. */
-	  admwrk_run_command(ctx, MY_SERVICE_ID, RPC_SERVICE_FS_STARTSTOP, &info, sizeof(info));
-	  while (admwrk_get_ack(ctx, &nodeid, &err))
+	  admwrk_run_command(ctx, &nodes, RPC_SERVICE_FS_STARTSTOP, &info, sizeof(info));
+	  while (!exa_nodeset_is_empty(&nodes))
 	    {
+              admwrk_get_ack(ctx, &nodes, &nodeid, &err);
 	      exalog_debug("FS start (mount) >>> reply from node %u, err=%d",
 			   nodeid, err);
 	      if (err != -ADMIND_ERR_NODE_DOWN && err != EXA_SUCCESS && err != -FS_WARN_MOUNTED_READONLY)
@@ -203,11 +208,12 @@ exa_error_code clustered_start_fs(admwrk_ctx_t *ctx, const exa_nodeset_t* nodes,
  * \param[out] stop_succeeded    List of nodes on which the unmount action succeeded.
  * \return 0 on success or an error code.
  */
-exa_error_code clustered_stop_fs(admwrk_ctx_t *ctx, const exa_nodeset_t *nodes,
+exa_error_code clustered_stop_fs(admwrk_ctx_t *ctx, const exa_nodeset_t *nodes_to_stop,
                                  fs_data_t* fs, bool force,
                                  adm_goal_change_t goal_change,
                                  exa_nodeset_t* stop_succeeded)
 {
+  exa_nodeset_t nodes;
   exa_nodeid_t nodeid;
   int ret,err;
   startstop_info_t info;
@@ -218,7 +224,7 @@ exa_error_code clustered_stop_fs(admwrk_ctx_t *ctx, const exa_nodeset_t *nodes,
   if(!group->started)
     goto vlstop;
 
-  exa_nodeset_copy(stop_succeeded, nodes);
+  exa_nodeset_copy(stop_succeeded, nodes_to_stop);
 
   /* umount the filesystem */
   info.action = startstop_action_umount;
@@ -237,9 +243,9 @@ exa_error_code clustered_stop_fs(admwrk_ctx_t *ctx, const exa_nodeset_t *nodes,
 	  exa_nodeset_t copy;
 	  unload=0;
 	  exa_nodeset_copy(&copy, &fs->goal_started);
-	  exa_nodeset_substract(&copy, nodes);
+	  exa_nodeset_substract(&copy, nodes_to_stop);
 	  exalog_debug("FS stop nodes to stop : %d number of nodes stopped %d ",
-		       exa_nodeset_count(nodes),exa_nodeset_count(&copy));
+		       exa_nodeset_count(nodes_to_stop),exa_nodeset_count(&copy));
 	  if (exa_nodeset_count(&copy) == 0)
 	    {
 	      unload=1;
@@ -247,12 +253,15 @@ exa_error_code clustered_stop_fs(admwrk_ctx_t *ctx, const exa_nodeset_t *nodes,
 	}
     }
   memcpy(&info.fs, fs, sizeof(info.fs));
-  exa_nodeset_copy(&info.nodes, nodes);
+  exa_nodeset_copy(&info.nodes, nodes_to_stop);
+
+  inst_get_current_membership_cmd(MY_SERVICE_ID, &nodes);
 
   /* Call stop. Sort for each node. */
-  admwrk_run_command(ctx, MY_SERVICE_ID, RPC_SERVICE_FS_STARTSTOP, &info, sizeof(info));
-  while (admwrk_get_ack(ctx, &nodeid, &err))
+  admwrk_run_command(ctx, &nodes, RPC_SERVICE_FS_STARTSTOP, &info, sizeof(info));
+  while (!exa_nodeset_is_empty(&nodes))
   {
+    admwrk_get_ack(ctx, &nodes, &nodeid, &err);
     exalog_debug("FS stop (unmount) >>> reply from %u, err=%d",
 		 nodeid, err);
     if (!force && err != -ADMIND_ERR_NODE_DOWN && err != EXA_SUCCESS)

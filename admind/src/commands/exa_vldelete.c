@@ -19,6 +19,7 @@
 #include "admind/src/adm_volume.h"
 #include "admind/src/adm_command.h"
 #include "admind/src/adm_workthread.h"
+#include "admind/src/instance.h"
 #include "admind/src/rpc.h"
 #include "admind/src/saveconf.h"
 #include "admind/src/commands/command_api.h"
@@ -109,6 +110,7 @@ vrt_master_volume_delete (admwrk_ctx_t *ctx, struct adm_volume *volume,
   int ret;
   int reply_ret;
   struct vldelete_info info;
+  exa_nodeset_t nodes;
   memset(&info, 0, sizeof(info));
 
   EXA_ASSERT(volume != NULL);
@@ -129,7 +131,9 @@ vrt_master_volume_delete (admwrk_ctx_t *ctx, struct adm_volume *volume,
   strlcpy(info.volume_name, volume->name, EXA_MAXSIZE_VOLUMENAME + 1);
   info.metadata_recovery = metadata_recovery;
 
-  admwrk_run_command(ctx, &adm_service_admin, RPC_ADM_VLDELETE, &info, sizeof(info));
+  inst_get_current_membership_cmd(&adm_service_admin, &nodes);
+
+  admwrk_run_command(ctx, &nodes, RPC_ADM_VLDELETE, &info, sizeof(info));
   /* Examine replies in order to filter return values.
    * The priority of return values is the following (in descending order):
    * o ADMIND_ERR_METADATA_CORRUPTION
@@ -137,8 +141,10 @@ vrt_master_volume_delete (admwrk_ctx_t *ctx, struct adm_volume *volume,
    * o other errors
    */
   ret = EXA_SUCCESS;
-  while (admwrk_get_ack(ctx, NULL, &reply_ret))
+  while (!exa_nodeset_is_empty(&nodes))
   {
+    admwrk_get_ack(ctx, &nodes, NULL, &reply_ret);
+
     if (reply_ret == -ADMIND_ERR_METADATA_CORRUPTION)
       ret = -ADMIND_ERR_METADATA_CORRUPTION;
     else if (reply_ret == -ADMIND_ERR_NODE_DOWN &&

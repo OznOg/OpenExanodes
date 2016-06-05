@@ -70,6 +70,7 @@ cluster_dgdiskrecover(admwrk_ctx_t *ctx, void *data, cl_error_desc_t *err_desc)
   int ret, err;
   struct dgdiskrecover_info info;
   exa_nodeset_t nodes_up;
+  exa_nodeset_t nodes;
   struct disk_info_reply reply;
   struct disk_info_query query;
   exa_nodeid_t nodeid;
@@ -167,12 +168,15 @@ cluster_dgdiskrecover(admwrk_ctx_t *ctx, void *data, cl_error_desc_t *err_desc)
   new_disk_ok = false;
   new_disk_nodeid = EXA_NODEID_NONE;
 
-  admwrk_run_command(ctx, &adm_service_rdev,
+  inst_get_current_membership_cmd(&adm_service_vrt, &nodes);
+
+  admwrk_run_command(ctx, &nodes,
           RPC_ADM_CLINFO_DISK_INFO, &query, sizeof(query));
 
   /* Only one reply will contain the local information about the disk. */
-  while (admwrk_get_reply(ctx, &nodeid, &reply, sizeof(reply), &err))
+  while (!exa_nodeset_is_empty(&nodes))
   {
+      admwrk_get_reply(ctx, &nodes, &nodeid, &reply, sizeof(reply), &err);
       if (err == -ADMIND_ERR_NODE_DOWN)
         continue;
       if (!reply.has_disk)

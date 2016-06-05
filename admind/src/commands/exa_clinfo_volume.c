@@ -93,15 +93,19 @@ int cluster_clinfo_volumes(admwrk_ctx_t *ctx, xmlNodePtr group_node,
     if (volume->committed)
     {
       exa_nodeid_t nodeid;
+      exa_nodeset_t nodes;
       uuid_copy(&request.group, &group->uuid);
       uuid_copy(&request.volume, &volume->uuid);
 
       exalog_debug("RPC_ADM_CLINFO_VOLUME(%s)", volume->name);
 
-      admwrk_run_command(ctx, &adm_service_admin, RPC_ADM_CLINFO_VOLUME, &request, sizeof(request));
+      inst_get_current_membership_cmd(&adm_service_admin, &nodes);
 
-      while (admwrk_get_reply(ctx, &nodeid, &reply, sizeof(reply), &ret))
+      admwrk_run_command(ctx, &nodes, RPC_ADM_CLINFO_VOLUME, &request, sizeof(request));
+
+      while (!exa_nodeset_is_empty(&nodes))
         {
+          admwrk_get_reply(ctx, &nodes, &nodeid, &reply, sizeof(reply), &ret);
           if (ret == -ADMIND_ERR_NODE_DOWN)
             continue;
 

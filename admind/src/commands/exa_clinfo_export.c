@@ -105,6 +105,7 @@ static int cluster_clinfo_export(admwrk_ctx_t *ctx, xmlNodePtr father_node,
     exa_nodeid_t nodeid;
     exa_nodeset_t status_readonly = EXA_NODESET_EMPTY;
     exa_nodeset_t status_in_use = EXA_NODESET_EMPTY;
+    exa_nodeset_t nodes;
     int compound_ret, ret;
     unsigned int i;
     get_nth_iqn_request_t iqn_request;
@@ -142,12 +143,16 @@ static int cluster_clinfo_export(admwrk_ctx_t *ctx, xmlNodePtr father_node,
 
     /* Get the export_info structure */
     uuid_copy(&info_request.export, &export_info->uuid);
-    admwrk_run_command(ctx, &adm_service_admin, RPC_ADM_CLINFO_EXPORT,
+
+    inst_get_current_membership_cmd(&adm_service_admin, &nodes);
+
+    admwrk_run_command(ctx, &nodes, RPC_ADM_CLINFO_EXPORT,
 		       &info_request, sizeof(info_request));
 
     compound_ret = EXA_SUCCESS;
-    while (admwrk_get_reply(ctx, &nodeid, &info_reply, sizeof(info_reply), &ret))
+    while (!exa_nodeset_is_empty(&nodes))
     {
+        admwrk_get_reply(ctx, &nodes, &nodeid, &info_reply, sizeof(info_reply), &ret);
 	if (ret == -ADMIND_ERR_NODE_DOWN)
 	    continue;
 	EXA_ASSERT(ret == EXA_SUCCESS);
@@ -229,13 +234,17 @@ static int cluster_clinfo_export(admwrk_ctx_t *ctx, xmlNodePtr father_node,
 	get_nth_iqn_reply_t iqn_reply;
 
 	found_iqn = false;
-	admwrk_run_command(ctx, &adm_service_admin, RPC_ADM_CLINFO_GET_NTH_IQN,
+	
+        inst_get_current_membership_cmd(&adm_service_admin, &nodes);
+
+	admwrk_run_command(ctx, &nodes, RPC_ADM_CLINFO_GET_NTH_IQN,
 			   &iqn_request, sizeof(iqn_request));
 
-	while (admwrk_get_reply(ctx, &nodeid, &iqn_reply, sizeof(iqn_reply), &ret))
+	while (!exa_nodeset_is_empty(&nodes))
 	{
 	    xmlNodePtr iqn_node;
 
+	    admwrk_get_reply(ctx, &nodes, &nodeid, &iqn_reply, sizeof(iqn_reply), &ret);
 	    if (ret == -ADMIND_ERR_NODE_DOWN)
 		continue;
 

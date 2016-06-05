@@ -574,6 +574,7 @@ int lum_master_export_unpublish(admwrk_ctx_t *ctx, const exa_uuid_t *uuid,
 {
     lum_unpublish_args_t args;
     exa_nodeid_t nodeid;
+    exa_nodeset_t nodes;
     int err, res = EXA_SUCCESS;
 
     if (force)
@@ -587,11 +588,14 @@ int lum_master_export_unpublish(admwrk_ctx_t *ctx, const exa_uuid_t *uuid,
     uuid_copy(&args.uuid, uuid);
     exa_nodeset_copy(&args.nodelist, nodelist);
 
-    admwrk_run_command(ctx, &adm_service_lum,
+    inst_get_current_membership_cmd(&adm_service_lum, &nodes);
+
+    admwrk_run_command(ctx, &nodes,
                        RPC_SERVICE_LUM_UNPUBLISH, &args, sizeof(args));
 
-    while (admwrk_get_ack(ctx, &nodeid, &err))
+    while (!exa_nodeset_is_empty(&nodes))
     {
+        admwrk_get_ack(ctx, &nodes, &nodeid, &err);
         if (err == -ADMIND_ERR_NODE_DOWN)
             res = -ADMIND_ERR_NODE_DOWN;
 

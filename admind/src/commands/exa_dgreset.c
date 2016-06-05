@@ -10,6 +10,7 @@
 #include "admind/src/adm_command.h"
 #include "admind/src/adm_group.h"
 #include "admind/src/adm_workthread.h"
+#include "admind/src/instance.h"
 #include "admind/src/rpc.h"
 #include "admind/src/commands/command_api.h"
 #include "admind/src/commands/command_common.h"
@@ -25,6 +26,7 @@ __export(EXA_ADM_DGRESET) struct dgreset_params
 
 static void cluster_dgreset(admwrk_ctx_t *ctx, void *data, cl_error_desc_t *err_desc)
 {
+    exa_nodeset_t nodes;
     const struct dgreset_params *params = data;
     struct adm_group *group;
     int error_val, reply_ret;
@@ -43,12 +45,15 @@ static void cluster_dgreset(admwrk_ctx_t *ctx, void *data, cl_error_desc_t *err_
         return;
     }
 
-    admwrk_run_command(ctx, &adm_service_admin, RPC_ADM_DGRESET,
+    inst_get_current_membership_cmd(&adm_service_admin, &nodes);
+
+    admwrk_run_command(ctx, &nodes, RPC_ADM_DGRESET,
                        &group->uuid, sizeof(group->uuid));
 
     error_val = EXA_SUCCESS;
-    while (admwrk_get_ack(ctx, NULL, &reply_ret))
+    while (!exa_nodeset_is_empty(&nodes))
     {
+        admwrk_get_ack(ctx, &nodes, NULL, &reply_ret);
         if (reply_ret != EXA_SUCCESS)
             error_val = reply_ret;
     }

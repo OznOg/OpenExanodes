@@ -105,16 +105,20 @@ admin_init(admwrk_ctx_t *ctx)
 static void
 admin_verify_license_unicity(admwrk_ctx_t *ctx)
 {
+  exa_nodeset_t nodes;
   exa_nodeid_t nodeid;
   int err;
   const exa_uuid_t *license_uuid = adm_license_get_uuid(exanodes_license);
 
-  admwrk_run_command(ctx, &adm_service_admin,
+  inst_get_current_membership_cmd(&adm_service_admin, &nodes);
+
+  admwrk_run_command(ctx, &nodes,
 		     RPC_SERVICE_ADMIND_CHECK_LICENSE, license_uuid,
 		     sizeof(exa_uuid_t));
 
-  while (admwrk_get_ack(ctx, &nodeid, &err))
+  while (!exa_nodeset_is_empty(&nodes))
   {
+    admwrk_get_ack(ctx, &nodes, &nodeid, &err);
     exalog_debug("%s: license UUID comparison returned %d on '%s'",
 		 adm_wt_get_name(), err,
 		 adm_cluster_get_node_by_id(nodeid)->name);

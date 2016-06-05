@@ -18,6 +18,7 @@
 #include "admind/src/adm_volume.h"
 #include "admind/src/adm_command.h"
 #include "admind/src/adm_workthread.h"
+#include "admind/src/instance.h"
 #include "admind/src/rpc.h"
 #include "admind/src/commands/command_api.h"
 #include "admind/src/commands/command_common.h"
@@ -68,6 +69,7 @@ get_nbd_stats(admwrk_ctx_t *ctx, bool reset)
     adm_node_for_each_disk(node, disk)
     {
       exa_nodeid_t nodeid;
+      exa_nodeset_t nodes;
       struct nbd_stats_reply reply_nbd;
       struct nbd_stats_request nbdreq;
       int errval;
@@ -77,14 +79,17 @@ get_nbd_stats(admwrk_ctx_t *ctx, bool reset)
       strlcpy(nbdreq.disk_path, disk->path, sizeof(nbdreq.disk_path));
       uuid_copy(&nbdreq.device_uuid, &disk->uuid);
 
-      admwrk_run_command(ctx, &adm_service_nbd,
+      inst_get_current_membership_cmd(&adm_service_nbd, &nodes);
+
+      admwrk_run_command(ctx, &nodes,
 			 RPC_SERVICE_ADMIND_GETNBDSTATS,
 			 &nbdreq, sizeof(nbdreq));
 
-      while (admwrk_get_reply(ctx, &nodeid, &reply_nbd, sizeof(reply_nbd),
-			      &errval))
+      while (!exa_nodeset_is_empty(&nodes))
 	{
 	  char nodetag[128 /* large enougth for tags */ + EXA_MAXSIZE_NODENAME];
+
+	  admwrk_get_reply(ctx, &nodes, &nodeid, &reply_nbd, sizeof(reply_nbd), &errval);
 
 	  os_snprintf(nodetag, sizeof(nodetag), "<node name=\"%s\"%s><nbd>",
 	           adm_cluster_get_node_by_id(nodeid)->name,
@@ -137,6 +142,7 @@ get_vrt_stats(admwrk_ctx_t *ctx, bool reset)
     adm_group_for_each_volume(group, volume)
     {
       exa_nodeid_t nodeid;
+      exa_nodeset_t nodes;
       struct vrt_stats_request request;
       struct vrt_stats_reply reply_vrt;
       int errval;
@@ -145,17 +151,20 @@ get_vrt_stats(admwrk_ctx_t *ctx, bool reset)
       uuid_copy(&request.group_uuid, &group->uuid);
       strlcpy(request.volume_name, volume->name, sizeof(request.volume_name));
 
-      admwrk_run_command(ctx, &adm_service_vrt,
+      inst_get_current_membership_cmd(&adm_service_vrt, &nodes);
+
+      admwrk_run_command(ctx, &nodes,
 			 RPC_SERVICE_ADMIND_GETVRTSTATS,
 			 &request, sizeof(request));
 
-      while (admwrk_get_reply(ctx, &nodeid, &reply_vrt, sizeof(reply_vrt),
-			      &errval))
+      while (!exa_nodeset_is_empty(&nodes))
 	{
 	  char nodetag[128 /*large enougth for tags bellow */
 	               + EXA_MAXSIZE_NODENAME
 	               + EXA_MAXSIZE_GROUPNAME];
 
+	  admwrk_get_reply(ctx, &nodes, &nodeid, &reply_vrt, sizeof(reply_vrt),
+			  &errval);
 	  os_snprintf(nodetag, sizeof(nodetag),
 	           "<node name=\"%s\"%s><vrt><diskgroup name=\"%s\">",
 	           adm_cluster_get_node_by_id(nodeid)->name,
