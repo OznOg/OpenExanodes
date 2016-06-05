@@ -410,7 +410,7 @@ static int local_vrt_resync_group(admwrk_ctx_t *ctx, struct adm_group *group)
     if (!exa_nodeset_is_empty(&nodes_going_up))
     {
         admwrk_bcast(admwrk_ctx(), EXAMSG_SERVICE_VRT_RESYNC, &synched, sizeof(synched));
-        while (admwrk_get_bcast(ctx, &nodeid, &synched, sizeof(synched), &bcast_err))
+        while (admwrk_get_bcast(ctx, &nodeid, EXAMSG_SERVICE_VRT_RESYNC, &synched, sizeof(synched), &bcast_err))
         {
             if (bcast_err != EXA_SUCCESS)
                 err = bcast_err;
@@ -751,7 +751,7 @@ static int local_vrt_group_check_up(admwrk_ctx_t *ctx, struct adm_group *group)
     admwrk_bcast(admwrk_ctx(), EXAMSG_SERVICE_VRT_REINTEGRATE_INFO,
             reintegrate_synchro_local, msg_size);
     ret = EXA_SUCCESS;
-    while (admwrk_get_bcast(ctx, &nodeid, reintegrate_synchro_local,
+    while (admwrk_get_bcast(ctx, &nodeid, EXAMSG_SERVICE_VRT_REINTEGRATE_INFO, reintegrate_synchro_local,
                 sizeof(reintegrate_synchro_local), &ret_down))
     {
         if (ret_down != EXA_SUCCESS && ret_down != -ADMIND_ERR_NODE_DOWN)

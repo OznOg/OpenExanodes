@@ -45,7 +45,7 @@ void admwrk_bcast  (admwrk_ctx_t *ctx,
 int admwrk_get_reply(admwrk_ctx_t *ctx, exa_nodeid_t *nodeid,
 		     void *reply, size_t size, int *err);
 int admwrk_get_bcast(admwrk_ctx_t *ctx, exa_nodeid_t *nodeid,
-	             void *reply, size_t size, int *err);
+	             ExamsgType type, void *reply, size_t size, int *err);
 
 static inline int admwrk_barrier(admwrk_ctx_t *ctx, int err, const char *step)
 {

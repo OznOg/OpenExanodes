@@ -543,7 +543,7 @@ nbd_recover_clientd_open_session(admwrk_ctx_t *ctx, exa_nodeset_t *nodes_up,
   COMPILE_TIME_ASSERT(sizeof(info) <= ADM_MAILBOX_PAYLOAD_PER_NODE);
   admwrk_bcast(admwrk_ctx(), EXAMSG_SERVICE_NBD_CLIQUE, &info, sizeof(info));
 
-  while (admwrk_get_bcast(ctx, &nodeid, &info, sizeof(info), &ret_down))
+  while (admwrk_get_bcast(ctx, &nodeid, EXAMSG_SERVICE_NBD_CLIQUE, &info, sizeof(info), &ret_down))
   {
     if (ret_down == -ADMIND_ERR_NODE_DOWN ||
         info.ret == -ADMIND_ERR_NODE_DOWN)
@@ -621,7 +621,7 @@ nbd_recover_clientd_device_import(admwrk_ctx_t *ctx,
   admwrk_bcast(admwrk_ctx(), EXAMSG_SERVICE_NBD_DISKS_INFO,
                info, sizeof(*info) * adm_node_nb_disks(adm_myself()));
 
-  while (admwrk_get_bcast(ctx, &nodeid, info, sizeof(*info) * NBMAX_DISKS_PER_NODE, &ret_down))
+  while (admwrk_get_bcast(ctx, &nodeid, EXAMSG_SERVICE_NBD_DISKS_INFO, info, sizeof(*info) * NBMAX_DISKS_PER_NODE, &ret_down))
   {
     struct adm_node *node;
     struct adm_disk *disk;

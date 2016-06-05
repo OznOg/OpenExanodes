@@ -612,7 +612,7 @@ static int rdev_synchronise_broken_disk_table(admwrk_ctx_t *ctx)
     admwrk_bcast(admwrk_ctx(), EXAMSG_SERVICE_RDEV_BROKEN_DISKS_EXCHANGE,
                  &info, sizeof(info));
 
-    while (admwrk_get_bcast(ctx, &nodeid, &reply, sizeof(reply), &ret))
+    while (admwrk_get_bcast(ctx, &nodeid, EXAMSG_SERVICE_RDEV_BROKEN_DISKS_EXCHANGE, &reply, sizeof(reply), &ret))
     {
         if (ret == -ADMIND_ERR_NODE_DOWN)
             continue;
@@ -694,7 +694,7 @@ rdev_recover_local(admwrk_ctx_t *ctx, void *msg)
   }
 
   admwrk_bcast(admwrk_ctx(), EXAMSG_SERVICE_RDEV_VERSION, &info, info_size);
-  while (admwrk_get_bcast(ctx, &nodeid, &info, sizeof(info), &down_ret))
+  while (admwrk_get_bcast(ctx, &nodeid, EXAMSG_SERVICE_RDEV_VERSION, &info, sizeof(info), &down_ret))
   {
     if (down_ret == -ADMIND_ERR_NODE_DOWN)
       continue;
@@ -889,7 +889,7 @@ static void rdev_check_down_local(admwrk_ctx_t *ctx, void *msg)
   admwrk_bcast(admwrk_ctx(), EXAMSG_SERVICE_RDEV_DEAD_INFO,
 	       &info, info_size);
 
-  while (admwrk_get_bcast(ctx, &nodeid, &info, sizeof(info), &ret_down))
+  while (admwrk_get_bcast(ctx, &nodeid, EXAMSG_SERVICE_RDEV_DEAD_INFO, &info, sizeof(info), &ret_down))
   {
     /* The check should not be interrupted when a node crash. It should just
        continue without this node and return SUCCESS. */

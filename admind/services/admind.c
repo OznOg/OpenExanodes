@@ -266,7 +266,7 @@ admin_recover_local(admwrk_ctx_t *ctx, void *msg)
   admwrk_bcast(admwrk_ctx(), EXAMSG_SERVICE_ADMIND_VERSION_ID,
 	       &info, sizeof(info));
 
-  while (admwrk_get_bcast(ctx, &nodeid, &info, sizeof(info), &ret))
+  while (admwrk_get_bcast(ctx, &nodeid, EXAMSG_SERVICE_ADMIND_VERSION_ID, &info, sizeof(info), &ret))
   {
     if (ret == -ADMIND_ERR_NODE_DOWN)
       continue;
@@ -338,7 +338,7 @@ admin_recover_local(admwrk_ctx_t *ctx, void *msg)
 
       /* if the node already has a good buffer, just throw away the messages by
        * passing NULL and 0 for buffer and size */
-      while (admwrk_get_bcast(ctx, &nodeid,
+      while (admwrk_get_bcast(ctx, &nodeid, EXAMSG_SERVICE_ADMIND_CONFIG_CHUNK,
 		  (adm_cluster.version == best_version) ? NULL : tmp_buf,
 		  (adm_cluster.version == best_version) ? 0 : chunk_size,
 		  &chunk_ret))

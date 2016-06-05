@@ -318,7 +318,7 @@ static void local_lum_recover(admwrk_ctx_t *ctx, void *msg)
 	       &tmp_addr, sizeof(tmp_addr));
 
   ret = EXA_SUCCESS;
-  while (admwrk_get_bcast(ctx, &nodeid, &tmp_addr, sizeof(tmp_addr), &chunk_ret))
+  while (admwrk_get_bcast(ctx, &nodeid, EXAMSG_SERVICE_LUM_TARGET_LISTEN_ADDRESSES, &tmp_addr, sizeof(tmp_addr), &chunk_ret))
   {
       if (ret != -ADMIND_ERR_NODE_DOWN && chunk_ret != EXA_SUCCESS)
           ret = chunk_ret;
@@ -356,7 +356,7 @@ static void local_lum_recover(admwrk_ctx_t *ctx, void *msg)
   admwrk_bcast(admwrk_ctx(), EXAMSG_SERVICE_LUM_EXPORTS_VERSION,
 	       &exports_version, sizeof(exports_version));
 
-  while (admwrk_get_bcast(ctx, &nodeid, &version, sizeof(version), &ret))
+  while (admwrk_get_bcast(ctx, &nodeid, EXAMSG_SERVICE_LUM_EXPORTS_VERSION, &version, sizeof(version), &ret))
   {
       if (ret == -ADMIND_ERR_NODE_DOWN)
           continue;
@@ -417,7 +417,7 @@ static void local_lum_recover(admwrk_ctx_t *ctx, void *msg)
       admwrk_bcast(admwrk_ctx(), EXAMSG_SERVICE_LUM_EXPORTS_NUMBER, NULL, 0);
   }
 
-  while (admwrk_get_bcast(ctx, &nodeid,
+  while (admwrk_get_bcast(ctx, &nodeid, EXAMSG_SERVICE_LUM_EXPORTS_NUMBER,
                           need_update ? &i : NULL,
                           need_update ? sizeof(i) : 0,
                           &chunk_ret))
@@ -463,7 +463,7 @@ static void local_lum_recover(admwrk_ctx_t *ctx, void *msg)
                        NULL, 0);
 
       /* receive the export for those needing it */
-      while (admwrk_get_bcast(ctx, &nodeid,
+      while (admwrk_get_bcast(ctx, &nodeid, EXAMSG_SERVICE_LUM_EXPORTS_EXPORT,
                               need_update ? buf : NULL,
                               need_update ? buf_size : 0,
                               &chunk_ret))

@@ -372,7 +372,7 @@ static int local_exa_dgcreate_config_add(admwrk_ctx_t *ctx, struct dgcreate_info
 		 adm_is_leader() ? vrt_uuids : NULL,
 		 adm_is_leader() ? sizeof(vrt_uuids) : 0);
 
-    while (admwrk_get_bcast(ctx, &nodeid, buffer, sizeof(buffer), &down_ret))
+    while (admwrk_get_bcast(ctx, &nodeid, EXAMSG_SERVICE_RDEV_DEAD_INFO, buffer, sizeof(buffer), &down_ret))
     {
 	/* get data on non leader nodes */
 	if (!adm_is_leader()

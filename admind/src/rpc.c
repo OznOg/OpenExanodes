@@ -26,7 +26,6 @@
 /** Structure to handle RPC replies */
 typedef struct admwrk_request_t
 {
-  ExamsgType type;            /**< identifier of the expected reply type */
   exa_nodeset_t waiting_for;  /**< bitmap of the nodes we are waiting for */
   ExamsgHandle mh;            /**< Examsg handle to use */
 } admwrk_request_t;
@@ -206,7 +205,6 @@ admwrk_run_command(admwrk_ctx_t *ctx, const struct adm_service *service,
 //  else
 //      handle->is_node_down = inst_is_node_down_cmd;
 
-  handle->type = EXAMSG_SERVICE_REPLY;
   handle->mh   = adm_wt_get_inboxmb();
   handle->waiting_for = nodes;
 
@@ -302,7 +300,6 @@ admwrk_bcast(admwrk_ctx_t *ctx,
 
   /* Initialize the handle */
 
-  handle->type        = type;
   handle->waiting_for = bar->nodes;
   handle->mh          = adm_wt_get_barmb(bar->rank % 2);
 
@@ -376,6 +373,7 @@ admwrk_recv_msg(ExamsgHandle mh, ExamsgType type, struct timeval *timeout,
  * @param[out]     _nodeid    nodeid of the node from wich come the event
  *                            may be NULL if caller does not need the
  *                            information
+ * @param[in]      type       identifier of the expected reply type
  * @param[in:out]  buf        Buffer where to store the data received
  * @param[in]      size       size of the buffer
  * @param[out]     err        pointer to an int which stores the status
@@ -384,7 +382,7 @@ admwrk_recv_msg(ExamsgHandle mh, ExamsgType type, struct timeval *timeout,
  */
 static int
 admwrk_get_msg(admwrk_ctx_t *ctx, exa_nodeid_t *_nodeid,
-	       void *buf, size_t size, int *err)
+	       ExamsgType type, void *buf, size_t size, int *err)
 {
 #define CHECK_DOWN_TIMEOUT (struct timeval){ .tv_sec = 0, .tv_usec = 100000 }
   struct timeval timeout = CHECK_DOWN_TIMEOUT;
@@ -417,7 +415,7 @@ admwrk_get_msg(admwrk_ctx_t *ctx, exa_nodeid_t *_nodeid,
    * will deliver all messages from a node before the node is seen down (this
    * could be a side effect of retransmit and is possible even if unlikely.
    */
-  while ((ret = admwrk_recv_msg(handle->mh, handle->type, &timeout, &nodeid, buf, size)) == -ETIME)
+  while ((ret = admwrk_recv_msg(handle->mh, type, &timeout, &nodeid, buf, size)) == -ETIME)
   {
     exalog_trace("%s check NODE_DOWN", adm_wt_get_name());
 
@@ -475,7 +473,7 @@ admwrk_get_reply(admwrk_ctx_t *ctx, exa_nodeid_t *nodeid,
     return true;
   }
 
-  retval = admwrk_get_msg(ctx, nodeid, reply, size, err);
+  retval = admwrk_get_msg(ctx, nodeid, EXAMSG_SERVICE_REPLY, reply, size, err);
 
   return retval;
 }
@@ -527,9 +525,9 @@ admwrk_get_ack(admwrk_ctx_t *ctx, exa_nodeid_t *nodeid, int *err)
  */
 int
 admwrk_get_bcast(admwrk_ctx_t *ctx, exa_nodeid_t *nodeid,
-	         void *reply, size_t size, int *err)
+	         ExamsgType type, void *reply, size_t size, int *err)
 {
-  return admwrk_get_msg(ctx, nodeid, reply, size, err);
+  return admwrk_get_msg(ctx, nodeid, type, reply, size, err);
 }
 
 /* --- admwrk_reply ---------------------------------------- */
@@ -595,7 +593,7 @@ admwrk_barrier_msg(admwrk_ctx_t *ctx, int err, const char *step, const char *fmt
 
   /* get replies */
 
-  while (admwrk_get_bcast(ctx, &nodeid, &rcv, sizeof(rcv), &err))
+  while (admwrk_get_bcast(ctx, &nodeid, EXAMSG_SERVICE_BARRIER, &rcv, sizeof(rcv), &err))
   {
     exalog_debug("%s: barrier from %s, step=%s, err=%d, rcv.err=%d (%s)",
 		 adm_wt_get_name(), adm_cluster_get_node_by_id(nodeid)->name,
