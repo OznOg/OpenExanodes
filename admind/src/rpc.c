@@ -56,7 +56,7 @@ typedef struct admwrk_ctx_t
   char reply[EXAMSG_PAYLOAD_MAX]; /**< Reply data of the local command */
   size_t reply_size;              /**< Size of the reply */
   bool (*inst_is_node_down)(exa_nodeid_t nid);
-  void (*inst_get_current_membership)(struct admwrk_ctx_t *ctx, const struct adm_service *service,
+  void (*inst_get_current_membership)(const struct adm_service *service,
                                  exa_nodeset_t *membership);
 } admwrk_ctx_t;
 
@@ -195,7 +195,7 @@ admwrk_run_command(admwrk_ctx_t *ctx, const struct adm_service *service,
 
   /* Initialize the handle */
 
-  ctx->inst_get_current_membership(ctx, service, &nodes);
+  ctx->inst_get_current_membership(service, &nodes);
 
   /* set the failure detector. It is specific for each thread as the
    * recovery thread just needs to be informed about down events and

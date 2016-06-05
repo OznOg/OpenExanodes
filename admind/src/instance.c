@@ -538,7 +538,7 @@ inst_op_t inst_compute_recovery(void)
  *
  * \return void
  */
-void inst_get_current_membership_cmd(admwrk_ctx_t *ctx, const struct adm_service *service,
+void inst_get_current_membership_cmd(const struct adm_service *service,
                                  exa_nodeset_t *membership)
 {
     /* Special case for local recovery down when there is no quorum.  We handle
@@ -554,7 +554,7 @@ void inst_get_current_membership_cmd(admwrk_ctx_t *ctx, const struct adm_service
     inst_get_nodes_up(service, membership);
 }
 
-void inst_get_current_membership_rec(admwrk_ctx_t *ctx, const struct adm_service *service,
+void inst_get_current_membership_rec(const struct adm_service *service,
                                  exa_nodeset_t *membership)
 {
     /* Special case for local recovery down when there is no quorum.  We handle
