@@ -29,7 +29,6 @@ typedef struct admwrk_request_t
   ExamsgType type;            /**< identifier of the expected reply type */
   exa_nodeset_t waiting_for;  /**< bitmap of the nodes we are waiting for */
   ExamsgHandle mh;            /**< Examsg handle to use */
-  bool (*is_node_down)(exa_nodeid_t nid);
 } admwrk_request_t;
 
 typedef struct rpc_cmd {
@@ -306,7 +305,6 @@ admwrk_bcast(admwrk_ctx_t *ctx,
   handle->type        = type;
   handle->waiting_for = bar->nodes;
   handle->mh          = adm_wt_get_barmb(bar->rank % 2);
-  handle->is_node_down = ctx->inst_is_node_down;
 
   /* Send the request */
 
@@ -322,12 +320,11 @@ admwrk_bcast(admwrk_ctx_t *ctx,
 
 
 static int
-admwrk_recv_msg(admwrk_request_t *handle, struct timeval *timeout,
+admwrk_recv_msg(ExamsgHandle mh, ExamsgType type, struct timeval *timeout,
                 exa_nodeid_t *from, void *buf, size_t size)
 {
     Examsg my_msg;
     ExamsgMID mid;
-    ExamsgHandle mh = handle->mh;
     int ret;
 
     do {
@@ -354,10 +351,10 @@ admwrk_recv_msg(admwrk_request_t *handle, struct timeval *timeout,
 	/* If the message is not one of those we are waiting for here,
 	 * we pass it to the worker thread loop */
 
-	if (my_msg.any.type != handle->type)
+	if (my_msg.any.type != type)
 	    work_thread_handle_msg(&my_msg, &mid);
 
-    } while (my_msg.any.type != handle->type);
+    } while (my_msg.any.type != type);
 
     if (from)
 	*from = mid.netid.node;
@@ -420,14 +417,14 @@ admwrk_get_msg(admwrk_ctx_t *ctx, exa_nodeid_t *_nodeid,
    * will deliver all messages from a node before the node is seen down (this
    * could be a side effect of retransmit and is possible even if unlikely.
    */
-  while ((ret = admwrk_recv_msg(handle, &timeout, &nodeid, buf, size)) == -ETIME)
+  while ((ret = admwrk_recv_msg(handle->mh, handle->type, &timeout, &nodeid, buf, size)) == -ETIME)
   {
     exalog_trace("%s check NODE_DOWN", adm_wt_get_name());
 
     exa_nodeset_foreach(&handle->waiting_for, nodeid)
     {
 	/* FIXME how can myself be down here ? */
-	if (handle->is_node_down(nodeid) && nodeid != adm_myself()->id)
+	if (ctx->inst_is_node_down(nodeid) && nodeid != adm_myself()->id)
 	{
 	    if (_nodeid)
 		*_nodeid = nodeid;
