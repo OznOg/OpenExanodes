@@ -467,40 +467,39 @@ ut_test(exa_get_size_kb)
 
 ut_test(exa_get_human_size)
 {
-    const int maxs = 256;
-    char human_string[maxs];
+    char human_string[256];
 
-    exa_get_human_size(human_string, maxs, 1);
+    exa_get_human_size(human_string, sizeof(human_string), 1);
     UT_ASSERT_EQUAL_STR("1.00 K",  human_string);
-    exa_get_human_size(human_string, maxs, 1023);
+    exa_get_human_size(human_string, sizeof(human_string), 1023);
     UT_ASSERT_EQUAL_STR("1023.00 K",  human_string);
-    exa_get_human_size(human_string, maxs, 2);
+    exa_get_human_size(human_string, sizeof(human_string), 2);
     UT_ASSERT_EQUAL_STR("2.00 K",  human_string);
-    exa_get_human_size(human_string, maxs, 1);
+    exa_get_human_size(human_string, sizeof(human_string), 1);
     UT_ASSERT_EQUAL_STR("1.00 K",  human_string);
-    exa_get_human_size(human_string, maxs, 1024);
+    exa_get_human_size(human_string, sizeof(human_string), 1024);
     UT_ASSERT_EQUAL_STR("1.00 M",  human_string);
-    exa_get_human_size(human_string, maxs, 1536);
+    exa_get_human_size(human_string, sizeof(human_string), 1536);
     UT_ASSERT_EQUAL_STR("1.50 M",  human_string);
-    exa_get_human_size(human_string, maxs, 2048);
+    exa_get_human_size(human_string, sizeof(human_string), 2048);
     UT_ASSERT_EQUAL_STR("2.00 M",  human_string);
-    exa_get_human_size(human_string, maxs, 1264189);
+    exa_get_human_size(human_string, sizeof(human_string), 1264189);
     UT_ASSERT_EQUAL_STR("1.21 G",  human_string);
-    exa_get_human_size(human_string, maxs, 1048576);
+    exa_get_human_size(human_string, sizeof(human_string), 1048576);
     UT_ASSERT_EQUAL_STR("1.00 G",  human_string);
-    exa_get_human_size(human_string, maxs, 129562050);
+    exa_get_human_size(human_string, sizeof(human_string), 129562050);
     UT_ASSERT_EQUAL_STR("123.56 G",  human_string);
-    exa_get_human_size(human_string, maxs, 1073741824);
+    exa_get_human_size(human_string, sizeof(human_string), 1073741824);
     UT_ASSERT_EQUAL_STR("1.00 T",  human_string);
-    exa_get_human_size(human_string, maxs, 601295421);
+    exa_get_human_size(human_string, sizeof(human_string), 601295421);
     UT_ASSERT_EQUAL_STR("573.44 G",  human_string);
-    exa_get_human_size(human_string, maxs, 1099511627776LL);
+    exa_get_human_size(human_string, sizeof(human_string), 1099511627776LL);
     UT_ASSERT_EQUAL_STR("1.00 P",  human_string);
-    exa_get_human_size(human_string, maxs, 13809866044866LL);
+    exa_get_human_size(human_string, sizeof(human_string), 13809866044866LL);
     UT_ASSERT_EQUAL_STR("12.56 P",  human_string);
-    exa_get_human_size(human_string, maxs, 1125899906842624LL);
+    exa_get_human_size(human_string, sizeof(human_string), 1125899906842624LL);
     UT_ASSERT_EQUAL_STR("1.00 E",  human_string);
-    exa_get_human_size(human_string, maxs, 9637703202572862LL);
+    exa_get_human_size(human_string, sizeof(human_string), 9637703202572862LL);
     UT_ASSERT_EQUAL_STR("8.56 E",  human_string);
 }
 
