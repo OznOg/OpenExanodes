@@ -352,6 +352,8 @@ char *adm_license_uncypher_data(char *cypher, size_t size, cl_error_desc_t *erro
     BIO_free(bio);
     BIO_free(pb);
 
+    set_success(error_desc);
+
     return str;
 }
 
