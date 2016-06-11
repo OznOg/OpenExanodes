@@ -37,12 +37,6 @@ typedef struct rpc_cmd {
   char          data[];  /**< payload given by caller */
 } rpc_cmd_t;
 
-struct rpc_barrier_data {
-  int  err;
-  int  pad;
-  char error_msg[EXA_MAXSIZE_ERR_MESSAGE + 1];
-};
-
 typedef struct barrier {
   int           rank;
   exa_nodeset_t nodes;
@@ -571,8 +565,11 @@ int
 admwrk_barrier_msg(admwrk_ctx_t *ctx, int err, const char *step, const char *fmt, ...)
 {
   exa_nodeid_t nodeid;
-  struct rpc_barrier_data msg;
-  struct rpc_barrier_data rcv;
+  struct rpc_barrier_data {
+      int  err;
+      int  pad;
+      char error_msg[EXA_MAXSIZE_ERR_MESSAGE + 1];
+  } msg, rcv;
   int ret = EXA_SUCCESS;
   va_list ap;
   bool sent_inprogress = false;
