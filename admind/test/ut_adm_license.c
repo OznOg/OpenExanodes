@@ -179,6 +179,8 @@ ut_test(license_uncypher_data_with_correct_data_returns_readable)
     readable = adm_license_uncypher_data(cyphered_buf, strlen(cyphered_buf),
                                          &error_desc);
 
+    UT_ASSERT_EQUAL(EXA_SUCCESS, error_desc.code);
+    UT_ASSERT(readable != NULL);
     UT_ASSERT_EQUAL_STR(readable, DATA);
     os_free(readable);
 }
