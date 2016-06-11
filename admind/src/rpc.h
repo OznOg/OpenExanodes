@@ -26,7 +26,7 @@ void admwrk_handle_localcmd_msg(admwrk_ctx_t *ctx, const Examsg *msg, ExamsgMID 
 void admwrk_run_command(admwrk_ctx_t *ctx, exa_nodeset_t *nodes,
                         int command,
 			const void *request, size_t size);
-int admwrk_get_ack(admwrk_ctx_t *ctx, exa_nodeset_t *nodes, exa_nodeid_t *nodeid, int *err);
+void admwrk_get_ack(admwrk_ctx_t *ctx, exa_nodeset_t *nodes, exa_nodeid_t *nodeid, int *err);
 
 void admwrk_reply(admwrk_ctx_t *ctx, void *__reply, size_t size);
 
@@ -42,9 +42,9 @@ static inline void admwrk_ack(admwrk_ctx_t *ctx, int err)
 
 void admwrk_bcast  (admwrk_ctx_t *ctx,
 		    int type, const void *out, size_t size);
-int admwrk_get_reply(admwrk_ctx_t *ctx, exa_nodeset_t *nodes, exa_nodeid_t *nodeid,
+void admwrk_get_reply(admwrk_ctx_t *ctx, exa_nodeset_t *nodes, exa_nodeid_t *nodeid,
 		     void *reply, size_t size, int *err);
-int admwrk_get_bcast(admwrk_ctx_t *ctx, exa_nodeid_t *nodeid,
+bool admwrk_get_bcast(admwrk_ctx_t *ctx, exa_nodeid_t *nodeid,
 	             ExamsgType type, void *reply, size_t size, int *err);
 
 static inline int admwrk_barrier(admwrk_ctx_t *ctx, int err, const char *step)

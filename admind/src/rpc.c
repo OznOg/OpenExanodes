@@ -375,7 +375,7 @@ admwrk_recv_msg(ExamsgHandle mh, ExamsgType type, struct timeval *timeout,
  *
  * @return     false if we got all replies, true otherwise.
  */
-static int
+static void
 admwrk_get_msg(admwrk_ctx_t *ctx, exa_nodeset_t *nodes, exa_nodeid_t *_nodeid,
 	       ExamsgType type, void *buf, size_t size, int *err)
 {
@@ -413,7 +413,7 @@ admwrk_get_msg(admwrk_ctx_t *ctx, exa_nodeset_t *nodes, exa_nodeid_t *_nodeid,
 	    exa_nodeset_del(nodes, nodeid);
 	    memset(buf, 0, size);
 	    *err = -ADMIND_ERR_NODE_DOWN;
-	    return true;
+	    return;
 	}
     }
     /* well, nothing went wrong, so give it another try to get messages */
@@ -428,17 +428,14 @@ admwrk_get_msg(admwrk_ctx_t *ctx, exa_nodeset_t *nodes, exa_nodeid_t *_nodeid,
       *_nodeid = nodeid;
 
   *err = EXA_SUCCESS;
-  return true;
 }
 
 /* --- admwrk_get_reply ------------------------------------------- */
 
-int
+void
 admwrk_get_reply(admwrk_ctx_t *ctx, exa_nodeset_t *nodes, exa_nodeid_t *nodeid,
 		 void *reply, size_t size, int *err)
 {
-  int retval;
-
   /* Special case for local commands executed on the node that issued
      them. */
   if (adm_nodeset_contains_me(nodes))
@@ -450,12 +447,10 @@ admwrk_get_reply(admwrk_ctx_t *ctx, exa_nodeset_t *nodes, exa_nodeid_t *nodeid,
 	*nodeid = adm_my_id;
 
     *err = EXA_SUCCESS;
-    return true;
+    return;
   }
 
-  retval = admwrk_get_msg(ctx, nodes, nodeid, EXAMSG_SERVICE_REPLY, reply, size, err);
-
-  return retval;
+  admwrk_get_msg(ctx, nodes, nodeid, EXAMSG_SERVICE_REPLY, reply, size, err);
 }
 
 /**
@@ -472,17 +467,15 @@ admwrk_get_reply(admwrk_ctx_t *ctx, exa_nodeset_t *nodes, exa_nodeid_t *nodeid,
  *
  * @param[out] err   The ack
  */
-int
+void
 admwrk_get_ack(admwrk_ctx_t *ctx, exa_nodeset_t *nodes, exa_nodeid_t *nodeid, int *err)
 {
-  int ret, success;
+  int success;
 
-  ret = admwrk_get_reply(ctx, nodes, nodeid, err, sizeof(*err), &success);
+  admwrk_get_reply(ctx, nodes, nodeid, err, sizeof(*err), &success);
 
-  if(success != EXA_SUCCESS)
+  if (success != EXA_SUCCESS)
     *err = success;
-
-  return ret;
 }
 
 
@@ -503,7 +496,7 @@ admwrk_get_ack(admwrk_ctx_t *ctx, exa_nodeset_t *nodes, exa_nodeid_t *nodeid, in
  *
  * @param[out] err   The ack
  */
-int
+bool
 admwrk_get_bcast(admwrk_ctx_t *ctx, exa_nodeid_t *nodeid,
 	         ExamsgType type, void *reply, size_t size, int *err)
 {
@@ -523,7 +516,8 @@ admwrk_get_bcast(admwrk_ctx_t *ctx, exa_nodeid_t *nodeid,
     return false;
   }
 
-  return admwrk_get_msg(ctx, &handle->waiting_for, nodeid, type, reply, size, err);
+  admwrk_get_msg(ctx, &handle->waiting_for, nodeid, type, reply, size, err);
+  return true;
 }
 
 /* --- admwrk_reply ---------------------------------------- */
