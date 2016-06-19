@@ -67,8 +67,6 @@ struct bd_session
 
     struct completion       bd_end_completion;
 
-    struct file *bd_file;
-
     long         bd_in_rq;
 
     atomic_t     total_use_count;

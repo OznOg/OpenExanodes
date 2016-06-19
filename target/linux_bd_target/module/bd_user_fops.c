@@ -217,7 +217,6 @@ static int bd_fops_ioctl(struct inode *I, struct file *F,
                 return -EFAULT;
 
             F->private_data = session;
-            session->bd_file = F;
             return session->bd_major; /* All is ok */
         }
 
