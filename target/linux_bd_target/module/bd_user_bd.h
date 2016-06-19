@@ -75,8 +75,6 @@ struct bd_session
     int          bd_buffer_size;
     int          bd_max_queue;
 
-    int          total_active_disk;
-
     int          bd_barrier_enable;
 
     struct bd_barrillet_queue bd_new_request;
