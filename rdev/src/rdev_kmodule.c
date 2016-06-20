@@ -335,10 +335,17 @@ static int exa_rdev_end_io(struct bio *bio, unsigned int bytes_done, int err)
     return 0;
 }
 #else
+#  if LINUX_VERSION_CODE >= KERNEL_VERSION(4,3,0)
+static void exa_rdev_end_io(struct bio *bio)
+{
+    __exa_rdev_end_io(bio, bio->bi_error);
+}
+#  else
 static void exa_rdev_end_io(struct bio *bio, int err)
 {
     __exa_rdev_end_io(bio, err);
 }
+#  endif
 #endif
 
 /**
@@ -827,15 +834,28 @@ static int exa_rdev_add_bh(struct exa_rdev_bh_struct *st,
     bio = &bio_a->bio;
     memset(bio, 0, sizeof(*bio));
 
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(3,14,0))
     bio->bi_sector  = req->sector;
+#else
+    bio->bi_iter.bi_sector  = req->sector;
+#endif
     bio->bi_bdev    = bdev->dev;
     bio->bi_end_io  = exa_rdev_end_io;
     bio->bi_private = (void *)st;
     bio->bi_io_vec  = bio_a->bio_vec;
 
+#if (LINUX_VERSION_CODE <= KERNEL_VERSION(4,1,0))
     atomic_set(&bio->bi_cnt, 1);
+#else
+    atomic_set(&bio->__bi_cnt, 1);
+#endif
 
+#if (LINUX_VERSION_CODE <= KERNEL_VERSION(4,3,0))
     bio->bi_flags = 1 << BIO_UPTODATE;
+#else
+    bio->bi_flags = 0;
+    bio->bi_error = 0;
+#endif
 
     for (bio->bi_vcnt = 0; bio->bi_vcnt < page_count; bio->bi_vcnt++)
     {
@@ -846,7 +866,11 @@ static int exa_rdev_add_bh(struct exa_rdev_bh_struct *st,
         bio_vec->bv_offset = 0; /* offset inside page is 0 */
     }
 
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(3,14,0))
     bio->bi_size = SECTORS_TO_BYTES(req->sector_nb);
+#else
+    bio->bi_iter.bi_size = SECTORS_TO_BYTES(req->sector_nb);
+#endif
     bio->bi_max_vecs = bio->bi_vcnt;
 
     return exa_rdev_flush_bh(req->op, &bio_a->bio);
@@ -891,11 +915,15 @@ static int exa_rdev_flush_bh(rdev_op_t op, struct bio *bio)
         break;
     }
 
+#if LINUX_VERSION_CODE < KERNEL_VERSION(4,3,0)
+    /* FIXME this test seems really useless, and can be hardly ported to recent
+     * kernels...  just ignore it now on. */
     if (bio_flagged(bio, BIO_EOPNOTSUPP))
     {
         printk("exa_rdev: Severe Error BIO_EOPNOTSUPP\n");
         return -RDEV_ERR_BIG_ERROR;
     }
+#endif
 
     return EXA_SUCCESS;
 }
