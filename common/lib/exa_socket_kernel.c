@@ -10,6 +10,7 @@
 #include <asm/uaccess.h>
 #include <linux/file.h>
 #include <linux/fs.h>
+#include <linux/version.h>
 #include <net/sock.h>
 
 #include "common/lib/exa_common_kernel.h"
@@ -23,8 +24,11 @@ struct socket *exa_getsock(int fd)
 
     if (!(file = fget(fd)))
         return NULL;
-
+#if LINUX_VERSION_CODE < KERNEL_VERSION(3, 19, 0)
     inode = file->f_dentry->d_inode;
+#else
+    inode = file->f_path.dentry->d_inode;
+#endif
     sock = SOCKET_I(inode);
     if (!S_ISSOCK(inode->i_mode))
     {
