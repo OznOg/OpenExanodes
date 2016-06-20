@@ -44,8 +44,13 @@
 
 #define EXA_BD_READAHEAD 8192
 
-#define BIO_OFFSET(b) (b)->bi_sector
-#define BIO_SIZE(b) BYTES_TO_SECTORS((b)->bi_size)
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(3,14,0))
+#  define BIO_OFFSET(b) (b)->bi_sector
+#else
+#  define BIO_OFFSET(b) (b)->bi_iter.bi_sector
+#endif
+
+#define BIO_SIZE(b) BYTES_TO_SECTORS((b)->bi_iter.bi_size)
 #define BIO_NEXT(b) (b)->bi_next
 #define BIO_VAR int __idx = 0
 #define BIO_BD_MINOR(bio)  ((struct bd_minor *) (bio)->bi_bdev->bd_disk->\
@@ -53,8 +58,8 @@
 #define BIO_NEXT_MEM(bio, page, offset, size) \
     do \
     { \
-        EXA_ASSERT_VERBOSE(bio->bi_io_vec != NULL, "bi_sector=%lu bi-size=%u bi_rw=%lu bi_flags=%lu bi_vcnt=%d", \
-                           bio->bi_sector, bio->bi_size, bio->bi_rw, bio->bi_flags, bio->bi_vcnt);\
+        EXA_ASSERT_VERBOSE(bio->bi_io_vec != NULL, "bi_sector=%lu bi-size=%u bi_rw=%lu bi_flags=%u bi_vcnt=%d", \
+                           BIO_OFFSET(bio), bio->bi_iter.bi_size, bio->bi_rw, bio->bi_flags, bio->bi_vcnt);\
         page = bio->bi_io_vec[__idx].bv_page; \
         offset = bio->bi_io_vec[__idx].bv_offset; \
         size = bio->bi_io_vec[__idx].bv_len; \
@@ -411,7 +416,12 @@ static void bd_end_io(struct bio *bio, int err)
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 24)
     bio_endio(bio, bio->bi_size, err);
 #else
-    bio_endio(bio, err);
+#  if LINUX_VERSION_CODE >= KERNEL_VERSION(4,3,0)
+       bio->bi_error = err;
+       bio_endio(bio);
+#  else
+       bio_endio(bio, err);
+#  endif
 #endif
 }
 
@@ -663,19 +673,29 @@ static void bd_submit_bio_with_info(struct bio *bio, int rw)
         bd_new_event(&session->bd_thread_event, BD_EVENT_ACK_NEW);
 }
 
-#if LINUX_VERSION_CODE > KERNEL_VERSION(3, 1, 0)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 4, 0)
+
+static blk_qc_t bd_make_request(struct request_queue *dummy, struct bio *bio)
+{
+    bd_submit_bio_with_info(bio, bio_data_dir(bio) == 0 ? READ : WRITE);
+    return BLK_QC_T_NONE;
+}
+
+#else
+#  if LINUX_VERSION_CODE > KERNEL_VERSION(3, 1, 0)
 /* called asynchronously by the system to say there are new request to process*/
 void bd_make_request(struct request_queue *dummy, struct bio *bio)
 {
     bd_submit_bio_with_info(bio, bio_data_dir(bio) == 0 ? READ : WRITE);
 }
-#else
+#  else
 /* called asynchronously by the system to say there are new request to process*/
 int bd_make_request(struct request_queue *dummy, struct bio *bio)
 {
     bd_submit_bio_with_info(bio, bio_data_dir(bio) == 0 ? READ : WRITE);
     return 0;
 }
+#  endif
 #endif
 
 
