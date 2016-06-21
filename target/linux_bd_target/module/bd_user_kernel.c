@@ -30,7 +30,6 @@ struct bd_event
     int                    bd_event_another; /**< Used to say if a new event is pending */
     int                    bd_event_waiting; /**< Used to say if we waiting on the semaphore */
     unsigned long          bd_type;          /**< type of waiting Event */
-    volatile unsigned long bd_event_number;  /**< Used for NewEventWaiting */
     struct bd_event_msg   *bd_old_msg;       /**< last msg processed */
     struct bd_event_msg   *bd_msg;
 };
@@ -100,7 +99,6 @@ int bd_wait_event(struct bd_event *bd_event, unsigned long *bd_type,
         spin_lock_irqsave(&bd_event->bd_event_sl, flags);
         if (bd_event->bd_event_another != 2)
         {
-            bd_event->bd_event_number++;
             old_bd_event_msg = bd_event->bd_old_msg;
             bd_event->bd_old_msg = NULL;
         }
@@ -125,7 +123,6 @@ int bd_wait_event(struct bd_event *bd_event, unsigned long *bd_type,
             else if (bd_event->bd_msg != NULL)
                 int_val = 3; /* BdMsg was not get, so we have messages lose ! */
 
-            bd_event->bd_event_number++;
             break;
 
         case 2:
@@ -273,7 +270,6 @@ static struct bd_event *bd_event_init(void)
 
     bd_event->bd_event_waiting = 0;     /* no BdWaitEvent() waiting for an event */
     bd_event->bd_event_another = 0;     /* no other event posted */
-    bd_event->bd_event_number = 0;      /* next event loop will be the first, only debug data */
     bd_event->bd_type = 0;
     bd_event->bd_msg = NULL;
     bd_event->bd_old_msg = NULL;
