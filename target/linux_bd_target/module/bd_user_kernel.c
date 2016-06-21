@@ -120,12 +120,12 @@ int bd_wait_event(struct bd_event *bd_event, unsigned long *bd_type,
             bd_event->bd_type = 0;
             if (bd_event_msg != NULL)
             {
-                *bd_event_msg = bd_event->bd_msg;
+                *bd_event_msg        = bd_event->bd_msg;
                 bd_event->bd_old_msg = bd_event->bd_msg;
                 bd_event->bd_msg = NULL;
             }
-            else if (bd_event->bd_msg != NULL)
-                int_val = 3; /* BdMsg was not get, so we have messages lose ! */
+            else
+                OS_ASSERT_VERBOSE(bd_event->bd_msg == NULL, "Message lost");
 
             break;
 
