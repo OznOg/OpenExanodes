@@ -27,10 +27,9 @@ struct bd_event
 {
     spinlock_t bd_event_sl;                  /**< Used to protect access to BdEventAnother */
     struct semaphore       bd_event_sem;     /**< Used to up/down a semaphore if necessary */
-    enum {
-        X = 0, Y = 1, EXITING = 2
-    } bd_event_another; /**< Used to say if a new event is pending */
-    bool                   bd_event_waiting; /**< Used to say if we waiting on the semaphore */
+    bool                   has_pending_event; /**< Used to say if a new event is pending */
+    bool                   exiting; /**< Used to say if we waiting on the semaphore */
+    bool                   wait_for_new_event; /**< Used to say if we waiting on the semaphore */
     unsigned long          bd_type;          /**< type of waiting Event */
     struct bd_event_msg   *bd_old_msg;       /**< last msg processed */
     struct bd_event_msg   *bd_msg;
@@ -81,74 +80,63 @@ static void bd_timedout(unsigned long arg)
  *        3 when ???
  */
 int bd_wait_event(struct bd_event *bd_event, unsigned long *bd_type,
-                  struct bd_event_msg **bd_event_msg)
+                  struct bd_event_msg **msg)
 {
     unsigned long flags;
     bool wait;
     int int_val = 0;
-    struct bd_event_msg *old_bd_event_msg = NULL;
-    struct bd_event_msg *bd_event_msg_temp = NULL;
 
     OS_ASSERT(bd_type != NULL);
     *bd_type = 0;
 
-    if (bd_event_msg != NULL)
-        *bd_event_msg = NULL;
+    if (msg != NULL)
+        *msg = NULL;
+
+    spin_lock_irqsave(&bd_event->bd_event_sl, flags);
+
+    if (bd_event->exiting)
+    {
+        spin_unlock_irqrestore(&bd_event->bd_event_sl, flags);
+	return 2;
+    }
 
     do
     {
-        wait = false;
+	struct bd_event_msg *old_bd_event_msg = bd_event->bd_old_msg;
+	bd_event->bd_old_msg = NULL;
 
-        spin_lock_irqsave(&bd_event->bd_event_sl, flags);
-
-        if (bd_event->bd_event_another != EXITING)
+        if (bd_event->has_pending_event)
         {
-            old_bd_event_msg = bd_event->bd_old_msg;
-            bd_event->bd_old_msg = NULL;
-        }
+            /* An event is pending => process it */
+	    wait = false;
 
-        switch (bd_event->bd_event_another)
-        {
-        case X:
-            wait = true;
-            break;
+            bd_event->has_pending_event = false;
 
-        case Y:
-            bd_event->bd_event_another = X;
             *bd_type = bd_event->bd_type;
-
             bd_event->bd_type = 0;
-            if (bd_event_msg != NULL)
+
+            if (msg != NULL)
             {
-                *bd_event_msg        = bd_event->bd_msg;
+                *msg        = bd_event->bd_msg;
                 bd_event->bd_old_msg = bd_event->bd_msg;
                 bd_event->bd_msg = NULL;
             }
             else
                 OS_ASSERT_VERBOSE(bd_event->bd_msg == NULL, "Message lost");
-
-            break;
-
-        case EXITING:
-            int_val = 2;
-            break;
-
-#ifdef DEBUG
-        default:
-            OS_ASSERT_VERBOSE(false, "ExaBd: Invalid value %d", bd_event->bd_event_another);
-            break;
-#endif
+	} else {
+           /* No pending event => wait */
+            wait = true;
         }
 
-        bd_event->bd_event_waiting = wait;
+        bd_event->wait_for_new_event = wait;
 
         spin_unlock_irqrestore(&bd_event->bd_event_sl, flags);
 
         while (old_bd_event_msg != NULL)
         {
-            bd_event_msg_temp = old_bd_event_msg->next; /* we use BdEventMsgTemp because OldBdEventMsg can be cleared after up ! */
+            struct bd_event_msg *temp = old_bd_event_msg->next;
             complete(&old_bd_event_msg->bd_event_completion);
-            old_bd_event_msg = bd_event_msg_temp;
+            old_bd_event_msg = temp;
         }
         if (wait)
         {
@@ -163,16 +151,16 @@ int bd_wait_event(struct bd_event *bd_event, unsigned long *bd_type,
                 int_val = 1;
                 *bd_type = 0;
 
-                if (bd_event_msg != NULL)
-                    *bd_event_msg = NULL;
+                if (msg != NULL)
+                    *msg = NULL;
 
                 /* down failed but if in a short time someone else add an
                  * event, he will perhaps do a up, so we must check this and
                  * say we don't wait more */
                 spin_lock_irqsave(&bd_event->bd_event_sl, flags);
 
-                wait = bd_event->bd_event_another == Y;
-                bd_event->bd_event_waiting = false;
+                wait = bd_event->has_pending_event;
+                bd_event->wait_for_new_event = false;
 
                 spin_unlock_irqrestore(&bd_event->bd_event_sl, flags);
 
@@ -186,7 +174,10 @@ int bd_wait_event(struct bd_event *bd_event, unsigned long *bd_type,
             }
             del_timer_sync(&timeout);
         }
+	spin_lock_irqsave(&bd_event->bd_event_sl, flags);
     } while (wait);
+
+    spin_unlock_irqrestore(&bd_event->bd_event_sl, flags);
 
     return int_val;
 }
@@ -203,7 +194,7 @@ void bd_new_event(struct bd_event *bd_event, unsigned long bd_type)
 
     spin_lock_irqsave(&bd_event->bd_event_sl, flags);
 
-    if (bd_event->bd_event_another == EXITING)
+    if (bd_event->exiting)
     {
         spin_unlock_irqrestore(&bd_event->bd_event_sl, flags);
         return;
@@ -211,10 +202,10 @@ void bd_new_event(struct bd_event *bd_event, unsigned long bd_type)
 
     bd_event->bd_type = bd_event->bd_type | bd_type;
 
-    wait = bd_event->bd_event_waiting && bd_event->bd_event_another == X;
+    wait = bd_event->wait_for_new_event && !bd_event->has_pending_event;
 
-    if (bd_event->bd_event_another == X)
-        bd_event->bd_event_another = Y;
+    if (!bd_event->has_pending_event)
+        bd_event->has_pending_event = true;
 
     spin_unlock_irqrestore(&bd_event->bd_event_sl, flags);
 
@@ -241,7 +232,7 @@ void bd_new_event_msg_wait_processed(struct bd_event *bd_event,
 
     spin_lock_irqsave(&bd_event->bd_event_sl, flags);
 
-    if (bd_event->bd_event_another == EXITING)
+    if (bd_event->exiting)
     {
         spin_unlock_irqrestore(&bd_event->bd_event_sl, flags);
         msg->bd_result = -1;
@@ -250,9 +241,9 @@ void bd_new_event_msg_wait_processed(struct bd_event *bd_event,
 
     bd_event->bd_type = bd_event->bd_type | msg->bd_type;
 
-    wait = bd_event->bd_event_waiting && bd_event->bd_event_another == X;
+    wait = bd_event->wait_for_new_event && !bd_event->has_pending_event;
 
-    bd_event->bd_event_another = Y;
+    bd_event->has_pending_event = true;
     msg->next = bd_event->bd_msg;
     bd_event->bd_msg = msg;
 
@@ -274,8 +265,9 @@ static struct bd_event *bd_event_init(void)
     if (bd_event == NULL)
         return NULL;
 
-    bd_event->bd_event_waiting = false; /* no BdWaitEvent() waiting for an event */
-    bd_event->bd_event_another = X;     /* no other event posted */
+    bd_event->exiting = false; 
+    bd_event->wait_for_new_event = false; /* no BdWaitEvent() waiting for an event */
+    bd_event->has_pending_event = false;     /* no other event posted */
     bd_event->bd_type = 0;
     bd_event->bd_msg = NULL;
     bd_event->bd_old_msg = NULL;
@@ -297,10 +289,10 @@ static void bd_event_close(struct bd_event *bd_event)
     struct bd_event_msg *temp;
 
     spin_lock_irqsave(&bd_event->bd_event_sl, flags);
-    if (bd_event->bd_event_waiting && bd_event->bd_event_another == X)
+    if (bd_event->wait_for_new_event && !bd_event->has_pending_event)
         wait = true;
 
-    bd_event->bd_event_another = EXITING;
+    bd_event->exiting = true;
     spin_unlock_irqrestore(&bd_event->bd_event_sl, flags);
     while (bd_event->bd_msg != NULL)    /* end all waiting processed function */
     {
