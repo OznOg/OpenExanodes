@@ -166,17 +166,17 @@ static int bd_fops_ioctl(struct inode *I, struct file *F,
         }
 
     case BD_IOCTL_SEM_ACK:
-        bd_new_event(&session->bd_thread_event, BD_EVENT_ACK_NEW);
+        bd_new_event(session->bd_thread_event, BD_EVENT_ACK_NEW);
         return 0;
 
     case BD_IOCTL_SEM_NEW_UP:
-        bd_new_event(&session->bd_new_rq, BD_EVENT_ACK_NEW);
+        bd_new_event(session->bd_new_rq, BD_EVENT_ACK_NEW);
         return 0;
 
     case BD_IOCTL_SEM_NEW:
         {
             unsigned long temp = 0;
-            int err = bd_wait_event(&session->bd_new_rq, &temp, NULL);
+            int err = bd_wait_event(session->bd_new_rq, &temp, NULL);
             if (temp == BD_EVENT_TIMEOUT)
                 return -EAGAIN;
 
@@ -209,20 +209,20 @@ static int bd_fops_ioctl(struct inode *I, struct file *F,
         msg.bd_minor = minor.bd_minor;
         msg.bd_minor_readonly = minor.readonly;
 
-        bd_new_event_msg_wait_processed(&session->bd_thread_event, &msg);
+        bd_new_event_msg_wait_processed(session->bd_thread_event, &msg);
         return msg.bd_result;
     }
 
     case BD_IOCTL_DELMINOR:
         msg.bd_type = BD_EVENT_DEL;
         msg.bd_minor = arg;
-        bd_new_event_msg_wait_processed(&session->bd_thread_event, &msg);
+        bd_new_event_msg_wait_processed(session->bd_thread_event, &msg);
         return msg.bd_result;
 
     case BD_IOCTL_IS_INUSE:
         msg.bd_type = BD_EVENT_IS_INUSE;
         msg.bd_minor = arg;
-        bd_new_event_msg_wait_processed(&session->bd_thread_event, &msg);
+        bd_new_event_msg_wait_processed(session->bd_thread_event, &msg);
         return msg.bd_result;
 
     default:
@@ -243,7 +243,7 @@ static int bd_fops_release(struct inode *I, struct file *F)
     msg.bd_type = BD_EVENT_KILL;
 
     /* Send a Kill event to the thread and wait for it's end of processing */
-    bd_new_event_msg_wait_processed(&session->bd_thread_event, &msg);
+    bd_new_event_msg_wait_processed(session->bd_thread_event, &msg);
     wait_for_completion(&session->bd_end_completion);
 
     /* now Session wil be no more used because block device are down */

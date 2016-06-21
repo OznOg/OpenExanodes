@@ -50,17 +50,7 @@ struct bd_event_msg
     struct bd_event_msg *next;
 };
 
-struct bd_event
-{
-    spinlock_t bd_event_sl;                  /**< Used to protect access to BdEventAnother */
-    struct semaphore       bd_event_sem;     /**< Used to up/down a semaphore if necessary */
-    int                    bd_event_another; /**< Used to say if a new event is pending */
-    int                    bd_event_waiting; /**< Used to say if we waiting on the semaphore */
-    unsigned long          bd_type;          /**< type of waiting Event */
-    volatile unsigned long bd_event_number;  /**< Used for NewEventWaiting */
-    struct bd_event_msg   *bd_old_msg;       /**< last msg processed */
-    struct bd_event_msg   *bd_msg;
-};
+struct bd_event;
 
 void bd_new_event_msg_wait_processed(struct bd_event *bd_event,
                                      struct bd_event_msg *msg);

@@ -23,6 +23,18 @@
 #include <linux/slab.h>
 #include <linux/sched/signal.h>
 
+struct bd_event
+{
+    spinlock_t bd_event_sl;                  /**< Used to protect access to BdEventAnother */
+    struct semaphore       bd_event_sem;     /**< Used to up/down a semaphore if necessary */
+    int                    bd_event_another; /**< Used to say if a new event is pending */
+    int                    bd_event_waiting; /**< Used to say if we waiting on the semaphore */
+    unsigned long          bd_type;          /**< type of waiting Event */
+    volatile unsigned long bd_event_number;  /**< Used for NewEventWaiting */
+    struct bd_event_msg   *bd_old_msg;       /**< last msg processed */
+    struct bd_event_msg   *bd_msg;
+};
+
 /* if we wait for a new ack request for more than CLIENT_TIMEOUT secondes, i
  * stop to wait */
 #define CLIENT_TIMEOUT 20 * HZ /* 20 seconds */
@@ -251,10 +263,14 @@ void bd_new_event_msg_wait_processed(struct bd_event *bd_event,
 
 
 /** init an event structure
- * @param[out] BdEvent new event structure
+ * @return new event structure
  */
-static void bd_event_init(struct bd_event *bd_event)
+static struct bd_event *bd_event_init(void)
 {
+    struct bd_event *bd_event = vmalloc(sizeof(*bd_event));
+    if (bd_event == NULL)
+        return NULL;
+
     bd_event->bd_event_waiting = 0;     /* no BdWaitEvent() waiting for an event */
     bd_event->bd_event_another = 0;     /* no other event posted */
     bd_event->bd_event_number = 0;      /* next event loop will be the first, only debug data */
@@ -263,6 +279,8 @@ static void bd_event_init(struct bd_event *bd_event)
     bd_event->bd_old_msg = NULL;
     spin_lock_init(&bd_event->bd_event_sl);
     sema_init(&bd_event->bd_event_sem, 0);
+
+    return bd_event;
 }
 
 
@@ -356,7 +374,7 @@ long bd_post_new_rq(struct bd_session *session)
 
     /* one new request, so up the semaphore to call the user process */
     session->bd_in_rq++;
-    bd_new_event(&session->bd_new_rq, BD_EVENT_ACK_NEW);
+    bd_new_event(session->bd_new_rq, BD_EVENT_ACK_NEW);
     return 0;
 }
 
@@ -501,7 +519,7 @@ static void abort_all_pending_requests(struct bd_session *session)
         bd_minor = bd_minor->bd_next;
     }
 
-    bd_event_close(&session->bd_new_rq);
+    bd_event_close(session->bd_new_rq);
 }
 
 /**
@@ -537,7 +555,7 @@ static int bd_ack_rq_thread(void *arg)
     siginitsetinv(&current->blocked, sigmask(SIGKILL));
     do
     {
-        int int_val = bd_wait_event(&session->bd_thread_event, &type, &msg);
+        int int_val = bd_wait_event(session->bd_thread_event, &type, &msg);
         if (type != BD_EVENT_TIMEOUT || int_val == 1 || session->bd_in_rq == 0)
             nb_timeout = 0;
         else
@@ -589,7 +607,7 @@ static int bd_ack_rq_thread(void *arg)
             vfree(session->bd_user_queue);
             /* we ending, so all event queue is down, this Close also signal to the BD_EVENT_KILL
                that the messaged have been proceed */
-            bd_event_close(&session->bd_thread_event);
+            bd_event_close(session->bd_thread_event);
             complete_and_exit(&session->bd_end_completion, 0);
             /* now all is done, so exit, the caller must vfree(Session) */
             return 0;
@@ -731,8 +749,11 @@ struct bd_session *bd_launch_session(struct bd_init *init)
     session->bd_major = 0;
     session->bd_task = current;
 
-    bd_event_init(&session->bd_new_rq);
-    bd_event_init(&session->bd_thread_event);
+    session->bd_new_rq       = bd_event_init();
+    session->bd_thread_event = bd_event_init();
+
+    if (!session->bd_new_rq || !session->bd_thread_event)
+        goto error;
 
     session->bd_unaligned_buf = vmalloc(session->bd_max_queue
                                         * session->bd_buffer_size / PAGE_SIZE
@@ -875,8 +896,8 @@ error:
                  init->bd_max_queue, init->bd_buffer_size,
                  session->bd_page_size);
 
-    bd_event_close(&session->bd_new_rq);
-    bd_event_close(&session->bd_thread_event);
+    bd_event_close(session->bd_new_rq);
+    bd_event_close(session->bd_thread_event);
 
     if (session->bd_unaligned_buf)
     {

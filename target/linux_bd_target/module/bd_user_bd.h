@@ -55,8 +55,8 @@ struct bd_session
     struct bd_root_list     bd_root; /*! Element used to store bd_requests */
     struct bd_minor        *bd_minor_last; /*! used to read all queue */
     struct bd_minor        *bd_minor; /*! Link structure of gendisk minor */
-    struct bd_event         bd_new_rq; /*! Event to wake up user if there are some  new Rq */
-    struct bd_event         bd_thread_event; /*! Event to wake up main kernel thread if there are new queue, new Rq done by user, if it's time to end,... */
+    struct bd_event        *bd_new_rq; /*! Event to wake up user if there are some  new Rq */
+    struct bd_event        *bd_thread_event; /*! Event to wake up main kernel thread if there are new queue, new Rq done by user, if it's time to end,... */
     struct bd_session      *bd_next_session; /*! Link to next session */
     struct task_struct     *bd_task; /*! main task for  get_user_pages(current, mm, addr, 1, write, 0, &page, NULL); */
     struct page           **bd_unaligned_buf; /*! used to manage the buffer that do not fit in page */
