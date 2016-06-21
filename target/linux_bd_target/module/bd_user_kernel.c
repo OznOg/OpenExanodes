@@ -190,7 +190,7 @@ int bd_wait_event(struct bd_event *bd_event, unsigned long *bd_type,
 void bd_new_event(struct bd_event *bd_event, unsigned long bd_type)
 {
     unsigned long flags;
-    bool wait = false;
+    bool someone_waits;
 
     spin_lock_irqsave(&bd_event->bd_event_sl, flags);
 
@@ -202,15 +202,14 @@ void bd_new_event(struct bd_event *bd_event, unsigned long bd_type)
 
     bd_event->bd_type = bd_event->bd_type | bd_type;
 
-    wait = bd_event->wait_for_new_event && !bd_event->has_pending_event;
+    someone_waits = bd_event->wait_for_new_event && !bd_event->has_pending_event;
 
-    if (!bd_event->has_pending_event)
-        bd_event->has_pending_event = true;
+    bd_event->has_pending_event = true;
+
+    if (someone_waits)
+        up(&bd_event->bd_event_sem);
 
     spin_unlock_irqrestore(&bd_event->bd_event_sl, flags);
-
-    if (wait)
-        up(&bd_event->bd_event_sem);
 }
 
 
@@ -223,10 +222,7 @@ void bd_new_event_msg_wait_processed(struct bd_event *bd_event,
                                      struct bd_event_msg *msg)
 {
     unsigned long flags;
-    bool wait;
-
-    if (msg == NULL)
-        return;
+    bool someone_waits;
 
     init_completion(&msg->bd_event_completion);
 
@@ -241,16 +237,16 @@ void bd_new_event_msg_wait_processed(struct bd_event *bd_event,
 
     bd_event->bd_type = bd_event->bd_type | msg->bd_type;
 
-    wait = bd_event->wait_for_new_event && !bd_event->has_pending_event;
+    someone_waits = bd_event->wait_for_new_event && !bd_event->has_pending_event;
 
     bd_event->has_pending_event = true;
     msg->next = bd_event->bd_msg;
     bd_event->bd_msg = msg;
 
-    spin_unlock_irqrestore(&bd_event->bd_event_sl, flags);
-
-    if (wait)
+    if (someone_waits)
         up(&bd_event->bd_event_sem);
+
+    spin_unlock_irqrestore(&bd_event->bd_event_sl, flags);
 
     wait_for_completion(&msg->bd_event_completion);
 }
