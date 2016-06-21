@@ -252,9 +252,8 @@ void bd_new_event_msg_wait_processed(struct bd_event *bd_event,
 
 /** init an event structure
  * @param[out] BdEvent new event structure
- * @param[in] Name name of the event
  */
-static void bd_event_init(struct bd_event *bd_event, char *name)
+static void bd_event_init(struct bd_event *bd_event)
 {
     bd_event->bd_event_waiting = 0;     /* no BdWaitEvent() waiting for an event */
     bd_event->bd_event_another = 0;     /* no other event posted */
@@ -732,8 +731,8 @@ struct bd_session *bd_launch_session(struct bd_init *init)
     session->bd_major = 0;
     session->bd_task = current;
 
-    bd_event_init(&session->bd_new_rq, "NewRq");
-    bd_event_init(&session->bd_thread_event, "ThreadEvent");
+    bd_event_init(&session->bd_new_rq);
+    bd_event_init(&session->bd_thread_event);
 
     session->bd_unaligned_buf = vmalloc(session->bd_max_queue
                                         * session->bd_buffer_size / PAGE_SIZE
