@@ -177,8 +177,6 @@ static int bd_fops_ioctl(struct inode *I, struct file *F,
         {
             unsigned long temp = 0;
             int err = bd_wait_event(session->bd_new_rq, &temp, NULL);
-            if (temp == BD_EVENT_TIMEOUT)
-                return -EAGAIN;
 
             if (err == 1)
                 return -EINTR;

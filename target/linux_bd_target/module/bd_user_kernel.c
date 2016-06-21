@@ -35,10 +35,6 @@ struct bd_event
     struct bd_event_msg   *bd_msg;
 };
 
-/* if we wait for a new ack request for more than CLIENT_TIMEOUT secondes, i
- * stop to wait */
-#define CLIENT_TIMEOUT 20 * HZ /* 20 seconds */
-
 /* This file have all Event management, queue management function and
  * the core of BdAcqThread that map new request, end completed request
  * add new minor, change the status and remove other
@@ -51,21 +47,6 @@ struct bd_event
 
 #define NUM_MAPPED_PAGES(session) \
     (((session)->bd_max_queue * (session)->bd_buffer_size) / PAGE_SIZE)
-
-/* BdEvent machanism us use to have processing consumption
- * and less deadlock, no more semaphore out of bound, the main idea is :
- * The event "receiver" test and process all possibely cause of event at each event,
- * so it is not needed to add multiple if N event is pendeing ONLY ONE MORE event need
- * to be received by the caller.
- */
-
-static void bd_timedout(unsigned long arg)
-{
-    struct bd_event *bd_event = (struct bd_event *) arg;
-
-    bd_new_event(bd_event, BD_EVENT_TIMEOUT);
-}
-
 
 /**
  * Wait for a new event, down on a semaphore if needed, exit if the Event was closed
@@ -140,12 +121,6 @@ int bd_wait_event(struct bd_event *bd_event, unsigned long *bd_type,
         }
         if (wait)
         {
-            struct timer_list timeout;
-            init_timer(&timeout);
-            timeout.function = bd_timedout;
-            timeout.data = (unsigned long) bd_event;
-            timeout.expires = jiffies + CLIENT_TIMEOUT; /* seconds timer */
-            add_timer(&timeout);
             if (down_interruptible(&bd_event->bd_event_sem) != 0)
             {
                 int_val = 1;
@@ -172,7 +147,6 @@ int bd_wait_event(struct bd_event *bd_event, unsigned long *bd_type,
 
                 wait = false;
             }
-            del_timer_sync(&timeout);
         }
 	spin_lock_irqsave(&bd_event->bd_event_sl, flags);
     } while (wait);
@@ -471,16 +445,6 @@ static void bd_ack_all_pending(struct bd_session *session, int minor)
     }
 }
 
-/* if nothing arrive in 20 mn and some request pending, dump !
- * FIXME What is the purpose of this dump ? Actually, the dump is supposed to
- * happen if IOs are blocked for more than TIMEOUT_BEFORE_DUMP_IN_SECOND but
- * is that really the role of exa_bd to decide in his own to make the node
- * crash ? */
-#define TIMEOUT_BEFORE_DUMP_IN_SECOND (20 * 60)
-
-#define TIMEOUT_BEFORE_DUMP (TIMEOUT_BEFORE_DUMP_IN_SECOND /\
-                             (CLIENT_TIMEOUT / HZ))
-
 /**
  * For a session, unmap all pending request in user mode and ack them with
  * an error
@@ -534,7 +498,6 @@ static int bd_ack_rq_thread(void *arg)
     struct bd_event_msg *msg;
     struct bd_session *session = arg;
     int i;
-    int nb_timeout = 0;
 
 #if (LINUX_VERSION_CODE < KERNEL_VERSION(3, 8, 0))
     /* The name of the thread of exa_bd in processes list will be of the form:
@@ -546,34 +509,6 @@ static int bd_ack_rq_thread(void *arg)
     do
     {
         int int_val = bd_wait_event(session->bd_thread_event, &type, &msg);
-        if (type != BD_EVENT_TIMEOUT || int_val == 1 || session->bd_in_rq == 0)
-            nb_timeout = 0;
-        else
-            nb_timeout++;
-
-        if ((nb_timeout == TIMEOUT_BEFORE_DUMP && session->bd_in_rq > 0)
-            || int_val == 1)
-        {
-            type = BD_EVENT_ACK_NEW;
-
-            bd_log_error("Core dumping \n");
-
-            abort_all_pending_requests(session);
-
-            {
-                bd_log_error("exa_bd have detected a potentiel freeze\n"
-                             "exa_bd stop all volumes\n"
-                             "exa_bd sending SIGABRT to process %s\n",
-                             session->bd_task->comm);
-                {
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,27)
-                    kill_proc(session->bd_task->pid, SIGABRT, 0);
-#else
-                    send_sig(SIGABRT, session->bd_task, 0);
-#endif
-                }
-            }
-        }
 
         if (int_val == 1)
             flush_signals(current);     /* in case of SIGUP or another thing, we must ignore it, only a release can kill this thread */

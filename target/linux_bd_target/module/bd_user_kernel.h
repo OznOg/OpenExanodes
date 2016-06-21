@@ -34,7 +34,6 @@
 #define BD_EVENT_DEL            32      /* destroy a node */
 #define BD_EVENT_DOWN           64      /* suspend / active -> down */
 #define BD_EVENT_UP             128     /* suspend -> up */
-#define BD_EVENT_TIMEOUT        512     /* Timeout */
 #define BD_EVENT_SETSIZE        1024    /* resizing a minor */
 #define BD_EVENT_IS_INUSE       2048    /* test if a minor is in use (opened) */
 
