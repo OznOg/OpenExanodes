@@ -78,7 +78,7 @@ int bd_wait_event(struct bd_event *bd_event, unsigned long *bd_type,
     if (bd_event->exiting)
     {
         spin_unlock_irqrestore(&bd_event->bd_event_sl, flags);
-	return 2;
+	return -EBADF;
     }
 
     do
@@ -123,7 +123,7 @@ int bd_wait_event(struct bd_event *bd_event, unsigned long *bd_type,
         {
             if (down_interruptible(&bd_event->bd_event_sem) != 0)
             {
-                int_val = 1;
+                int_val = -EINTR;
                 *bd_type = 0;
 
                 if (msg != NULL)
