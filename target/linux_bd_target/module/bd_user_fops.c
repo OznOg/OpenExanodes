@@ -231,7 +231,6 @@ static int bd_fops_release(struct inode *I, struct file *F)
 
     /* Send a Kill event to the thread and wait for it's end of processing */
     bd_new_event_msg_wait_processed(session->bd_thread_event, &msg);
-    wait_for_completion(&session->bd_end_completion);
 
     /* now Session wil be no more used because block device are down */
     bd_put_session(&session);

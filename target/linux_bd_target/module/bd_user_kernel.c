@@ -233,14 +233,43 @@ void bd_new_event_msg_wait_processed(struct bd_event *bd_event,
     wait_for_completion(&msg->bd_event_completion);
 }
 
+/** wake up all function waiting for an event and force all other to abort now
+ * and in future
+ * @param bd_eventevent structure
+ */
+static void bd_event_close(struct bd_event *bd_event)
+{
+    struct bd_event_msg *msg;
+    unsigned long flags;
+
+    spin_lock_irqsave(&bd_event->bd_event_sl, flags);
+
+    bd_event->exiting = true;
+
+    spin_unlock_irqrestore(&bd_event->bd_event_sl, flags);
+
+    bd_wakeup(bd_event); /* make sure waiter is released */
+
+    while ((msg = bd_event->bd_msg) != NULL)    /* end all waiting processed function */
+    {
+        msg->bd_result = -EBADFD;
+        complete(&msg->bd_event_completion);
+        bd_event->bd_msg = bd_event->bd_msg->next;
+    }
+}
 
 static void __cleanup(struct bd_session *session)
 {
+    bd_event_close(session->bd_new_rq);
+    bd_event_close(session->bd_thread_event);
+
     for (int i = 0; i < NUM_MAPPED_PAGES(session); i++)
         if (session->bd_unaligned_buf[i] != NULL)
             put_page(session->bd_unaligned_buf[i]);
 
     vfree(session->bd_unaligned_buf);
+    vfree(session->bd_kernel_queue);
+    vfree(session->bd_user_queue);
 }
 
 
@@ -262,34 +291,6 @@ static struct bd_event *bd_event_init(void)
     sema_init(&bd_event->bd_event_sem, 0);
 
     return bd_event;
-}
-
-
-/** wake up all function waiting for an event and force all other to abort now
- * and in future
- * @param bd_eventevent structure
- */
-static void bd_event_close(struct bd_event *bd_event)
-{
-    unsigned long flags;
-    bool wait = false;
-    struct bd_event_msg *temp;
-
-    spin_lock_irqsave(&bd_event->bd_event_sl, flags);
-    if (bd_event->wait_for_new_event && !bd_event->has_pending_event)
-        wait = true;
-
-    bd_event->exiting = true;
-    spin_unlock_irqrestore(&bd_event->bd_event_sl, flags);
-    while (bd_event->bd_msg != NULL)    /* end all waiting processed function */
-    {
-        temp = bd_event->bd_msg->next;
-        complete(&bd_event->bd_msg->bd_event_completion);
-        bd_event->bd_msg = temp;
-    }
-
-    if (wait)
-        up(&bd_event->bd_event_sem);    /* perhaps one waiting for event */
 }
 
 /*
@@ -483,8 +484,6 @@ static void abort_all_pending_requests(struct bd_session *session)
         }
         bd_minor = bd_minor->bd_next;
     }
-
-    bd_event_close(session->bd_new_rq);
 }
 
 /**
@@ -505,6 +504,7 @@ static void abort_all_pending_requests(struct bd_session *session)
 
 static int bd_ack_rq_thread(void *arg)
 {
+    bool running = true;
     unsigned long type;
     struct bd_event_msg *msg;
     struct bd_session *session = arg;
@@ -557,23 +557,10 @@ static int bd_ack_rq_thread(void *arg)
                                                   msg->bd_minor_readonly);
                 break;
 
-	    case BD_EVENT_KILL:
-            {
-                bd_log_info("BD_EVENT_KILL\n");
-
-                abort_all_pending_requests(session);
-
-                __cleanup(session);
-
-                vfree(session->bd_kernel_queue);
-                vfree(session->bd_user_queue);
-                /* we ending, so all event queue is down, this Close also signal to the BD_EVENT_KILL
-                   that the messaged have been proceed */
-                bd_event_close(session->bd_thread_event);
-                complete_and_exit(&session->bd_end_completion, 0);
-                /* now all is done, so exit, the caller must vfree(Session) */
-                return 0;
-            }
+            case BD_EVENT_KILL:
+                /* threal will exit once all message are handled */
+                running = false;
+                break;
 
             case BD_EVENT_SETSIZE:
                 msg->bd_result = bd_minor_set_size(bd_minor,
@@ -609,8 +596,13 @@ static int bd_ack_rq_thread(void *arg)
             complete(&msg->bd_event_completion);
             msg = msg->next;
         }
-    } while (1);
-    return 0;                   /* to avoid warning */
+    } while (running);
+
+    abort_all_pending_requests(session);
+
+    __cleanup(session);
+
+    return 0;
 }
 
 
@@ -819,20 +811,7 @@ error:
                  init->bd_max_queue, init->bd_buffer_size,
                  session->bd_page_size);
 
-    bd_event_close(session->bd_new_rq);
-    bd_event_close(session->bd_thread_event);
-
     __cleanup(session);
-
-    bd_log_error("Exanodes BD open session failed bd_user_queue %p "
-                 "bd_kernel_queue %p\n", session->bd_user_queue,
-                 session->bd_kernel_queue);
-
-    if (session->bd_user_queue)
-        vfree(session->bd_user_queue);
-
-    if (session->bd_kernel_queue)
-        vfree(session->bd_kernel_queue);
 
     vfree(session);
     return NULL;
