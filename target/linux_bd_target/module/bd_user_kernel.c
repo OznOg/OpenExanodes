@@ -31,7 +31,6 @@ struct bd_event
     bool                   exiting; /**< Used to say if we waiting on the semaphore */
     bool                   wait_for_new_event; /**< Used to say if we waiting on the semaphore */
     unsigned long          bd_type;          /**< type of waiting Event */
-    struct bd_event_msg   *bd_old_msg;       /**< last msg processed */
     struct bd_event_msg   *bd_msg;
 };
 
@@ -133,9 +132,6 @@ int bd_wait_event(struct bd_event *bd_event, unsigned long *bd_type,
 
     do
     {
-	struct bd_event_msg *old_bd_event_msg = bd_event->bd_old_msg;
-	bd_event->bd_old_msg = NULL;
-
         if (bd_event->has_pending_event)
         {
             /* An event is pending => process it */
@@ -149,7 +145,6 @@ int bd_wait_event(struct bd_event *bd_event, unsigned long *bd_type,
             if (msg != NULL)
             {
                 *msg        = bd_event->bd_msg;
-                bd_event->bd_old_msg = bd_event->bd_msg;
                 bd_event->bd_msg = NULL;
             }
             else
@@ -163,12 +158,6 @@ int bd_wait_event(struct bd_event *bd_event, unsigned long *bd_type,
 
         spin_unlock_irqrestore(&bd_event->bd_event_sl, flags);
 
-        while (old_bd_event_msg != NULL)
-        {
-            struct bd_event_msg *temp = old_bd_event_msg->next;
-            complete(&old_bd_event_msg->bd_event_completion);
-            old_bd_event_msg = temp;
-        }
         if (wait)
         {
             if (down_interruptible(&bd_event->bd_event_sem) != 0)
@@ -259,7 +248,6 @@ static struct bd_event *bd_event_init(void)
     bd_event->has_pending_event = false;     /* no other event posted */
     bd_event->bd_type = 0;
     bd_event->bd_msg = NULL;
-    bd_event->bd_old_msg = NULL;
     spin_lock_init(&bd_event->bd_event_sl);
     sema_init(&bd_event->bd_event_sem, 0);
 
@@ -288,12 +276,6 @@ static void bd_event_close(struct bd_event *bd_event)
         temp = bd_event->bd_msg->next;
         complete(&bd_event->bd_msg->bd_event_completion);
         bd_event->bd_msg = temp;
-    }
-    while (bd_event->bd_old_msg != NULL) /* end all waiting processed function */
-    {
-        temp = bd_event->bd_old_msg->next;
-        complete(&bd_event->bd_old_msg->bd_event_completion);
-        bd_event->bd_old_msg = temp;
     }
 
     if (wait)
@@ -567,26 +549,20 @@ static int bd_ack_rq_thread(void *arg)
         while (msg != NULL)
         {
             struct bd_minor *bd_minor = NULL;
-            msg->bd_result = 0;
+	    /* find minor for message (unless message is about new minor creation) */
             if (msg->bd_type != BD_EVENT_NEW)
             {
-                msg->bd_result = -1;
-                bd_minor = session->bd_minor;
-                while (bd_minor != NULL)
-                {
+                for (bd_minor = session->bd_minor; bd_minor != NULL; bd_minor = bd_minor->bd_next)
                     if (bd_minor->minor == msg->bd_minor && !bd_minor->dead)
-                    {
-                        msg->bd_result = 0;
                         break;
-                    }
-                    bd_minor = bd_minor->bd_next;
+                if (bd_minor == NULL)
+                {
+                    /* minor not found */
+                    msg->bd_result = -EBADSLT;
+                    complete(&msg->bd_event_completion);
+                    msg = msg->next;
+                    continue;
                 }
-            }
-
-            if (msg->bd_result == -1)
-            {
-                msg = msg->next;
-                continue;
             }
 
             switch (msg->bd_type)
@@ -617,7 +593,7 @@ static int bd_ack_rq_thread(void *arg)
                     else
                     {
                         /* The block device is in use. */
-                        msg->bd_result = -1;
+                        msg->bd_result = -EUSERS;
                     }
                 }
                 break;
@@ -628,6 +604,7 @@ static int bd_ack_rq_thread(void *arg)
                 break;
             }
 
+            complete(&msg->bd_event_completion);
             msg = msg->next;
         }
     } while (1);
