@@ -243,7 +243,6 @@ static void bd_next_queue(struct bd_session *session)
             if (session->pending_req == NULL)
                 break;
 
-            session->pending_info = session->pending_req->info;
             session->bd_minor_last = session->pending_minor;
             return;
 
@@ -525,7 +524,7 @@ void bd_flush_q(struct bd_session *session, int err)
 
         if (err == 0)
         {
-            if (bd_post_new_rq(session) != 0)
+            if (bd_post_new_rq(session, session->pending_req) != 0)
                 return; /* This Req cannot be added, so probably no more Req
                          * can be added now, but we keep this request that
                          * cannot be added */

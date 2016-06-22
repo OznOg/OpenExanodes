@@ -63,7 +63,6 @@ struct bd_session
 
     struct bd_request      *pending_req;
     struct bd_minor        *pending_minor;
-    int pending_info;
 
     struct completion       bd_end_completion;
 
@@ -91,7 +90,8 @@ void  bd_flush_q(struct bd_session *session, int err);
 int   bd_minor_add_new(struct bd_session *session, int minor,
                        unsigned long size_in512_bytes, bool readonly);
 void bd_put_session(struct bd_session **);
-long bd_post_new_rq(struct bd_session *);
+
+long bd_post_new_rq(struct bd_session *session, struct bd_request *req);
 
 struct bd_session *bd_launch_session(struct bd_init *init);
 

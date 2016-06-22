@@ -272,7 +272,7 @@ static struct bd_event *bd_event_init(void)
  *        -1   request cannot be added to bd_kernel_queue and mapped, so
  *             nothing was done
  */
-long bd_post_new_rq(struct bd_session *session)
+long bd_post_new_rq(struct bd_session *session, struct bd_request *req)
 {
     struct bd_kernel_queue *bd_kq = session->bd_kernel_queue;
     int next;
@@ -283,8 +283,8 @@ long bd_post_new_rq(struct bd_session *session)
     if (next == BD_FREE_QUEUE)
         return -1; /* no rq free, so do nothing */
 
-    bd_kq[next].bd_req = session->pending_req;
-    session->bd_user_queue[next].bd_info = session->pending_info;
+    bd_kq[next].bd_req = req;
+    session->bd_user_queue[next].bd_info = req->info;
 
     /* will set BdBlkSize BdBlkNum */
     if (bd_prepare_request(&bd_kq[next]) == -1)
