@@ -156,6 +156,13 @@ int bd_wait_event(struct bd_event *bd_event, unsigned long *bd_type,
     return int_val;
 }
 
+int bd_wait(struct bd_event *bd_event)
+{
+    unsigned long type = 0;
+    return bd_wait_event(bd_event, &type, NULL);
+}
+
+
 /** Add new event of type BdType wake up thread only if needed
  * @param bd_event event structure that will be used
  * @param[in] BdType type of event we send

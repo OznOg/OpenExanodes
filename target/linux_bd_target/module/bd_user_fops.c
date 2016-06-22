@@ -174,10 +174,7 @@ static int bd_fops_ioctl(struct inode *I, struct file *F,
         return 0;
 
     case BD_IOCTL_SEM_WAIT:
-        {
-            unsigned long temp = 0;
-            return bd_wait_event(session->bd_new_rq, &temp, NULL);
-        }
+	return bd_wait(session->bd_new_rq);
 
     case BD_IOCTL_SETSIZE:
     case BD_IOCTL_NEWMINOR:
