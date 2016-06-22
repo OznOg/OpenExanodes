@@ -338,7 +338,7 @@ long bd_post_new_rq(struct bd_session *session)
 
     /* one new request, so up the semaphore to call the user process */
     session->bd_in_rq++;
-    bd_new_event(session->bd_new_rq, BD_EVENT_ACK_NEW);
+    bd_new_event(session->bd_new_rq, BD_EVENT_POST);
     return 0;
 }
 
@@ -538,7 +538,7 @@ static int bd_ack_rq_thread(void *arg)
             return 0;
         }
 
-        if ((type & BD_EVENT_ACK_NEW) != 0)
+        if ((type & BD_EVENT_POST) != 0)
         {
             bd_ack_rq(session); /* wait for something and ack all user finished request */
             bd_flush_q(session, 0);     /* add in user space as lot as we can the pending request */

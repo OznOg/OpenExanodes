@@ -653,7 +653,7 @@ static void bd_submit_bio_with_info(struct bio *bio, int rw)
 
     /* Don't explicitelly call BdFlusQ to avoid deadlock */
     if (needevent)
-        bd_new_event(session->bd_thread_event, BD_EVENT_ACK_NEW);
+        bd_new_event(session->bd_thread_event, BD_EVENT_POST);
 }
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 4, 0)

@@ -26,7 +26,7 @@
  * so it is not needed to add multiple if N event is pendeing ONLY ONE MORE event need
  * to be received by the caller.
  */
-#define BD_EVENT_ACK_NEW        1       /* event to signal a new ack by user or a new queue from kernel*/
+#define BD_EVENT_POST           1       /* event to signal a new ack by user or a new queue from kernel*/
 #define BD_EVENT_KILL           2       /* event to signal that the session will be killed */
 #define BD_EVENT_SUSPEND        4       /* some minor is now suspended, do the right thing */
 #define BD_EVENT_RESUME         8       /* suspend -> up */
