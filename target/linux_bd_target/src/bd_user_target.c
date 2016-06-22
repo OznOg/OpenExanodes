@@ -218,7 +218,7 @@ static int __bdend(struct tab_session *session)
 {
     bd_target_run = false;
     /* Wake __bdget_new_request */
-    __ioctl_nointr(session->bd_fd, BD_IOCTL_SEM_NEW_UP, 0);
+    __ioctl_nointr(session->bd_fd, BD_IOCTL_CLEANUP, 0);
     os_thread_join(linux_blockdevice_io_thread);
 
     munmap(session->bd_kernel_queue, 2 * session->bd_page_size);

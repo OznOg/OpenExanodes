@@ -17,7 +17,7 @@
 #define BD_IOCTL_SEM_ACK        0x2e    /* up the bd_rq_ok */
 #define BD_IOCTL_SEM_NEW        0x2f    /* down the bd_new_rq */
 #define BD_IOCTL_NEWMINOR       0x30    /* Set the size of one minor blockdevice */
-#define BD_IOCTL_SEM_NEW_UP     0x31    /* up BdBewRq, used to repost a new request */
+#define BD_IOCTL_CLEANUP        0x31    /* Called when cleaning up the session */ 
 #define BD_IOCTL_DELMINOR       0x35
 #define BD_IOCTL_SETSIZE        0x38
 #define BD_IOCTL_IS_INUSE       0x39
