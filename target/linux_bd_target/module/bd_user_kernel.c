@@ -234,6 +234,16 @@ void bd_new_event_msg_wait_processed(struct bd_event *bd_event,
 }
 
 
+static void __cleanup(struct bd_session *session)
+{
+    for (int i = 0; i < NUM_MAPPED_PAGES(session); i++)
+        if (session->bd_unaligned_buf[i] != NULL)
+            put_page(session->bd_unaligned_buf[i]);
+
+    vfree(session->bd_unaligned_buf);
+}
+
+
 /** init an event structure
  * @return new event structure
  */
@@ -498,7 +508,6 @@ static int bd_ack_rq_thread(void *arg)
     unsigned long type;
     struct bd_event_msg *msg;
     struct bd_session *session = arg;
-    int i;
 
 #if (LINUX_VERSION_CODE < KERNEL_VERSION(3, 8, 0))
     /* The name of the thread of exa_bd in processes list will be of the form:
@@ -514,31 +523,6 @@ static int bd_ack_rq_thread(void *arg)
 	/* FIXME What about any other error code? they are just ignored here in a buggy fashion... */
         if (int_val == -EINTR)
             flush_signals(current);     /* in case of SIGUP or another thing, we must ignore it, only a release can kill this thread */
-
-        if ((type & BD_EVENT_KILL) != 0)
-        {
-            bd_log_info("BD_EVENT_KILL\n");
-
-            abort_all_pending_requests(session);
-
-            for (i = 0; i < NUM_MAPPED_PAGES(session); i++)
-            {
-                if (session->bd_unaligned_buf[i] == NULL)
-                    break;
-                put_page(session->bd_unaligned_buf[i]);
-            }
-
-            vfree(session->bd_unaligned_buf);
-
-            vfree(session->bd_kernel_queue);
-            vfree(session->bd_user_queue);
-            /* we ending, so all event queue is down, this Close also signal to the BD_EVENT_KILL
-               that the messaged have been proceed */
-            bd_event_close(session->bd_thread_event);
-            complete_and_exit(&session->bd_end_completion, 0);
-            /* now all is done, so exit, the caller must vfree(Session) */
-            return 0;
-        }
 
         if ((type & BD_EVENT_POST) != 0)
         {
@@ -572,6 +556,24 @@ static int bd_ack_rq_thread(void *arg)
                                                   msg->bd_minor_size_in512_bytes,
                                                   msg->bd_minor_readonly);
                 break;
+
+	    case BD_EVENT_KILL:
+            {
+                bd_log_info("BD_EVENT_KILL\n");
+
+                abort_all_pending_requests(session);
+
+                __cleanup(session);
+
+                vfree(session->bd_kernel_queue);
+                vfree(session->bd_user_queue);
+                /* we ending, so all event queue is down, this Close also signal to the BD_EVENT_KILL
+                   that the messaged have been proceed */
+                bd_event_close(session->bd_thread_event);
+                complete_and_exit(&session->bd_end_completion, 0);
+                /* now all is done, so exit, the caller must vfree(Session) */
+                return 0;
+            }
 
             case BD_EVENT_SETSIZE:
                 msg->bd_result = bd_minor_set_size(bd_minor,
@@ -616,7 +618,6 @@ static void bd_get_session(struct bd_session *session)
 {
     atomic_inc(&session->total_use_count);
 }
-
 
 /**
  * This function Launch a session thread and initialise and allocated all neede data.
@@ -821,20 +822,7 @@ error:
     bd_event_close(session->bd_new_rq);
     bd_event_close(session->bd_thread_event);
 
-    if (session->bd_unaligned_buf)
-    {
-        for (i = 0; i < NUM_MAPPED_PAGES(session); i++)
-        {
-            if (session->bd_unaligned_buf[i] == NULL)
-                break;
-
-            put_page(session->bd_unaligned_buf[i]);
-        }
-        bd_log_error("Exanodes BD open session failed allocated only %d "
-                     "buffer on %lu UnalignedBuf %p\n", i,
-                     NUM_MAPPED_PAGES(session), session->bd_unaligned_buf);
-        vfree(session->bd_unaligned_buf);
-    }
+    __cleanup(session);
 
     bd_log_error("Exanodes BD open session failed bd_user_queue %p "
                  "bd_kernel_queue %p\n", session->bd_user_queue,
