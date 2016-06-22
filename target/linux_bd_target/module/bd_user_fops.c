@@ -120,8 +120,8 @@ static int bd_fops_open(struct inode *I, struct file *F)
  *                  ,-1=Error   create a new session to handle
  *                          "Major" block device ; all minor are disable (size=0)
  *                          if "Major==0" Major return the new Major
- * BD_IOCTL_SEM_ACK     0=Ok,-1=Error        New ack event (wake up kernel thread if necessary
- * BD_IOCTL_SEM_NEW     """""""""""""        Wait for a new event "new request"
+ * BD_IOCTL_SEM_POST     0=Ok,-1=Error        New ack event (wake up kernel thread if necessary
+ * BD_IOCTL_SEM_WAIT     """""""""""""        Wait for a new event "new request"
  * BD_IOCTL_NEWMINOR                         Add a new minor device with state supend and new state
  * BD_IOCTL_DELMINOR                         Remove a minor
  *                 */
@@ -165,7 +165,7 @@ static int bd_fops_ioctl(struct inode *I, struct file *F,
             return session->bd_major; /* All is ok */
         }
 
-    case BD_IOCTL_SEM_ACK:
+    case BD_IOCTL_SEM_POST:
         bd_new_event(session->bd_thread_event, BD_EVENT_ACK_NEW);
         return 0;
 
@@ -173,7 +173,7 @@ static int bd_fops_ioctl(struct inode *I, struct file *F,
         bd_new_event(session->bd_new_rq, BD_EVENT_ACK_NEW);
         return 0;
 
-    case BD_IOCTL_SEM_NEW:
+    case BD_IOCTL_SEM_WAIT:
         {
             unsigned long temp = 0;
             return bd_wait_event(session->bd_new_rq, &temp, NULL);

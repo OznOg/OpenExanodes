@@ -408,7 +408,7 @@ static bool __bdget_new_request(struct tab_session *session, long *queue_index)
 	if (li == -1)
 	{
 	    os_thread_rwlock_unlock(&session->change_state);
-	    if (__ioctl_nointr(session->bd_fd, BD_IOCTL_SEM_NEW, 0) != 0)
+	    if (__ioctl_nointr(session->bd_fd, BD_IOCTL_SEM_WAIT, 0) != 0)
 		return false;
 	}
     }
@@ -459,7 +459,7 @@ static inline void __bdend_request(struct tab_session *session,
 
     exalog_debug("bd_user : will end %d request with status %d\n", num, status);
 
-    __ioctl_nointr(session->bd_fd, BD_IOCTL_SEM_ACK, 0); /* 1 or 2 */
+    __ioctl_nointr(session->bd_fd, BD_IOCTL_SEM_POST, 0); /* 1 or 2 */
 }
 
 static int adapter_static_init(exa_nodeid_t node_id /* unused */)
