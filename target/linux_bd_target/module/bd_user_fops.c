@@ -166,11 +166,11 @@ static int bd_fops_ioctl(struct inode *I, struct file *F,
         }
 
     case BD_IOCTL_SEM_POST:
-        bd_new_event(session->bd_thread_event, BD_EVENT_POST);
+        bd_wakeup(session->bd_thread_event);
         return 0;
 
     case BD_IOCTL_CLEANUP:
-        bd_new_event(session->bd_new_rq, BD_EVENT_POST);
+        bd_wakeup(session->bd_new_rq);
         return 0;
 
     case BD_IOCTL_SEM_WAIT:

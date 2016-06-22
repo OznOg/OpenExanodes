@@ -156,12 +156,11 @@ int bd_wait_event(struct bd_event *bd_event, unsigned long *bd_type,
     return int_val;
 }
 
-
 /** Add new event of type BdType wake up thread only if needed
  * @param bd_event event structure that will be used
  * @param[in] BdType type of event we send
  */
-void bd_new_event(struct bd_event *bd_event, unsigned long bd_type)
+static void bd_new_event(struct bd_event *bd_event, unsigned long bd_type)
 {
     unsigned long flags;
     bool someone_waits;
@@ -186,6 +185,10 @@ void bd_new_event(struct bd_event *bd_event, unsigned long bd_type)
     spin_unlock_irqrestore(&bd_event->bd_event_sl, flags);
 }
 
+void bd_wakeup(struct bd_event *bd_event)
+{
+    bd_new_event(bd_event, BD_EVENT_POST);
+}
 
 /**
  * Add a message with waiting for it's have been received and processed by Event receiver
@@ -338,7 +341,7 @@ long bd_post_new_rq(struct bd_session *session)
 
     /* one new request, so up the semaphore to call the user process */
     session->bd_in_rq++;
-    bd_new_event(session->bd_new_rq, BD_EVENT_POST);
+    bd_wakeup(session->bd_new_rq);
     return 0;
 }
 
