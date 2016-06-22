@@ -48,6 +48,56 @@ struct bd_event
 #define NUM_MAPPED_PAGES(session) \
     (((session)->bd_max_queue * (session)->bd_buffer_size) / PAGE_SIZE)
 
+int bd_wait(struct bd_event *bd_event)
+{
+    unsigned long flags;
+
+    spin_lock_irqsave(&bd_event->bd_event_sl, flags);
+
+    while (!bd_event->has_pending_event && !bd_event->exiting)
+    {
+        spin_unlock_irqrestore(&bd_event->bd_event_sl, flags);
+
+        if (down_interruptible(&bd_event->bd_event_sem) != 0)
+            return -EINTR;
+
+        spin_lock_irqsave(&bd_event->bd_event_sl, flags);
+    }
+
+    bd_event->has_pending_event = false;
+
+    spin_unlock_irqrestore(&bd_event->bd_event_sl, flags);
+
+    /* no real need for locking here as exiting flag cannot be reset */
+    return bd_event->exiting ? -EBADFD : 0;
+}
+
+/** Add new event of type BdType wake up thread only if needed
+ * @param bd_event event structure that will be used
+ * @param[in] BdType type of event we send
+ */
+void bd_wakeup(struct bd_event *bd_event)
+{
+    unsigned long flags;
+
+    spin_lock_irqsave(&bd_event->bd_event_sl, flags);
+
+    if (bd_event->exiting)
+    {
+        spin_unlock_irqrestore(&bd_event->bd_event_sl, flags);
+        return;
+    }
+
+    /* if not signaled yet for pending event, set the flag and up the semaphore */
+    if (!bd_event->has_pending_event)
+    {
+        bd_event->has_pending_event = true;
+        up(&bd_event->bd_event_sem);
+    }
+
+    spin_unlock_irqrestore(&bd_event->bd_event_sl, flags);
+}
+
 /**
  * Wait for a new event, down on a semaphore if needed, exit if the Event was closed
  * If we wait motr than 15s, we will recieving a BD_EVENT_TIMEOUT
@@ -154,47 +204,6 @@ int bd_wait_event(struct bd_event *bd_event, unsigned long *bd_type,
     spin_unlock_irqrestore(&bd_event->bd_event_sl, flags);
 
     return int_val;
-}
-
-int bd_wait(struct bd_event *bd_event)
-{
-    unsigned long type = 0;
-    return bd_wait_event(bd_event, &type, NULL);
-}
-
-
-/** Add new event of type BdType wake up thread only if needed
- * @param bd_event event structure that will be used
- * @param[in] BdType type of event we send
- */
-static void bd_new_event(struct bd_event *bd_event, unsigned long bd_type)
-{
-    unsigned long flags;
-    bool someone_waits;
-
-    spin_lock_irqsave(&bd_event->bd_event_sl, flags);
-
-    if (bd_event->exiting)
-    {
-        spin_unlock_irqrestore(&bd_event->bd_event_sl, flags);
-        return;
-    }
-
-    bd_event->bd_type = bd_event->bd_type | bd_type;
-
-    someone_waits = bd_event->wait_for_new_event && !bd_event->has_pending_event;
-
-    bd_event->has_pending_event = true;
-
-    if (someone_waits)
-        up(&bd_event->bd_event_sem);
-
-    spin_unlock_irqrestore(&bd_event->bd_event_sl, flags);
-}
-
-void bd_wakeup(struct bd_event *bd_event)
-{
-    bd_new_event(bd_event, BD_EVENT_POST);
 }
 
 /**
