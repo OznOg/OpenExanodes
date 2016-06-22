@@ -302,7 +302,6 @@ long bd_post_new_rq(struct bd_session *session)
         (*session->bd_new_request.last_index_add + 1) % session->bd_max_queue;
 
     /* one new request, so up the semaphore to call the user process */
-    session->bd_in_rq++;
     bd_wakeup(session->bd_new_rq);
     return 0;
 }
@@ -317,7 +316,6 @@ static void bd_rq_remove(int req_num, struct bd_session *session)
 {
     struct bd_kernel_queue *bd_kq = session->bd_kernel_queue;
 
-    session->bd_in_rq--;
     bd_end_request(&bd_kq[req_num], session->bd_user_queue[req_num].bd_result);
 
     bd_kq[req_num].bd_use = BDUSE_FREE;
