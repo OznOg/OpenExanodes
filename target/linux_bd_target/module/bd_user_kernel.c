@@ -529,7 +529,8 @@ static int bd_ack_rq_thread(void *arg)
     {
         int int_val = bd_wait_event(session->bd_thread_event, &type, &msg);
 
-        if (int_val == 1)
+	/* FIXME What about any other error code? they are just ignored here in a buggy fashion... */
+        if (int_val == -EINTR)
             flush_signals(current);     /* in case of SIGUP or another thing, we must ignore it, only a release can kill this thread */
 
         if ((type & BD_EVENT_KILL) != 0)
