@@ -68,7 +68,6 @@ struct bd_request
 
 #define BDUSE_FREE      0  /*! free queue entry */
 #define BDUSE_USED      1  /*! used queue entry */
-#define BDUSE_SUSPEND   2  /*! supended queue entry */
 
 /*
  * struct bd_kernel_queue and struct bd_user_queue are used to comminicate
@@ -90,7 +89,7 @@ struct bd_kernel_queue
     volatile int       next;      /*! link list, only use to remove and proccessed entry */
     int bd_minor;
     char bd_op;                   /*! 0 READ or 1 WRITE */
-    volatile char      bd_use;    /*! Kernel set this to BDUSE_USED when it's valid, and BDUSE_SUSPEND if supespended
+    volatile char      bd_use;    /*! Kernel set this to BDUSE_USED when it's valid
                                    * Before setting this to BDUSE_USED, kernel must to zeroed
                                    * the associated bd_user_queue entry
                                    * note if bduse != BDUSE_FREE, it's the buffer is mapped in user */

@@ -358,9 +358,6 @@ static void bd_ack_rq(struct bd_session *session)
         if (i == BD_FREE_QUEUE || i > session->bd_max_queue - 1)
             continue;
 
-        if (session->bd_kernel_queue[i].bd_use == BDUSE_SUSPEND)
-            continue; /* don't do anything with suspended request */
-
         if (session->bd_kernel_queue[i].bd_use == BDUSE_FREE)
             continue; /* error, probably receive a request after a disk was DOWNed */
 
