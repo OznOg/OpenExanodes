@@ -427,9 +427,7 @@ static void bd_end_io(struct bio *bio, int err)
  */
 static void bd_end_one_req(struct bd_request *req, int err)
 {
-    static DEFINE_SPINLOCK(callback_sl);
     struct bio *bio;
-    unsigned long flags;
 
     if (req == NULL)
     {
@@ -444,14 +442,12 @@ static void bd_end_one_req(struct bd_request *req, int err)
     }
 
     bio = req->first_bio;
-    spin_lock_irqsave(&callback_sl, flags);
     while (bio != NULL)
     {
         struct bio *next_bio = BIO_NEXT(bio);
         bd_end_io(bio, err);
         bio = next_bio;
     }
-    spin_unlock_irqrestore(&callback_sl, flags);
     bd_list_post(&req->bd_minor->bd_list.root->free, req);
 }
 
