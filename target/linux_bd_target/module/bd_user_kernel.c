@@ -127,7 +127,7 @@ int bd_wait_event(struct bd_event *bd_event, unsigned long *bd_type,
     if (bd_event->exiting)
     {
         spin_unlock_irqrestore(&bd_event->bd_event_sl, flags);
-	return -EBADF;
+        return -EBADF;
     }
 
     do
@@ -135,7 +135,7 @@ int bd_wait_event(struct bd_event *bd_event, unsigned long *bd_type,
         if (bd_event->has_pending_event)
         {
             /* An event is pending => process it */
-	    wait = false;
+            wait = false;
 
             bd_event->has_pending_event = false;
 
@@ -149,7 +149,7 @@ int bd_wait_event(struct bd_event *bd_event, unsigned long *bd_type,
             }
             else
                 OS_ASSERT_VERBOSE(bd_event->bd_msg == NULL, "Message lost");
-	} else {
+        } else {
            /* No pending event => wait */
             wait = true;
         }
@@ -187,7 +187,7 @@ int bd_wait_event(struct bd_event *bd_event, unsigned long *bd_type,
                 wait = false;
             }
         }
-	spin_lock_irqsave(&bd_event->bd_event_sl, flags);
+        spin_lock_irqsave(&bd_event->bd_event_sl, flags);
     } while (wait);
 
     spin_unlock_irqrestore(&bd_event->bd_event_sl, flags);
@@ -520,7 +520,7 @@ static int bd_ack_rq_thread(void *arg)
     {
         int int_val = bd_wait_event(session->bd_thread_event, &type, &msg);
 
-	/* FIXME What about any other error code? they are just ignored here in a buggy fashion... */
+        /* FIXME What about any other error code? they are just ignored here in a buggy fashion... */
         if (int_val == -EINTR)
             flush_signals(current);     /* in case of SIGUP or another thing, we must ignore it, only a release can kill this thread */
 
@@ -533,7 +533,7 @@ static int bd_ack_rq_thread(void *arg)
         while (msg != NULL)
         {
             struct bd_minor *bd_minor = NULL;
-	    /* find minor for message (unless message is about new minor creation) */
+            /* find minor for message (unless message is about new minor creation) */
             if (msg->bd_type != BD_EVENT_NEW)
             {
                 for (bd_minor = session->bd_minor; bd_minor != NULL; bd_minor = bd_minor->bd_next)
@@ -588,7 +588,7 @@ static int bd_ack_rq_thread(void *arg)
                 break;
 
             case BD_EVENT_IS_INUSE:
-		/* FIXME why > 1 ? */
+                /* FIXME why > 1 ? */
                 msg->bd_result = (atomic_read(&bd_minor->use_count) > 1);
                 break;
             }
