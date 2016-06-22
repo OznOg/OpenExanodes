@@ -56,8 +56,4 @@ void bd_new_event_msg_wait_processed(struct bd_event *bd_event,
 
 int bd_wait(struct bd_event *bd_event);
 void bd_wakeup(struct bd_event *bd_event);
-int  bd_wait_event(struct bd_event *bd_event, unsigned long *bd_type,
-                   struct bd_event_msg  **bd_event_msg);
-
-
 #endif

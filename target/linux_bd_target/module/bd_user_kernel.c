@@ -109,18 +109,12 @@ void bd_wakeup(struct bd_event *bd_event)
  *        2 when exiting (cancelling events ?)
  *        3 when ???
  */
-int bd_wait_event(struct bd_event *bd_event, unsigned long *bd_type,
-                  struct bd_event_msg **msg)
+static int bd_wait_event(struct bd_event *bd_event, unsigned long *bd_type,
+                         struct bd_event_msg  **msg) __attribute__((nonnull (1, 2, 3)));
+static int bd_wait_event(struct bd_event *bd_event, unsigned long *bd_type,
+                         struct bd_event_msg  **msg)
 {
     unsigned long flags;
-    bool wait;
-    int int_val = 0;
-
-    OS_ASSERT(bd_type != NULL);
-    *bd_type = 0;
-
-    if (msg != NULL)
-        *msg = NULL;
 
     spin_lock_irqsave(&bd_event->bd_event_sl, flags);
 
@@ -130,69 +124,28 @@ int bd_wait_event(struct bd_event *bd_event, unsigned long *bd_type,
         return -EBADF;
     }
 
-    do
+    while (!bd_event->has_pending_event)
     {
-        if (bd_event->has_pending_event)
-        {
-            /* An event is pending => process it */
-            wait = false;
-
-            bd_event->has_pending_event = false;
-
-            *bd_type = bd_event->bd_type;
-            bd_event->bd_type = 0;
-
-            if (msg != NULL)
-            {
-                *msg        = bd_event->bd_msg;
-                bd_event->bd_msg = NULL;
-            }
-            else
-                OS_ASSERT_VERBOSE(bd_event->bd_msg == NULL, "Message lost");
-        } else {
-           /* No pending event => wait */
-            wait = true;
-        }
-
-        bd_event->wait_for_new_event = wait;
-
         spin_unlock_irqrestore(&bd_event->bd_event_sl, flags);
 
-        if (wait)
-        {
-            if (down_interruptible(&bd_event->bd_event_sem) != 0)
-            {
-                int_val = -EINTR;
-                *bd_type = 0;
+        if (down_interruptible(&bd_event->bd_event_sem) != 0)
+            return -EINTR;
 
-                if (msg != NULL)
-                    *msg = NULL;
-
-                /* down failed but if in a short time someone else add an
-                 * event, he will perhaps do a up, so we must check this and
-                 * say we don't wait more */
-                spin_lock_irqsave(&bd_event->bd_event_sl, flags);
-
-                wait = bd_event->has_pending_event;
-                bd_event->wait_for_new_event = false;
-
-                spin_unlock_irqrestore(&bd_event->bd_event_sl, flags);
-
-                /* another process add an event in the short time so down it !
-                 * we don't read this event now, but it will be read in the next
-                 * call of this function*/
-                if (wait)
-                    down(&bd_event->bd_event_sem);
-
-                wait = false;
-            }
-        }
         spin_lock_irqsave(&bd_event->bd_event_sl, flags);
-    } while (wait);
+    }
+
+    /* An event is pending => process it */
+    bd_event->has_pending_event = false;
+
+    *bd_type = bd_event->bd_type;
+    *msg     = bd_event->bd_msg;
+
+    bd_event->bd_type = 0;
+    bd_event->bd_msg = NULL;
 
     spin_unlock_irqrestore(&bd_event->bd_event_sl, flags);
 
-    return int_val;
+    return 0;
 }
 
 /**
@@ -520,9 +473,13 @@ static int bd_ack_rq_thread(void *arg)
     {
         int int_val = bd_wait_event(session->bd_thread_event, &type, &msg);
 
-        /* FIXME What about any other error code? they are just ignored here in a buggy fashion... */
         if (int_val == -EINTR)
+        {
             flush_signals(current);     /* in case of SIGUP or another thing, we must ignore it, only a release can kill this thread */
+            continue;
+        }
+
+        OS_ASSERT_VERBOSE(int_val == 0, "An error occured while waiting an event %d", int_val);
 
         if ((type & BD_EVENT_POST) != 0)
         {
