@@ -360,7 +360,7 @@ static void bd_ack_rq(struct bd_session *session)
             continue; /* error, probably receive a request after a disk was DOWNed */
 
         bd_rq_remove(i, session);       /* ack the request with the error given by the user */
-        bd_flush_q(session, 0);     /* add in user space as lot as we can the pending request */
+        bd_flush_q(session);     /* add in user space as lot as we can the pending request */
     }
 }
 
@@ -416,12 +416,12 @@ static void abort_all_pending_requests(struct bd_session *session)
     struct bd_minor *bd_minor = session->bd_minor;
 
     bd_ack_all_pending(session, -1);
-    bd_flush_q(session, -EIO);
     while (bd_minor != NULL)
     {
         if (!bd_minor->dead)
         {
             bd_minor->dead = true;
+            bd_end_q(bd_minor, -EIO);
             bd_close_list(&bd_minor->bd_list);
             /* after Dead==1, all new req will be ack with error,
              * so ack with error all pending
@@ -479,7 +479,7 @@ static int bd_ack_rq_thread(void *arg)
         if ((type & BD_EVENT_POST) != 0)
         {
             bd_ack_rq(session); /* wait for something and ack all user finished request */
-            bd_flush_q(session, 0);     /* add in user space as lot as we can the pending request */
+            bd_flush_q(session);     /* add in user space as lot as we can the pending request */
         }
 
         while (msg != NULL)

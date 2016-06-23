@@ -86,7 +86,7 @@ void  bd_end_request(struct bd_kernel_queue *,  int err);
 int   bd_prepare_request(struct bd_kernel_queue *);
 int   bd_register_drv(struct bd_session *);
 void  bd_unregister_drv(struct bd_session *);
-void  bd_flush_q(struct bd_session *session, int err);
+void  bd_flush_q(struct bd_session *session);
 int   bd_minor_add_new(struct bd_session *session, int minor,
                        unsigned long size_in512_bytes, bool readonly);
 void bd_put_session(struct bd_session **);

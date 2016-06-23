@@ -512,7 +512,7 @@ void bd_end_q(struct bd_minor *bd_minor, int err)
  * @param err 0 try to add as many as we can request to bd_kernel_queue,
  * -EIO :all request must be remove and end with error
  * */
-void bd_flush_q(struct bd_session *session, int err)
+void bd_flush_q(struct bd_session *session)
 {
     struct bd_request *req;
 
@@ -530,21 +530,15 @@ void bd_flush_q(struct bd_session *session, int err)
         if (req == NULL)
             return; /* nothing to do */
 
-        if (err == 0)
+        if (bd_post_new_rq(session, req) != 0)
         {
-            if (bd_post_new_rq(session, req) != 0)
-            {
-                session->pending_req = req;
-                return; /* This Req cannot be added, so probably no more Req
-                         * can be added now, but we keep this request that
-                         * cannot be added */
-            }
-            /* the request was posted, update the outstanding counter */
-            session->pending_minor->current_run++;
+            session->pending_req = req;
+            return; /* This Req cannot be added, so probably no more Req
+                     * can be added now, but we keep this request that
+                     * cannot be added */
         }
-        else
-            bd_end_one_req(req, err);
-
+        /* the request was posted, update the outstanding counter */
+        session->pending_minor->current_run++;
     } while (1);
 }
 
