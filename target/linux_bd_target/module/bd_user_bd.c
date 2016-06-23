@@ -257,16 +257,16 @@ static struct bd_request *bd_next_queue(struct bd_session *session)
         return NULL;
 
     /* go thru all minors, starting after the last one processed */
-    for (minor = minor_get_next(session->pending_minor);
-         minor != NULL && minor != session->pending_minor;
-         minor = minor_get_next(session->pending_minor))
+    for (minor = minor_get_next(session->last_minor_processed);
+         minor != NULL && minor != session->last_minor_processed;
+         minor = minor_get_next(session->last_minor_processed))
     {
         req = minor_get_req(minor);
         if (req != NULL) /* Take the first available request */
             break;
     }
 
-    session->pending_minor = minor;
+    session->last_minor_processed = minor;
     return req;
 }
 
@@ -705,8 +705,8 @@ int bd_minor_remove(struct bd_minor *bd_minor)
                 bd_minor->bd_name, bd_minor->minor);
 
     bd_end_q(bd_minor, -EIO);
-    if (session->bd_minor_last == bd_minor)
-        session->bd_minor_last = session->bd_minor;
+    if (session->last_minor_processed == bd_minor)
+        session->last_minor_processed = session->bd_minor;
 
     del_gendisk(bd_minor->bd_gen_disk);
     put_disk(bd_minor->bd_gen_disk);

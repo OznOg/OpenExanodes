@@ -53,7 +53,6 @@ struct bd_session
     struct bd_user_queue   *bd_user_queue_user; /*! Address in user space */
     long bd_major;                      /*! Major number of the block device of this session */
     struct bd_root_list     bd_root; /*! Element used to store bd_requests */
-    struct bd_minor        *bd_minor_last; /*! used to read all queue */
     struct bd_minor        *bd_minor; /*! Link structure of gendisk minor */
     struct bd_event        *bd_new_rq; /*! Event to wake up user if there are some  new Rq */
     struct bd_event        *bd_thread_event; /*! Event to wake up main kernel thread if there are new queue, new Rq done by user, if it's time to end,... */
@@ -62,7 +61,7 @@ struct bd_session
     struct page           **bd_unaligned_buf; /*! used to manage the buffer that do not fit in page */
 
     struct bd_request      *pending_req;
-    struct bd_minor        *pending_minor;
+    struct bd_minor        *last_minor_processed;
 
     struct completion       bd_end_completion;
 
