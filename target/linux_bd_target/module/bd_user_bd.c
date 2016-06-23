@@ -248,12 +248,10 @@ static struct bd_request *minor_get_req(struct bd_minor *minor)
  * @param session target session
  * @return a Request pointer or NULL if all queue was full
  */
-static void bd_next_queue(struct bd_session *session)
+static struct bd_request *bd_next_queue(struct bd_session *session)
 {
     struct bd_minor *minor;
     struct bd_request *req = NULL;
-
-    session->pending_req = NULL;
 
     if (session->bd_minor == NULL)
         return NULL;
@@ -269,7 +267,7 @@ static void bd_next_queue(struct bd_session *session)
     }
 
     session->pending_minor = minor;
-    session->pending_req = req;
+    return req;
 }
 
 
@@ -516,34 +514,37 @@ void bd_end_q(struct bd_minor *bd_minor, int err)
  * */
 void bd_flush_q(struct bd_session *session, int err)
 {
+    struct bd_request *req;
+
     do
     {
-        if (session->pending_req == NULL)
+        /* take a new request only if there is no pending one */
+        if (session->pending_req != NULL)
         {
-            bd_next_queue(session);
-            if (session->pending_req == NULL)
-                bd_next_queue(session);
-
-            /* if we have selected a req of disk A for previous req and there
-	     * are only request for disk A pending, the first BdNextQueue will
-	     * not get it because it have the old focus */
+            req = session->pending_req;
+            session->pending_req = NULL;
+        } else {
+            req = bd_next_queue(session);
         }
-        if (session->pending_req == NULL)
-            return;
+
+        if (req == NULL)
+            return; /* nothing to do */
 
         if (err == 0)
         {
-            if (bd_post_new_rq(session, session->pending_req) != 0)
+            if (bd_post_new_rq(session, req) != 0)
+            {
+                session->pending_req = req;
                 return; /* This Req cannot be added, so probably no more Req
                          * can be added now, but we keep this request that
                          * cannot be added */
+            }
+            /* the request was posted, update the outstanding counter */
             session->pending_minor->current_run++;
         }
         else
-            bd_end_one_req(session->pending_req, err);
+            bd_end_one_req(req, err);
 
-        session->pending_req = NULL;
-        session->pending_minor = NULL;
     } while (1);
 }
 
