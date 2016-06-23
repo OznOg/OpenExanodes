@@ -408,7 +408,7 @@ struct block_device_operations bd_blk_fops;
 int bd_prepare_request(struct bd_kernel_queue *Q)
 {
     Q->bd_op = Q->bd_req->rw;
-    Q->bd_minor = Q->bd_session->pending_minor->minor;
+    Q->bd_minor = Q->bd_req->bd_minor->minor;
     check_size(Q);
 
     Q->bd_blk_num = BIO_OFFSET(Q->bd_req->first_bio);
@@ -490,15 +490,12 @@ void bd_end_request(struct bd_kernel_queue *Q, int err)
  */
 void bd_end_q(struct bd_minor *bd_minor, int err)
 {
-    struct bd_request *req = NULL;
+    struct bd_request *req = bd_minor->bd_session->pending_req;
 
-    if (bd_minor->bd_session->pending_minor != NULL
-        && bd_minor->bd_session->pending_minor->minor == bd_minor->minor
-        && bd_minor->bd_session->pending_req != NULL)
+    if (req != NULL && req->bd_minor->minor == bd_minor->minor)
     {
-        bd_end_one_req(bd_minor->bd_session->pending_req, -EIO);
+        bd_end_one_req(req, -EIO);
         bd_minor->bd_session->pending_req = NULL;
-        bd_minor->bd_session->pending_minor = NULL;
     }
 
     while ((req = bd_list_remove(&bd_minor->bd_list, LISTNOWAIT)) != NULL)
@@ -538,7 +535,7 @@ void bd_flush_q(struct bd_session *session)
                      * cannot be added */
         }
         /* the request was posted, update the outstanding counter */
-        session->pending_minor->current_run++;
+        req->bd_minor->current_run++;
     } while (1);
 }
 
