@@ -186,6 +186,62 @@ static void bd_end_one_req(struct bd_request *req, int err);
  * In this file bd_request (any process) are called asynchronously
  * all other function are called synchronously */
 
+static struct bd_minor *minor_get_next(struct bd_minor *minor)
+{
+    if (minor == NULL)
+        return NULL;
+
+    if (minor->bd_next == NULL)
+        return minor->bd_session->bd_minor;
+
+    return minor->bd_next;
+}
+
+static struct bd_request *minor_get_req(struct bd_minor *minor)
+{
+    struct bd_request *req;
+
+    if (minor->dead)
+        return NULL;
+
+    if (minor->bd_gen_disk->queue == NULL)
+        return NULL;
+
+    if (minor->need_sync == 1)
+    {
+        /* There are outstanding IOs, we need to wait their completion before
+         * processing any new request on this minor */
+        if (minor->current_run > 0)
+            return NULL;
+
+        /* There are no outstanding IOs => the sync was completed, we can reset
+         * the flag */
+        minor->need_sync = 0;
+    }
+
+    do {
+        req = bd_list_remove(&minor->bd_list, LISTNOWAIT);
+
+        /* try to find a non barrier request */
+        if (req == NULL)
+            return NULL;
+
+        if (req->info == BD_INFO_INTERNAL_BARRIER)
+        {
+            bd_list_post(&minor->bd_list.root->free, req);
+
+            if (minor->current_run > 0)
+            {
+                minor->need_sync = 1;
+                /* stop processing this minor as a sync is awaited before resuming */
+                return NULL;
+            }
+        }
+    } while (req->info == BD_INFO_INTERNAL_BARRIER);
+
+    return req;
+}
+
 /**
  * Searching for onr next request in all queue with a simple round robin
  * fairness algorithm
@@ -194,67 +250,26 @@ static void bd_end_one_req(struct bd_request *req, int err);
  */
 static void bd_next_queue(struct bd_session *session)
 {
-    struct bd_minor *first;
+    struct bd_minor *minor;
+    struct bd_request *req = NULL;
 
     session->pending_req = NULL;
 
-    if (session->bd_minor_last == NULL)
-        session->bd_minor_last = session->bd_minor;
+    if (session->bd_minor == NULL)
+        return NULL;
 
-    first = session->bd_minor_last;
-    if (first == NULL)
-        return;
-
-    session->pending_minor = first;
-    do
+    /* go thru all minors, starting after the last one processed */
+    for (minor = minor_get_next(session->pending_minor);
+         minor != NULL && minor != session->pending_minor;
+         minor = minor_get_next(session->pending_minor))
     {
-        do
-        {
-            if (session->pending_minor->dead)
-                break;
+        req = minor_get_req(minor);
+        if (req != NULL) /* Take the first available request */
+            break;
+    }
 
-            if (session->pending_minor->bd_gen_disk->queue == NULL)
-                break;
-
-            if (session->pending_minor->need_sync == 1)
-            {
-                if (session->pending_minor->current_run > 0)
-                    break;
-
-                session->pending_minor->need_sync = 0;
-            }
-
-            session->pending_req =
-                bd_list_remove(&session->pending_minor->bd_list, LISTNOWAIT);
-
-            while (session->pending_req != NULL
-                   && session->pending_req->info == BD_INFO_INTERNAL_BARRIER)
-            {
-                bd_end_one_req(session->pending_req, 0);
-                session->pending_req = NULL;
-
-                if (session->pending_minor->current_run > 0)
-                    session->pending_minor->need_sync = 1;
-                else
-                    session->pending_req =
-                        bd_list_remove(&session->pending_minor->bd_list, LISTNOWAIT);
-            }
-
-            if (session->pending_req == NULL)
-                break;
-
-            session->bd_minor_last = session->pending_minor;
-            return;
-
-        } while (1);
-
-	/* per default we continue on the same disk */
-        session->pending_minor = session->pending_minor->bd_next;
-
-        if (session->pending_minor == NULL)
-            session->pending_minor = session->bd_minor;
-
-    } while (session->pending_minor != first);
+    session->pending_minor = minor;
+    session->pending_req = req;
 }
 
 
@@ -431,12 +446,6 @@ static void bd_end_one_req(struct bd_request *req, int err)
     if (req == NULL)
     {
         bd_log_error("BD : Severe errror : BdEndOneReq(NULL)= %d\n", err);
-        return;
-    }
-
-    if (req->info == BD_INFO_INTERNAL_BARRIER)
-    {
-        bd_list_post(&req->bd_minor->bd_list.root->free, req);
         return;
     }
 
