@@ -405,6 +405,16 @@ static void bd_ack_all_pending(struct bd_session *session, int minor)
     }
 }
 
+void __minor_cancel_all(struct bd_minor *bd_minor)
+{
+    /* after Dead==true, all new req will be ack with
+     * error, so ack with error all pending */
+    bd_minor->dead = true;
+    bd_close_list(&bd_minor->bd_list);
+    bd_ack_all_pending(bd_minor->bd_session, bd_minor->minor);
+    bd_minor_remove(bd_minor);
+}
+
 /**
  * For a session, unmap all pending request in user mode and ack them with
  * an error
@@ -420,15 +430,7 @@ static void abort_all_pending_requests(struct bd_session *session)
     {
         if (!bd_minor->dead)
         {
-            bd_minor->dead = true;
-            cancel_all_requests(bd_minor);
-            bd_close_list(&bd_minor->bd_list);
-            /* after Dead==1, all new req will be ack with error,
-             * so ack with error all pending
-             */
-            bd_ack_all_pending(session, bd_minor->minor);
-            /* Removing all minor associated with this dev */
-            bd_minor_remove(bd_minor);
+            __minor_cancel_all(bd_minor);
         }
         bd_minor = bd_minor->bd_next;
     }
@@ -524,12 +526,8 @@ static int bd_ack_rq_thread(void *arg)
                 {
                     if (atomic_read(&bd_minor->use_count) == 1)
                     {
-                        /* after Dead==true, all new req will be ack with
-                         * error, so ack with error all pending */
-                        bd_minor->dead = true;
-                        bd_close_list(&bd_minor->bd_list);
-                        bd_ack_all_pending(session, msg->bd_minor);
-                        msg->bd_result = bd_minor_remove(bd_minor);
+                        __minor_cancel_all(bd_minor);
+                        msg->bd_result = 0;
                     }
                     else
                     {
