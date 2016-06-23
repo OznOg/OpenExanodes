@@ -494,7 +494,7 @@ void bd_end_q(struct bd_minor *bd_minor, int err)
 
     if (req != NULL && req->bd_minor->minor == bd_minor->minor)
     {
-        bd_end_one_req(req, -EIO);
+        bd_end_one_req(req, err);
         bd_minor->bd_session->pending_req = NULL;
     }
 
