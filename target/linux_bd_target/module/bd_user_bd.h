@@ -96,7 +96,7 @@ struct bd_session *bd_launch_session(struct bd_init *init);
 
 const char *bd_minor_name(const struct bd_minor *bd_minor);
 
-void  bd_end_q(struct bd_minor *bd_minor, int err);
+void  cancel_all_requests(struct bd_minor *bd_minor);
 int   bd_minor_remove(struct bd_minor *bd_minor);
 int   bd_minor_set_size(struct bd_minor *bd_minor,
                         unsigned long size_in512_bytes);

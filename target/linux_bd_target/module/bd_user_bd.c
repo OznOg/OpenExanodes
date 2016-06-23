@@ -488,18 +488,18 @@ void bd_end_request(struct bd_kernel_queue *Q, int err)
  * @param session target session associated with queue device
  * @param minor minor number associated with queue device
  */
-void bd_end_q(struct bd_minor *bd_minor, int err)
+void cancel_all_requests(struct bd_minor *bd_minor)
 {
     struct bd_request *req = bd_minor->bd_session->pending_req;
 
     if (req != NULL && req->bd_minor->minor == bd_minor->minor)
     {
-        bd_end_one_req(req, err);
+        bd_end_one_req(req, -EIO);
         bd_minor->bd_session->pending_req = NULL;
     }
 
     while ((req = bd_list_remove(&bd_minor->bd_list, LISTNOWAIT)) != NULL)
-        bd_end_one_req(req, err);
+        bd_end_one_req(req, -EIO);
 }
 
 
@@ -658,7 +658,7 @@ int bd_minor_remove(struct bd_minor *bd_minor)
     struct bd_session *session = bd_minor->bd_session;
 
     if (bd_minor->dead)
-        bd_end_q(bd_minor, -EIO);
+        cancel_all_requests(bd_minor);
 
     if (!atomic_dec_and_test(&bd_minor->use_count))
     {
@@ -669,7 +669,7 @@ int bd_minor_remove(struct bd_minor *bd_minor)
     bd_log_info("RefCount reach 0 for minor %s (%d)\n",
                 bd_minor->bd_name, bd_minor->minor);
 
-    bd_end_q(bd_minor, -EIO);
+    cancel_all_requests(bd_minor);
     if (session->last_minor_processed == bd_minor)
         session->last_minor_processed = session->bd_minor;
 

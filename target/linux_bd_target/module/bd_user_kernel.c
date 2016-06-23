@@ -421,7 +421,7 @@ static void abort_all_pending_requests(struct bd_session *session)
         if (!bd_minor->dead)
         {
             bd_minor->dead = true;
-            bd_end_q(bd_minor, -EIO);
+            cancel_all_requests(bd_minor);
             bd_close_list(&bd_minor->bd_list);
             /* after Dead==1, all new req will be ack with error,
              * so ack with error all pending
