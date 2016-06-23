@@ -561,95 +561,60 @@ static void bd_submit_bio_with_info(struct bio *bio, int rw)
 {
     struct bd_minor *bd_minor = BIO_BD_MINOR(bio);
     struct bd_session *session = bd_minor->bd_session;
-    struct bd_request *req = NULL, *reqpre = NULL, *reqpost = NULL;
-    bool submited = false, needevent = false;
+    struct bd_request *req = NULL;
     int info = 0;
     int cpu;
 
-    do
+    OS_ASSERT_VERBOSE(!bio_barrier(bio) || rw == 1, "%d %d",
+            (unsigned)bio_barrier(bio), rw);
+
+    if (bio_barrier(bio) && session->bd_barrier_enable == 1)
+        info = BD_INFO_BARRIER;
+
+    cpu = part_stat_lock();
+    part_stat_inc(cpu, &bd_minor->bd_gen_disk->part0, ios[rw]);
+    part_stat_add(cpu, &bd_minor->bd_gen_disk->part0, sectors[rw],
+            bio_sectors(bio));
+    part_stat_unlock();
+
+    if (info != BD_INFO_BARRIER)
     {
-        OS_ASSERT_VERBOSE(!bio_barrier(bio) || rw == 1, "%u %d",
-                          (unsigned)bio_barrier(bio), rw);
+        if (bd_concat_bio(bio, rw, info,
+                    bd_minor->bd_session->bd_buffer_size,
+                    &bd_minor->bd_list))
+            return;
+    }
+    else
+    {
+        struct bd_request *reqpre = bd_list_remove(&bd_minor->bd_list.root->free, LISTWAIT);
 
-        if (bio_barrier(bio) && session->bd_barrier_enable == 1)
-            info = BD_INFO_BARRIER;
+        reqpre->first_bio = NULL;
+        reqpre->info = BD_INFO_INTERNAL_BARRIER;
+        reqpre->bd_minor = bd_minor;
 
-	cpu = part_stat_lock();
-        part_stat_inc(cpu, &bd_minor->bd_gen_disk->part0, ios[rw]);
-        part_stat_add(cpu, &bd_minor->bd_gen_disk->part0, sectors[rw],
-		      bio_sectors(bio));
-	part_stat_unlock();
+        bd_list_post(&bd_minor->bd_list, reqpre);
+    }
 
-        if (info != BD_INFO_BARRIER)
-        {
-            if (bd_concat_bio(bio, rw, info,
-                              bd_minor->bd_session->bd_buffer_size,
-                              &bd_minor->bd_list))
-                return;
-        }
-        else
-        {
-            reqpre = bd_list_remove(&bd_minor->bd_list.root->free, LISTWAIT);
-            reqpost = bd_list_remove(&bd_minor->bd_list.root->free, LISTWAIT);
-            if (reqpre == NULL || reqpost == NULL)
-                break;
+    req = bd_list_remove(&bd_minor->bd_list.root->free, LISTWAIT);
 
-            reqpre->first_bio = NULL;
-            reqpre->info = BD_INFO_INTERNAL_BARRIER;
-            reqpre->bd_minor = bd_minor;
-            reqpost->first_bio = NULL;
-            reqpost->info = BD_INFO_INTERNAL_BARRIER;
-            reqpost->bd_minor = bd_minor;
-        }
+    req->first_bio = bio;
+    req->bd_minor = bd_minor;
+    req->rw = rw;
+    req->info = info;
 
-        req = bd_list_remove(&bd_minor->bd_list.root->free, LISTWAIT);
+    bd_list_post(&bd_minor->bd_list, req);
 
-        if (req == NULL)
-            break;
+    if (info == BD_INFO_BARRIER)
+    {
+        struct bd_request *reqpost = bd_list_remove(&bd_minor->bd_list.root->free, LISTWAIT);
 
-        req->first_bio = bio;
-        req->bd_minor = bd_minor;
-        req->rw = rw;
-        req->info = info;
+        reqpost->first_bio = NULL;
+        reqpost->info = BD_INFO_INTERNAL_BARRIER;
+        reqpost->bd_minor = bd_minor;
+        bd_list_post(&bd_minor->bd_list, reqpost);
+    }
 
-        if (reqpre != NULL)
-        {
-            if (bd_list_post(&bd_minor->bd_list, reqpre) < 0)
-                break;
-
-            needevent = true;
-        }
-        reqpre = NULL;
-
-        if (bd_list_post(&bd_minor->bd_list, req) < 0)
-            break;
-
-        req = NULL;
-        submited = true;
-        needevent = true;
-
-        if (reqpost != NULL)
-            if (bd_list_post(&bd_minor->bd_list, reqpost) < 0)
-                break;
-
-        reqpost = NULL;
-    } while (0);
-
-    if (reqpre != NULL)
-        bd_list_post(&bd_minor->bd_list.root->free, reqpre);
-
-    if (reqpost != NULL)
-        bd_list_post(&bd_minor->bd_list.root->free, reqpost);
-
-    if (req != NULL)
-        bd_list_post(&bd_minor->bd_list.root->free, req);
-
-    if (!submited)
-        bd_end_io(bio, -EIO);
-
-    /* Don't explicitelly call BdFlusQ to avoid deadlock */
-    if (needevent)
-        bd_wakeup(session->bd_thread_event);
+    bd_wakeup(session->bd_thread_event);
 }
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 4, 0)
