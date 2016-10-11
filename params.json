@@ -1,0 +1,6 @@
+{
+  "name": "Openexanodes",
+  "tagline": "",
+  "body": "Exanodes is a distributed storage system.\r\n\r\nsee http://www.seanodes.com for details\r\n\r\nDocumentation on software setup can be found at http://www.seanodes.com/support/product-documentation.html\r\n\r\nhere is the list of build dependencies to be able to build the software\r\n\r\ncmake\r\nrpm-build\r\nlibxml2-devel\r\nboost-devel\r\nopenssl-devel\r\nnet-snmp-devel\r\nselinux-policy-devel\r\nperl crc32 module\r\nheaders for your kernel\r\n\r\nBUILD:\r\n\r\nmkdir build-exanodes && cd build-exanodes\r\n\r\n$ cmake /path/to/the/exanodes/git/checkout\r\n\r\n$ make dist\r\n\r\n$ rpmbuild -ts exanode-XXX.tgz #packet created by the make dist\r\n\r\ninstall the rpmbuilds in the ~/rpmbuild directory\r\n\r\nIf you want to see the whole compilation and unit test you may have a look to:\r\n\r\nhttps://travis-ci.org/OznOg/OpenExanodes/\r\n\r\n",
+  "note": "Don't delete this file! It's used internally to help with page regeneration."
+}
