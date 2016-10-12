@@ -235,7 +235,7 @@ void exa_clnodestop::run()
         nodelist = exa.get_nodenames();
         msg_str = "Stopping all nodes: ";
     }
-    else
+    else {
         try
         {
             nodelist = exa_expand(node_expand);
@@ -245,6 +245,8 @@ void exa_clnodestop::run()
             throw CommandException(e);
         }
         msg_str = "Stopping node(s): ";
+    }
+
     msg_str += strjoin(" ", exa_unexpand(strjoin(" ", nodelist)));
 
     AdmindCommand command_stop("clnodestop", exa.get_cluster_uuid());

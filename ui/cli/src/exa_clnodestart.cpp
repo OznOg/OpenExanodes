@@ -130,7 +130,7 @@ void exa_clnodestart::run()
         nodelist = exa.get_hostnames();
         msg_str = "Starting all nodes";
     }
-    else
+    else {
         try
         {
             nodelist = exa_expand(node_expand);
@@ -140,6 +140,7 @@ void exa_clnodestart::run()
             throw CommandException(e);
         }
         msg_str = "Starting one or several nodes";
+    }
 
     /* Non clustered part.
      * Send the "clinit" command to the nodes to start.
