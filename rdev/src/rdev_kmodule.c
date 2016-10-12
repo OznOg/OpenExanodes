@@ -989,7 +989,11 @@ static int exa_rdev_make_one(struct exa_rdev_bh_struct *st,
     }
 
     down_read(&current->mm->mmap_sem);
-    i = get_user_pages(current, current->mm, (unsigned long) req->buffer,
+    i = get_user_pages(
+#if LINUX_VERSION_CODE < KERNEL_VERSION(4,5,0)
+                       current, current->mm,
+#endif
+                       (unsigned long) req->buffer,
                        page_count, 1, 0, page_array, NULL);
     up_read(&current->mm->mmap_sem);
 

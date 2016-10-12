@@ -825,7 +825,11 @@ struct bd_session *bd_launch_session(struct bd_init *init)
     session->bd_kernel_queue[session->bd_max_queue - 1].next = BD_FREE_QUEUE;
 
     /* alloc buffer used to handle bio that don't fit one page */
-    i = get_user_pages(current, current->mm, (unsigned long)init->buffer,
+    i = get_user_pages(
+#if LINUX_VERSION_CODE < KERNEL_VERSION(4,5,0)
+                       current, current->mm,
+#endif
+                       (unsigned long)init->buffer,
                        NUM_MAPPED_PAGES(session), 1, 0,
                        &session->bd_unaligned_buf[0], NULL);
 
