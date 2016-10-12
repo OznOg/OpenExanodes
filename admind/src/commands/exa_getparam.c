@@ -67,20 +67,20 @@ build_response(xmlNodePtr exanodes_node)
       if (xml_set_prop(exanodes_param, EXA_PARAM_VALUE, current_value) != EXA_SUCCESS)
         return -EXA_ERR_XML_INIT;
 
-        /* Set the current value and specific constraints for this param */
-        switch (current_parameter->type)
-        {
+      /* Set the current value and specific constraints for this param */
+      switch (current_parameter->type)
+      {
         case EXA_PARAM_TYPE_INT:
-	    {
-            if(current_parameter->max != -1)
-                os_snprintf(param_info, sizeof(param_info),
-                    "It must be between %d and %d. The default is %s.",
-                    current_parameter->min, current_parameter->max, default_value);
-            else
-                os_snprintf(param_info, sizeof(param_info),
-                    "It must be %d or above. The default is %s.",
-                    current_parameter->min, default_value);
-            break;
+        {
+          if(current_parameter->max != -1)
+            os_snprintf(param_info, sizeof(param_info),
+                "It must be between %d and %d. The default is %s.",
+                current_parameter->min, current_parameter->max, default_value);
+          else
+            os_snprintf(param_info, sizeof(param_info),
+                "It must be %d or above. The default is %s.",
+                current_parameter->min, default_value);
+          break;
         }
         case EXA_PARAM_TYPE_LIST:
         {
