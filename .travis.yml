@@ -6,7 +6,7 @@ compiler:
 
 before_install:
           - sudo apt-get update -qq
-          - sudo apt-get install -y automake make libtool autoconf rpm cmake libssl-dev libxml2-dev libboost-all-dev libstring-crc32-perl 
+          - sudo apt-get install -y automake make libtool autoconf rpm cmake libssl-dev libxml2-dev libboost-all-dev libstring-crc32-perl libaio-dev
 
 install:
 - if [ "$CXX" = "g++" ]; then export CXX="g++-4.8" CC="gcc-4.8"; fi
@@ -20,6 +20,5 @@ addons:
     - g++-4.8
     - clang
 
-script: mkdir ../build && cd ../build && cmake ../OpenExanodes/ -DWITH_UT_ROOT=FALSE && make -j4 && ctest -V
-
+script: mkdir ../build && cd ../build && cmake ../OpenExanodes/ -DWITH_LIBAIO=TRUE -DWITH_UT_ROOT=FALSE && make -j4 && ctest -V
 

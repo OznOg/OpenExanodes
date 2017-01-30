@@ -19,4 +19,11 @@ add_kernel_module(exa_bd
     bd_user_bd.h
     bd_user_fops.c
     bd_user_fops.h
-    ${CMAKE_SOURCE_DIR}/target/linux_bd_target/include/bd_user.h)
+    ${CMAKE_SOURCE_DIR}/target/linux_bd_target/include/bd_user.h
+    ${CMAKE_SOURCE_DIR}/common/include/exa_assert.h
+    ${CMAKE_SOURCE_DIR}/common/include/exa_constants.h
+    ${CMAKE_SOURCE_DIR}/common/include/exa_error.h
+    ${CMAKE_SOURCE_DIR}/common/include/exa_math.h
+    ${CMAKE_SOURCE_DIR}/common/include/exa_names.h
+    ${CMAKE_SOURCE_DIR}/os/include/os_assert.h
+    ${CMAKE_SOURCE_DIR}/os/include/os_inttypes.h)

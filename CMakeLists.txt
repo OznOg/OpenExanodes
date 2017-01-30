@@ -87,6 +87,8 @@ set(EXA_TARBALL_NAME "${CMAKE_PROJECT_NAME}-${EXA_EDITION_TAG}-${EXA_VERSION}")
 set(WITH_NODES          TRUE  CACHE BOOL "Enable the cluster side")
 set(WITH_CLI            TRUE  CACHE BOOL "Enable the command line interface")
 
+set(WITH_LIBAIO         FALSE CACHE BOOL "Enable the use of libaio for performing IOs instead of Exanodes rdev kernel module")
+
 # Optional components
 set(WITH_DOCS           FALSE CACHE BOOL "Enable the documentation")
 if (VMWARE OR WIN32)
@@ -253,8 +255,11 @@ if (WIN32)
     endif (WITH_PERF)
 
 else (WIN32)
-    set(KMODULE_LIST "krdev")
+    set(KMODULE_LIST "")
     set(KERNEL_CFLAGS "")
+    if (NOT WITH_LIBAIO)
+	set(KMODULE_LIST "${KMODULE_LIST} krdev")
+    endif()
     if (WITH_FS)
         add_definitions(-DWITH_FS)
     endif (WITH_FS)
@@ -526,7 +531,10 @@ if (WITH_NODES)
 endif (WITH_NODES)
 
 if (WITH_NODES AND WITH_DKMS)
-    add_subdirectory(dkms)
+    # make sure at least one module is needed
+    if (WITH_BDEV OR WITH_EXA_COMMON_KMODULE OR NOT WITH_LIBAIO)
+        add_subdirectory(dkms)
+    endif()
 endif (WITH_NODES AND WITH_DKMS)
 
 add_subdirectory(sysconfig)

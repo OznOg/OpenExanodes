@@ -64,7 +64,14 @@ if (WITH_NODES AND WITH_EXA_COMMON_KMODULE)
         exa_socket_kernel.c
         exa_common_kernel.h
         exa_select_kernel.h
-        exa_socket_kernel.h)
+        exa_socket_kernel.h
+	${CMAKE_SOURCE_DIR}/common/include/exa_assert.h
+	${CMAKE_SOURCE_DIR}/common/include/exa_constants.h
+	${CMAKE_SOURCE_DIR}/common/include/exa_error.h
+	${CMAKE_SOURCE_DIR}/common/include/exa_math.h
+	${CMAKE_SOURCE_DIR}/common/include/exa_names.h
+	${CMAKE_SOURCE_DIR}/os/include/os_assert.h
+	${CMAKE_SOURCE_DIR}/os/include/os_inttypes.h)
 
 endif ()
 

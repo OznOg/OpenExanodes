@@ -65,6 +65,8 @@
 %bcond_with tm
 # @Option: Enable use of kernel module exa_common (default=yes)
 %bcond_without kcommon
+# @Option: Enable use of libaio instead of rdev kernel module (default=no)
+%bcond_with libaio
 
 # Disable auto-generation of the debug package
 
@@ -228,6 +230,10 @@ Requires(pre):  %{name}-admind = %{version}-%{release}
 Requires(post): %{name}-admind = %{version}-%{release}
 Requires:	logrotate
 Requires:	procps, psmisc
+%if %with libaio
+BuildRequires:  libaio-devel >= 0.3
+Requires:       libaio >= 0.3
+%endif
 
 %description nodes
 Exanodes daemons (to use on nodes)
@@ -354,6 +360,7 @@ cmake .. \
   %{?!with_ut:-DWITH_UT=FALSE} \
   %{?!with_ut_root:-DWITH_UT_ROOT=FALSE} \
   %{?!with_kcommon:-DWITH_EXA_COMMON_KMODULE=FALSE} \
+  %{?with_libaio:-DWITH_LIBAIO=TRUE} \
   -DCMAKE_INSTALL_PREFIX=%{_prefix} \
   -DSBIN_DIR=%{_sbindir} \
   -DBIN_DIR=%{_bindir} \
@@ -678,6 +685,9 @@ fi
 %config(noreplace) /etc/logrotate.d/exa_agentx
 %endif
 
+# test if any of the kernel modules is necessary to be built
+# if not, no kernel module rpm is built
+%if %{?with_kcommon:1}%{?!with_kcommon:0}%{?with_bdev:1}%{!?with_bdev:0}%{?!with_libaio:1}%{?!with_libaio:0}
 %if %with dkms
 %files -n dkms-%{name}
 %defattr(-,root,root,-)
@@ -687,21 +697,23 @@ fi
 %{_usrsrc}/%{tarball_name}/copy_symvers
 %{_usrsrc}/%{tarball_name}/os/include/os_inttypes.h
 %{_usrsrc}/%{tarball_name}/os/include/os_assert.h
+%{_usrsrc}/%{tarball_name}/common/include/exa_names.h
+%{_usrsrc}/%{tarball_name}/common/include/exa_error.h
+%{_usrsrc}/%{tarball_name}/common/include/exa_assert.h
+%{_usrsrc}/%{tarball_name}/common/include/exa_constants.h
+%{_usrsrc}/%{tarball_name}/common/include/exa_math.h
 %if %with kcommon
 %{_usrsrc}/%{tarball_name}/common/lib/Makefile
 %{_usrsrc}/%{tarball_name}/common/lib/exa_common_kernel.[ch]
 %{_usrsrc}/%{tarball_name}/common/lib/exa_select_kernel.[ch]
 %{_usrsrc}/%{tarball_name}/common/lib/exa_socket_kernel.[ch]
 %endif
-%{_usrsrc}/%{tarball_name}/common/include/exa_names.h
-%{_usrsrc}/%{tarball_name}/common/include/exa_error.h
-%{_usrsrc}/%{tarball_name}/common/include/exa_assert.h
-%{_usrsrc}/%{tarball_name}/common/include/exa_constants.h
-%{_usrsrc}/%{tarball_name}/common/include/exa_math.h
+%if %without libaio
 %{_usrsrc}/%{tarball_name}/rdev/src/Makefile
 %{_usrsrc}/%{tarball_name}/rdev/src/rdev_kmodule.c
 %{_usrsrc}/%{tarball_name}/rdev/src/rdev_kmodule.h
 %{_usrsrc}/%{tarball_name}/rdev/include/exa_rdev.h
+%endif
 %if %with bdev
 %{_usrsrc}/%{tarball_name}/target/linux_bd_target/module/Makefile
 %{_usrsrc}/%{tarball_name}/target/linux_bd_target/module/*.c
@@ -724,6 +736,7 @@ fi
 %endif
 /lib/modules/%{linuxver}/kernel/%{name}/exa_rdev.ko
 %endif
+%endif #%if %with kcommon || %with bdev || ! %with libaio
 
 %if %with test
 %files test-nodes
