@@ -589,7 +589,7 @@ static std::set<std::string> exa_unexpand_(const string &original_string)
 }
 
 
-set<string> exa_expand(const string& items) throw(string)
+set<string> exa_expand(const string& items)
 {
     try
     {
@@ -602,7 +602,7 @@ set<string> exa_expand(const string& items) throw(string)
 }
 
 
-std::set<std::string> exa_unexpand(const std::string &list) throw(std::string)
+std::set<std::string> exa_unexpand(const std::string &list)
 {
     try
     {
