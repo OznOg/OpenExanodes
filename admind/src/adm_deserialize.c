@@ -1026,6 +1026,12 @@ adm_deserialize_group(void *data, const xmlChar **attrs)
     }
 
     adm_validate_exaname(state, group->name, name);
+    if (layout == NULL) {
+	os_snprintf(state->error_msg, EXA_MAXSIZE_LINE + 1,
+		    "Unspecified layout type for group \"%s\"", group->name);
+        goto error;
+    }
+
     group->layout = vrt_layout_from_name(layout);
     if (!VRT_LAYOUT_IS_VALID(group->layout))
     {
