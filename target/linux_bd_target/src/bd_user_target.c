@@ -30,6 +30,7 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <sys/ioctl.h>
+#include <sys/sysmacros.h>
 
 static volatile bool bd_target_run;
 

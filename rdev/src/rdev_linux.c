@@ -10,11 +10,9 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/ioctl.h>
+#include <sys/sysmacros.h>
 #include <sys/types.h>
 #include <sys/stat.h>
-# ifndef major
-#   include <sys/sysmacros.h>
-# endif
 
 #include "common/include/exa_error.h"
 #include "os/include/os_mem.h"

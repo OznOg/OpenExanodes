@@ -10,7 +10,8 @@
 #define H_UNIT_TESTING
 
 #include <math.h>
-#include <stdio.h>
+#include "os/include/os_stdio.h"
+#include "os/include/os_mem.h"
 #include <string.h>
 #ifndef WIN32
 #include <assert.h>
@@ -127,7 +128,6 @@ extern void ut_code_printf(const char *format, ...)
 	long double __ut_ipart;					\
 	long double __ut_ld_expected;				\
 	long double __ut_ld_expr;				\
-	char __ut_tmp[128];							\
 	bool __ut_expr_intg, __ut_expected_intg, __ut_expr_posv, __ut_expected_posv;	\
 	/* For the very unlikely case when long double mantissa is inferior to 64 bits. \
 	   Assuming a 10 bytes size is not stricly speaking enough to deduce that \
@@ -148,11 +148,18 @@ extern void ut_code_printf(const char *format, ...)
 	__ut_ld_expr = (long double)(expr);			\
 	if (__ut_ld_expected != __ut_ld_expr)				\
 	{								\
+            char *__ut_tmp = NULL;							\
+            size_t __ut_mem_size = 0;                                                   \
 	    __ut_expr_intg = (modfl (__ut_ld_expr, &__ut_ipart) == 0.0);		\
 	    __ut_expected_intg = (modfl (__ut_ld_expected, &__ut_ipart) == 0.0);	\
 	    __ut_expr_posv = (__ut_ld_expr >= 0.0);					\
 	    __ut_expected_posv = (__ut_ld_expected >= 0.0);				\
-	    sprintf(__ut_tmp,"Assertion failed (%s:%d): expected %s got %s", \
+	    __ut_mem_size = os_snprintf(__ut_tmp, 0, "Assertion failed (%s:%d): expected '%s' got '%s'", \
+		    __FILE__, __LINE__,					\
+		    __ut_expected_intg ? (__ut_expected_posv ? UINT64_FMT : INT64_FMT) : "%Lg", \
+		    __ut_expr_intg ? (__ut_expr_posv ? UINT64_FMT : INT64_FMT) : "%Lg") + 1;	\
+            __ut_tmp = (char *)os_malloc(__ut_mem_size);  /* cast necessary for c++ code */     \
+	    os_snprintf(__ut_tmp, __ut_mem_size, "Assertion failed (%s:%d): expected '%s' got '%s'", \
 		    __FILE__, __LINE__,					\
 		    __ut_expected_intg ? (__ut_expected_posv ? UINT64_FMT : INT64_FMT) : "%Lg", \
 		    __ut_expr_intg ? (__ut_expr_posv ? UINT64_FMT : INT64_FMT) : "%Lg");	\
@@ -181,6 +188,7 @@ extern void ut_code_printf(const char *format, ...)
 			ut_printf(__ut_tmp, (long double)(__ut_ld_expected), (long long int)(__ut_ld_expr)); \
 		else							\
 		    ut_printf(__ut_tmp, (long double)(__ut_ld_expected), (long double)(__ut_ld_expr)); \
+            os_free(__ut_tmp);                                          \
 	    ut_end(__UT_RESULT_FAILED);					\
 	    UT_REALLY_ASSERT();						\
 	}								\

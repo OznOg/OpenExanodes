@@ -11,8 +11,8 @@
 #include <set>
 #include <string>
 
-std::set<std::string> exa_expand(const std::string &items) throw(std::string);
-std::set<std::string> exa_unexpand(const std::string &list) throw(std::string);
+std::set<std::string> exa_expand(const std::string &items);
+std::set<std::string> exa_unexpand(const std::string &list);
 
 
 #endif /* __EXA_EXPANDCPP_H__ */
