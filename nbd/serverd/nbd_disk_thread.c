@@ -85,7 +85,7 @@ static void td_merge_lock(device_t *disk_device, header_t *header)
 {
     int i;
 
-    EXA_ASSERT(header->type = NBD_HEADER_LOCK);
+    EXA_ASSERT(header->type == NBD_HEADER_LOCK);
     EXA_ASSERT(header->lock.op == NBD_REQ_TYPE_LOCK
                || header->lock.op == NBD_REQ_TYPE_UNLOCK);
 
