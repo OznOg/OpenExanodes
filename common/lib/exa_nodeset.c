@@ -299,7 +299,10 @@ int exa_nodeset_from_hex(exa_nodeset_t *set, const char *hex)
 
   for (i = EXA_NODESET_NB_CELLS - 1; i >= 0; i--)
   {
-    sscanf(hex, EXA_NODESET_CELL_FORMAT, &set->cells[i]);
+    int n = sscanf(hex, EXA_NODESET_CELL_FORMAT, &set->cells[i]);
+    if (n != 1)
+        return -EXA_ERR_INVALID_VALUE;
+
     hex += EXA_NODESET_BITS_PER_CELL / 4;
   }
 
