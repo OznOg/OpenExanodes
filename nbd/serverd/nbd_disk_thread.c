@@ -92,7 +92,7 @@ static void td_merge_lock(device_t *disk_device, header_t *header)
     switch (header->lock.op)
     {
     case NBD_REQ_TYPE_LOCK:
-        if (disk_device->nb_locked_zone > NBMAX_DISK_LOCKED_ZONES)
+        if (disk_device->nb_locked_zone >= NBMAX_DISK_LOCKED_ZONES)
         {
             disk_device->locking_return = -1;
             return;
