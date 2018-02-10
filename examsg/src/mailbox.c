@@ -303,6 +303,8 @@ int __examsgMboxSend(ExamsgID from, ExamsgID to, ExamsgFlags flags, ...)
       }
   } while (n == -ENOSPC && !(flags & EXAMSGF_NOBLOCK));
 
+  va_end(_ap);
+
   /* Notify the message in the destination box only if no erro was reported */
   if (n >= 0)
   {
