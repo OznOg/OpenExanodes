@@ -186,7 +186,7 @@ int broken_disk_table_set_disk(broken_disk_table_t *table, int index,
     if (table == NULL || table->fmap == NULL)
         return -EINVAL;
 
-    if (index < 0 || index > NBMAX_DISKS)
+    if (index < 0 || index >= NBMAX_DISKS)
         return -EINVAL;
 
     if (disk_uuid == NULL)
@@ -206,7 +206,7 @@ const exa_uuid_t *broken_disk_table_get_disk(const broken_disk_table_t *table,
     if (table == NULL || table->fmap == NULL)
         return NULL;
 
-    if (index < 0 || index > NBMAX_DISKS)
+    if (index < 0 || index >= NBMAX_DISKS)
         return NULL;
 
     return &table->data.uuids[index];
