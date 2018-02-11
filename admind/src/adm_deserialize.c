@@ -769,7 +769,7 @@ static struct adm_node *
 adm_deserialize_node(void *data, const xmlChar **attrs)
 {
     adm_deserialize_state_t *state = (adm_deserialize_state_t *)data;
-    struct adm_node *node;
+    struct adm_node *node = NULL;
     const char *name = NULL;
     const char *hostname = NULL;
     const char *number = NULL;
