@@ -10,6 +10,7 @@
 #define __EXA_NODESET_H__
 
 #include "common/include/exa_constants.h"
+#include "os/include/os_assert.h"
 #include "os/include/os_inttypes.h"
 
 /* Bit field for node sets has to be larger than the host bus size.
@@ -21,7 +22,9 @@
 
 /** Number of bits in a bitfield cell. We choose 64 bits so we do not need
  *  padding in examsg. */
-#define EXA_NODESET_BITS_PER_CELL 64
+#define EXA_NODESET_CELL_TYPE uint64_t
+
+#define EXA_NODESET_BITS_PER_CELL (sizeof(EXA_NODESET_CELL_TYPE) * 8)
 
 /** Number of cells in a bitfield */
 #define EXA_NODESET_NB_CELLS (((EXA_MAX_NODES_NUMBER - 1) / EXA_NODESET_BITS_PER_CELL) + 1)
@@ -63,8 +66,8 @@ const char *exa_nodeid_to_str(exa_nodeid_t node_id);
 
 /** bitfield to store a node set */
 typedef struct {
-  unsigned long long cells[EXA_NODESET_NB_CELLS];
-} exa_nodeset_t;
+  EXA_NODESET_CELL_TYPE cells[EXA_NODESET_NB_CELLS];
+} __attribute__((packed, aligned(sizeof(EXA_NODESET_CELL_TYPE)))) exa_nodeset_t;
 
 
 /** Iterator on a node set */
@@ -130,11 +133,15 @@ void exa_nodeset_to_bin(const exa_nodeset_t *set, char *bin);
       )
 
 
-#if EXA_NODESET_NB_CELLS != 2
-#error "please fix EXA_NODESET_* below to match EXA_NODESET_NB_CELLS"
-#endif
+static inline __attribute__((unused)) void __check_config_consistency(void)
+{
+    /* If something doesn't compile here, please fix EXA_NODESET_* below to
+     * match EXA_NODESET_NB_CELLS */
+    COMPILE_TIME_ASSERT(EXA_NODESET_NB_CELLS == 2);
+    COMPILE_TIME_ASSERT(sizeof(EXA_NODESET_CELL_TYPE) == 8);
+}
 
-#define EXA_NODESET_CELL_FORMAT "%016llx"
+#define EXA_NODESET_CELL_FORMAT "%016" PRIx64
 #define EXA_NODESET_FMT EXA_NODESET_CELL_FORMAT EXA_NODESET_CELL_FORMAT
 #define EXA_NODESET_VAL(set) (set)->cells[1], (set)->cells[0]
 extern const exa_nodeset_t EXA_NODESET_EMPTY;
