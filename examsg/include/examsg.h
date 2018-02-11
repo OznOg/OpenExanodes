@@ -280,15 +280,15 @@ extern const exa_nodeset_t *const EXAMSG_ALLHOSTS;
 /** Node identification on the network */
 typedef struct ExamsgNetID {
   exa_uuid_t cluster;			/**< cluster id, MUST BE FIRST */
-  exa_nodeid_t node;			/**< node id */
-} ExamsgNetID;
+  exa_nodeid_t node : 32;		/**< node id */
+} __attribute__((packed, aligned(8))) ExamsgNetID;
 
 /** Message identification */
 typedef struct ExamsgMID {
   ExamsgNetID netid;			/**< sender network node id, MUST BE FIRST */
   char host[EXA_MAXSIZE_HOSTNAME+1];	/**< sender internet address */
-  ExamsgID    id;			/**< sender id */
-} ExamsgMID;
+  ExamsgID    id : 32;			/**< sender id */
+} __attribute__((packed, aligned(8))) ExamsgMID;
 
 struct ExamsgAny;
 

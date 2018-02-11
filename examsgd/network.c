@@ -132,24 +132,25 @@ struct mcastnodestate
   };
 
 /** Version of network protocol */
-#define NET_PROTOCOL  2
+#define NET_PROTOCOL  3
 
 /** Network message */
 typedef struct ExamsgNetMsg ExamsgNetMsg;
 struct ExamsgNetMsg
   {
-    int protocol;              /**< Examsg protocol version, *MUST* be first */
+    int protocol : 32;         /**< Examsg protocol version, *MUST* be first */
+    uint32_t pad : 32;         /**< Padding for aligment purpose */
     ExamsgMID mid;             /**< message id */
 
+    exa_nodeset_t dest_nodes;  /**< Destination nodes */
     uint16_t incarnation;      /**< incarnation */
     mseq_t count;              /**< message number */
     uint8_t flags;             /**< delivery flags */
     uint8_t to;                /**< recipient mailbox id */
-    exa_nodeset_t dest_nodes;  /**< Destination nodes */
 
     uint16_t size;             /**< msg size */
     char msg[sizeof(Examsg)];  /**< message body */
-  } __attribute__((packed));
+  } __attribute__((packed, aligned(8)));
 
 /** Size of the network message header */
 #define NETMSG_HEADER_SIZE   (sizeof(ExamsgNetMsg) - sizeof(Examsg))
