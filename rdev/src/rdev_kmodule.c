@@ -50,6 +50,26 @@
 
 #define EXA_RDEV_WRITE_MAX_CMD_LEN 19
 
+#if LINUX_VERSION_CODE < KERNEL_VERSION(4,13,0)
+typedef int blk_status_t;
+#define BLK_STS_OK 0
+#define bi_status bi_error
+#endif
+
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4,8,0)
+#define WRITE_FLUSH_FUA REQ_OP_FLUSH
+#endif
+
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4,8,0)
+static inline void __submit_bio(int op, struct bio *bio)
+{
+    bio_set_op_attrs(bio, op, 0);
+    submit_bio(bio);
+}
+#else
+#define __submit_bio submit_bio
+#endif
+
 struct exa_rdev_bh_struct {
     int pid_creator;
     char name_creator[EXA_RDEV_NAME_SIZE];
@@ -293,14 +313,14 @@ static void pushback_bh_in_finished_list(int index, struct exa_rdev_bh_struct *s
  * @param err 0 success otherwise errror
  * @return 0 : no problem
  */
-static void __exa_rdev_end_io(struct bio *bio, int err)
+static void __exa_rdev_end_io(struct bio *bio, blk_status_t status)
 {
     struct exa_rdev_bh_struct *st = bio->bi_private;
     int bh_idx;
 
     bh_idx = EXA_RDEV_BH_INDEX(bio, st);
 
-    st->bh[bh_idx].err = err != 0 ? RDEV_REQUEST_END_ERROR : RDEV_REQUEST_END_OK;
+    st->bh[bh_idx].err = status != BLK_STS_OK ? RDEV_REQUEST_END_ERROR : RDEV_REQUEST_END_OK;
 
     pushback_bh_in_finished_list(bh_idx, st);
 
@@ -310,7 +330,7 @@ static void __exa_rdev_end_io(struct bio *bio, int err)
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(4,3,0)
 static void exa_rdev_end_io(struct bio *bio)
 {
-    __exa_rdev_end_io(bio, bio->bi_error);
+    __exa_rdev_end_io(bio, bio->bi_status);
 }
 #else
 static void exa_rdev_end_io(struct bio *bio, int err)
@@ -794,7 +814,11 @@ static int exa_rdev_add_bh(struct exa_rdev_bh_struct *st,
 #else
     bio->bi_iter.bi_sector  = req->sector;
 #endif
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(4,14,0))
     bio->bi_bdev    = bdev->dev;
+#else
+    bio_set_dev(bio, bdev->dev);
+#endif
     bio->bi_end_io  = exa_rdev_end_io;
     bio->bi_private = (void *)st;
     bio->bi_io_vec  = bio_a->bio_vec;
@@ -809,7 +833,7 @@ static int exa_rdev_add_bh(struct exa_rdev_bh_struct *st,
     bio->bi_flags = 1 << BIO_UPTODATE;
 #else
     bio->bi_flags = 0;
-    bio->bi_error = 0;
+    bio->bi_status = BLK_STS_OK;
 #endif
 
     for (bio->bi_vcnt = 0; bio->bi_vcnt < page_count; bio->bi_vcnt++)
@@ -846,11 +870,11 @@ static int exa_rdev_flush_bh(rdev_op_t op, struct bio *bio)
     switch (op)
     {
     case RDEV_OP_READ:
-        submit_bio(READ, bio);
+        __submit_bio(READ, bio);
         break;
 
     case RDEV_OP_WRITE:
-        submit_bio(WRITE, bio);
+        __submit_bio(WRITE, bio);
         break;
 
     case RDEV_OP_WRITE_BARRIER:
@@ -858,7 +882,7 @@ static int exa_rdev_flush_bh(rdev_op_t op, struct bio *bio)
 	 * may be wrong. Nevertheless, there seem to be some mix up between
 	 * barrier an fua in the user land part, so all this needs to be
 	 * reworked properly */
-        submit_bio(WRITE_FLUSH_FUA, bio);
+        __submit_bio(WRITE_FLUSH_FUA, bio);
         break;
 
     case RDEV_OP_INVALID:
@@ -925,7 +949,11 @@ static int exa_rdev_make_one(struct exa_rdev_bh_struct *st,
                        current, current->mm,
 #endif
                        (unsigned long) req->buffer,
-                       page_count, 1, 0, page_array, NULL);
+                       page_count,
+#if LINUX_VERSION_CODE < KERNEL_VERSION(4,9,0)
+                       1,
+#endif
+                       0, page_array, NULL);
     up_read(&current->mm->mmap_sem);
 
     if (page_count != i)
