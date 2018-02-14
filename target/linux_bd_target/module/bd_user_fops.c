@@ -17,7 +17,7 @@
 
 #include "common/include/exa_names.h"
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #include <linux/errno.h>
 #include <linux/mm.h>
@@ -41,8 +41,14 @@
  * thread in bd_kernel_queue file.
  */
 
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(4,14,0))
 static int bd_mops_vmfault(struct vm_area_struct *vma, struct vm_fault *vmf)
 {
+#else
+static int bd_mops_vmfault(struct vm_fault *vmf)
+{
+  struct vm_area_struct *vma = vmf->vma;
+#endif
   struct bd_session *session = vma->vm_file->private_data;
   if (session == NULL)
   {

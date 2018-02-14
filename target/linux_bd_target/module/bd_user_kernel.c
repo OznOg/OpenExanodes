@@ -21,6 +21,7 @@
 #include <linux/version.h>
 #include <linux/vmalloc.h>
 #include <linux/slab.h>
+#include <linux/sched/signal.h>
 
 /* if we wait for a new ack request for more than CLIENT_TIMEOUT secondes, i
  * stop to wait */
@@ -830,7 +831,11 @@ struct bd_session *bd_launch_session(struct bd_init *init)
                        current, current->mm,
 #endif
                        (unsigned long)init->buffer,
-                       NUM_MAPPED_PAGES(session), 1, 0,
+                       NUM_MAPPED_PAGES(session),
+#if LINUX_VERSION_CODE < KERNEL_VERSION(4,9,0)
+                       1,
+#endif
+                       0,
                        &session->bd_unaligned_buf[0], NULL);
 
     if (i < NUM_MAPPED_PAGES(session))

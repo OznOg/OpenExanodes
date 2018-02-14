@@ -22,17 +22,12 @@
 #include <linux/blkdev.h>
 #include <linux/module.h>
 #include <linux/version.h>
+#include <linux/sched/signal.h>
 
 #define EXA_BD_DEVICE_NAME "exa_bd" /**< name of exa_bd in /proc/devices */
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 31)
-#define blk_queue_logical_block_size blk_queue_hardsect_size
-#endif
-
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 32)
-# ifndef blk_queue_max_sectors
-#  define blk_queue_max_sectors blk_queue_max_hw_sectors
-# endif
+#ifndef blk_queue_max_sectors
+# define blk_queue_max_sectors blk_queue_max_hw_sectors
 #endif
 
 /* this request is a barrier : nbd will wait all previous
@@ -53,13 +48,25 @@
 #define BIO_SIZE(b) BYTES_TO_SECTORS((b)->bi_iter.bi_size)
 #define BIO_NEXT(b) (b)->bi_next
 #define BIO_VAR int __idx = 0
-#define BIO_BD_MINOR(bio)  ((struct bd_minor *) (bio)->bi_bdev->bd_disk->\
+
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(3,14,0))
+#define bio_disk(bio) (bio)->bi_bdev->bd_disk
+#else
+#define bio_disk(bio) (bio)->bi_disk
+#endif
+
+#define BIO_BD_MINOR(bio)  ((struct bd_minor *) bio_disk(bio)->\
                             private_data)
+
+#if LINUX_VERSION_CODE < KERNEL_VERSION(4,8,0)
+#define bio_op(bio) ((bio)->bi_rw)
+#endif
+
 #define BIO_NEXT_MEM(bio, page, offset, size) \
     do \
     { \
-        EXA_ASSERT_VERBOSE(bio->bi_io_vec != NULL, "bi_sector=%lu bi-size=%u bi_rw=%lu bi_flags=%u bi_vcnt=%d", \
-                           BIO_OFFSET(bio), bio->bi_iter.bi_size, bio->bi_rw, bio->bi_flags, bio->bi_vcnt);\
+        EXA_ASSERT_VERBOSE(bio->bi_io_vec != NULL, "bi_sector=%lu bi-size=%u bi_op=%lu bi_flags=%u bi_vcnt=%d", \
+                           BIO_OFFSET(bio), bio->bi_iter.bi_size, (unsigned long )bio_op(bio), bio->bi_flags, bio->bi_vcnt);\
         page = bio->bi_io_vec[__idx].bv_page; \
         offset = bio->bi_io_vec[__idx].bv_offset; \
         size = bio->bi_io_vec[__idx].bv_len; \
@@ -73,12 +80,10 @@
         } \
     } while (0);
 
-#if LINUX_VERSION_CODE > KERNEL_VERSION(2, 6, 31)
-# if LINUX_VERSION_CODE > KERNEL_VERSION(2, 6, 35)
-#  define bio_barrier(bio) ((bio)->bi_rw == WRITE_FLUSH || (bio)->bi_rw == WRITE_FUA || (bio)->bi_rw == WRITE_FLUSH_FUA)
-# else
-#  define bio_barrier(bio) bio_flagged((bio), BIO_RW_BARRIER)
-# endif
+#if LINUX_VERSION_CODE < KERNEL_VERSION(4,8,0)
+#define bio_barrier(bio) ((bio)->bi_rw == WRITE_FLUSH || (bio)->bi_rw == WRITE_FUA || (bio)->bi_rw == WRITE_FLUSH_FUA)
+#else
+#define bio_barrier(bio) ((bio)->bi_opf & REQ_PREFLUSH)
 #endif
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 6, 0)
@@ -254,16 +259,6 @@ static void bd_next_queue(struct bd_session *session)
 }
 
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 39)
-/* the goal of these lot of define is to hide difference between 2.4 and 2.6
- * and to have a better reading quality
- */
-static void bd_unplug_q(struct request_queue *dummy)
-{
-}
-#endif
-
-
 /*****************************************************************************
 *  Function used to copy from/to (unaligned)buffer                          *
 *****************************************************************************/
@@ -413,15 +408,15 @@ int bd_prepare_request(struct bd_kernel_queue *Q)
 
 static void bd_end_io(struct bio *bio, int err)
 {
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 24)
-    bio_endio(bio, bio->bi_size, err);
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4,3,0)
+#if LINUX_VERSION_CODE < KERNEL_VERSION(4,13,0)
+     bio->bi_error = err;
 #else
-#  if LINUX_VERSION_CODE >= KERNEL_VERSION(4,3,0)
-       bio->bi_error = err;
-       bio_endio(bio);
-#  else
-       bio_endio(bio, err);
-#  endif
+     bio->bi_status = err;
+#endif
+     bio_endio(bio);
+#else
+     bio_endio(bio, err);
 #endif
 }
 
@@ -432,12 +427,7 @@ static void bd_end_io(struct bio *bio, int err)
  */
 static void bd_end_one_req(struct bd_request *req, int err)
 {
-#if LINUX_VERSION_CODE > KERNEL_VERSION(2, 6, 28)
     static DEFINE_SPINLOCK(callback_sl);
-#else
-    static spinlock_t callback_sl = SPIN_LOCK_UNLOCKED;
-#endif
-
     struct bio *bio;
     unsigned long flags;
 
@@ -578,28 +568,21 @@ static void bd_submit_bio_with_info(struct bio *bio, int rw)
     struct bd_request *req = NULL, *reqpre = NULL, *reqpost = NULL;
     bool submited = false, needevent = false;
     int info = 0;
-#if LINUX_VERSION_CODE > KERNEL_VERSION(2, 6, 28)
     int cpu;
-#endif
 
     do
     {
-        OS_ASSERT_VERBOSE(!bio_barrier(bio) || rw == 1, "%d %d",
-                          bio_barrier(bio), rw);
+        OS_ASSERT_VERBOSE(!bio_barrier(bio) || rw == 1, "%u %d",
+                          (unsigned)bio_barrier(bio), rw);
 
         if (bio_barrier(bio) && session->bd_barrier_enable == 1)
             info = BD_INFO_BARRIER;
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 28)
-        disk_stat_inc(bd_minor->bd_gen_disk, ios[rw]);
-        disk_stat_add(bd_minor->bd_gen_disk, sectors[rw], bio_sectors(bio));
-#else
 	cpu = part_stat_lock();
         part_stat_inc(cpu, &bd_minor->bd_gen_disk->part0, ios[rw]);
         part_stat_add(cpu, &bd_minor->bd_gen_disk->part0, sectors[rw],
 		      bio_sectors(bio));
 	part_stat_unlock();
-#endif
 
         if (info != BD_INFO_BARRIER)
         {
@@ -835,10 +818,11 @@ int bd_minor_add_new(struct bd_session *session, int minor,
     spin_lock_init(&bd_minor->bd_lock);
     queue->queue_lock = &bd_minor->bd_lock;
     queue->queuedata = bd_minor;
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 39)
-    queue->unplug_fn = bd_unplug_q;
-#endif
+#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 11, 0)
     queue->backing_dev_info.ra_pages = EXA_BD_READAHEAD >> (PAGE_SHIFT - 9);
+#else
+    queue->backing_dev_info->ra_pages = EXA_BD_READAHEAD >> (PAGE_SHIFT - 9);
+#endif
 
     /* no partition will be allowed */
     gen_disk = alloc_disk(1);
@@ -924,34 +908,9 @@ static void bd_blk_release(struct gendisk *disk, unsigned __bitwise__ mode)
 }
 #endif
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 28)
-
-static int bd_blk_old_open(struct inode *inode, struct file *file)
-{
-    return bd_blk_open(inode->i_bdev,
-		    file ? file->f_mode:FMODE_READ|FMODE_WRITE);
-}
-
-   int (*release) (struct gendisk *, fmode_t);
-
-static int bd_blk_old_release(struct inode *inode, struct file *file)
-{
-    return bd_blk_release(inode->i_bdev->bd_disk,
-		    file ? file->f_mode:FMODE_READ|FMODE_WRITE);
-}
-
-
-struct block_device_operations bd_blk_fops =
-{
-    .owner   = THIS_MODULE,
-    .open    = bd_blk_old_open,
-    .release = bd_blk_old_release,
-};
-#else
 struct block_device_operations bd_blk_fops =
 {
     .owner   = THIS_MODULE,
     .open    = bd_blk_open,
     .release = bd_blk_release,
 };
-#endif
