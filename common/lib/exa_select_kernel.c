@@ -33,7 +33,6 @@
 #define	__FD_ISSET(__n, __p)	(((__p)->fds_bits[(__n)/FD_NFDBITS] & \
 				    (1ul << ((__n) % FD_NFDBITS))) != 0l)
 
-// #define	__FD_ZERO(p)	bzero((p), sizeof (*(p)))
 #define	__FD_ZERO(__p)	memset((void *)(__p), 0, sizeof (*(__p)))
 
 struct exa_select_elt
@@ -103,11 +102,6 @@ static int sock_writable(struct socket *sock)
 
     return 0;
 }
-
-/* the function sk_sleep was added in 2.6.35 */
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,35)
-# define sk_sleep(sk) ((sk)->sk_sleep)
-#endif
 
 static void set_callbacks(struct socket *socket, struct exa_select_elt *elt)
 {
