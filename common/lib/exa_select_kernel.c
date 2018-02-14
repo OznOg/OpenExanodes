@@ -7,7 +7,7 @@
  */
 
 
-#include <asm/uaccess.h>
+#include <linux/mm.h>
 #include <linux/file.h>
 #include <linux/fs.h>
 #include <linux/vmalloc.h>
@@ -35,10 +35,14 @@
 
 #define	__FD_ZERO(__p)	memset((void *)(__p), 0, sizeof (*(__p)))
 
+#if LINUX_VERSION_CODE < KERNEL_VERSION(4,13,0)
+typedef wait_queue_entry_t wait_queue_t;
+#endif
+
 struct exa_select_elt
 {
     struct socket *socket;
-    wait_queue_t wait;
+    wait_queue_entry_t wait;
 };
 
 struct exa_select
