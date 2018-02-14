@@ -26,8 +26,6 @@
 #include <linux/vmalloc.h>
 #include <linux/fs.h> /* For struct file */
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,26)
-
 /*
  * There are two area mapped in user mode
  * - the first contain bd_kernel_queue with all info of request mapped in user
@@ -42,59 +40,6 @@
  * This file also handling the ioctl from user and passe it to the kernel
  * thread in bd_kernel_queue file.
  */
-
-/* this function will be called with BdInit() to mapped the bd_user_queue and
- * bd_kernel_queue in user mode
- * To mapped a buffer in user space
- */
-static struct page *bd_mops_no_page(struct vm_area_struct *vma,
-                                    unsigned long address,
-                                    int *type)
-{
-    struct bd_session *session = vma->vm_file->private_data;
-    struct page *page;
-
-    if (type)
-        *type = VM_FAULT_MINOR;
-
-    if (session == NULL)
-    {
-        bd_log_error("NoPage with NULL session at address: %ld\n", address);
-        bd_log_error("Name : %s Pid %d\n", current->comm, current->pid);
-        return NULL;
-    }
-
-    if (vma->vm_end - vma->vm_start == 2 * session->bd_page_size)
-    {
-        if (address - vma->vm_start > session->bd_page_size)
-            page = NULL;
-        else
-            page = vmalloc_to_page(((char *) session->bd_kernel_queue)
-                                   + (address - vma->vm_start));
-
-        if (page != NULL)
-            get_page(page);
-
-        return page;
-    }
-
-    if (vma->vm_end - vma->vm_start == 3 * session->bd_page_size)
-    {
-        if (address - vma->vm_start > session->bd_page_size)
-            page = NULL;
-        else
-            page = vmalloc_to_page(((char *) session->bd_user_queue)
-                                   + (address - vma->vm_start));
-        if (page != NULL)
-            get_page(page);
-
-        return page;
-    }
-    return NULL;
-}
-
-#else
-
 
 static int bd_mops_vmfault(struct vm_area_struct *vma, struct vm_fault *vmf)
 {
@@ -139,8 +84,6 @@ static int bd_mops_vmfault(struct vm_area_struct *vma, struct vm_fault *vmf)
   return VM_FAULT_SIGBUS;
 }
 
-#endif
-
 struct vm_operations_struct bd_mops;
 
 static void bd_mops_open(struct vm_area_struct *area)
@@ -151,11 +94,7 @@ static void bd_mops_open(struct vm_area_struct *area)
 struct vm_operations_struct bd_mops =
 {
     .open   = bd_mops_open,
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,26)
-    .nopage = bd_mops_no_page
-#else
     .fault = bd_mops_vmfault
-#endif
 };
 
 static int bd_fops_open(struct inode *I, struct file *F)
