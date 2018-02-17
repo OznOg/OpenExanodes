@@ -84,6 +84,13 @@
 
 #endif /* DEBUG */
 
+/*
+ * Static assert: if the predicate is false, the 2nd case will be a duplicate
+ * of the 1st case.
+ * */
+#define COMPILE_TIME_ASSERT(predicate)          \
+  switch (0) { case 0: case (predicate): ; }
+
 #else /* __KERNEL__ */
 
 #include <stdlib.h>
@@ -126,13 +133,14 @@
 
 #endif /* WIN32 */
 
-#endif /* __KERNEL__ */
+#include <assert.h>
 
-/*
- * Static assert: if the predicate is false, the 2nd case will be a duplicate
- * of the 1st case.
- * */
-#define COMPILE_TIME_ASSERT(predicate)          \
-  switch (0) { case 0: case (predicate): ; }
+#define OS_STATIC_ASSERT(predicate, ...) \
+  static_assert((predicate), "" __VA_ARGS__)
+
+#define COMPILE_TIME_ASSERT(predicate) /* Deprecated; to be removed */ \
+  OS_STATIC_ASSERT(predicate)
+
+#endif /* __KERNEL__ */
 
 #endif /* _OS_ASSERT_H */

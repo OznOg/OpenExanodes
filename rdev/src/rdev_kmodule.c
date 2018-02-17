@@ -28,24 +28,9 @@
 
 #include "os/include/os_inttypes.h"
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,28)
-#define queue_max_phys_segments(queue) ((queue)->max_phys_segments)
-#define queue_max_hw_segments(queue)   ((queue)->max_hw_segments)
-#define queue_max_hw_sectors(queue)    ((queue)->max_hw_sectors)
-#define queue_max_sectors(queue)       ((queue)->max_sectors)
-#define get_capacity(disk)       ((disk)->capacity)
-#endif
-
 #define SECT_SIZE	512
 #define SECT_SHIFT	9
 #define SECT_PER_PAGE (PAGE_SIZE/SECT_SIZE)
-
-/* Cannot check version of kernel directly for this as redhat backported the
- * modifications from 2.6.34 to 2.6.32 */
-#if defined RHEL_MAJOR && LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,32) || LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,34)
-#define queue_max_hw_segments   queue_max_segments
-#define queue_max_phys_segments queue_max_segments
-#endif
 
 /* This is the number of async requests exa_rdev can handle at a very moment. */
 #define EXA_RDEV_BH  64
@@ -64,6 +49,26 @@
     ( ((unsigned long)bio - (unsigned long)&st->bh[0]) / sizeof(struct bh_stuff) )
 
 #define EXA_RDEV_WRITE_MAX_CMD_LEN 19
+
+#if LINUX_VERSION_CODE < KERNEL_VERSION(4,13,0)
+typedef int blk_status_t;
+#define BLK_STS_OK 0
+#define bi_status bi_error
+#endif
+
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4,8,0)
+#define WRITE_FLUSH_FUA REQ_OP_FLUSH
+#endif
+
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4,8,0)
+static inline void __submit_bio(int op, struct bio *bio)
+{
+    bio_set_op_attrs(bio, op, 0);
+    submit_bio(bio);
+}
+#else
+#define __submit_bio submit_bio
+#endif
 
 struct exa_rdev_bh_struct {
     int pid_creator;
@@ -308,44 +313,30 @@ static void pushback_bh_in_finished_list(int index, struct exa_rdev_bh_struct *s
  * @param err 0 success otherwise errror
  * @return 0 : no problem
  */
-static void __exa_rdev_end_io(struct bio *bio, int err)
+static void __exa_rdev_end_io(struct bio *bio, blk_status_t status)
 {
     struct exa_rdev_bh_struct *st = bio->bi_private;
     int bh_idx;
 
     bh_idx = EXA_RDEV_BH_INDEX(bio, st);
 
-    st->bh[bh_idx].err = err != 0 ? RDEV_REQUEST_END_ERROR : RDEV_REQUEST_END_OK;
+    st->bh[bh_idx].err = status != BLK_STS_OK ? RDEV_REQUEST_END_ERROR : RDEV_REQUEST_END_OK;
 
     pushback_bh_in_finished_list(bh_idx, st);
 
     up(&st->sem_bh);
 }
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,24)
-static int exa_rdev_end_io(struct bio *bio, unsigned int bytes_done, int err)
-{
-    /* XXX this test is legacy and is supposed to fix bug #3046 but I really
-     * do not know why/how... I also ignore why this only apply for kernels
-     * < 2.6.24 (IMHO for other kernels this is just buggy...) */
-    if (bio->bi_size)
-	return 1;
-
-    __exa_rdev_end_io(bio, err);
-    return 0;
-}
-#else
-#  if LINUX_VERSION_CODE >= KERNEL_VERSION(4,3,0)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4,3,0)
 static void exa_rdev_end_io(struct bio *bio)
 {
-    __exa_rdev_end_io(bio, bio->bi_error);
+    __exa_rdev_end_io(bio, bio->bi_status);
 }
-#  else
+#else
 static void exa_rdev_end_io(struct bio *bio, int err)
 {
     __exa_rdev_end_io(bio, err);
 }
-#  endif
 #endif
 
 /**
@@ -667,11 +658,7 @@ static void exa_rdev_bdput(struct exa_rdev_bh_struct *st)
     spin_unlock_irqrestore(&bdev_cache.exa_rdev_bdev_open, flags);
 
     if (dev != NULL)
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 28)
-        blkdev_put(dev);
-#else
         blkdev_put(dev, FMODE_READ|FMODE_WRITE);
-#endif
 }
 
 /**
@@ -716,15 +703,7 @@ static int exa_rdev_bdinit(struct exa_rdev_bh_struct *st, int major, int minor)
 	    return -RDEV_ERR_INVALID_DEVICE;
         }
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,28)
-	ret = blkdev_get(dev, FMODE_READ | FMODE_WRITE, 0);
-#else
-# if LINUX_VERSION_CODE >= KERNEL_VERSION(3,0,0)
 	ret = blkdev_get(dev, FMODE_READ | FMODE_WRITE, NULL);
-# else
-	ret = blkdev_get(dev, FMODE_READ | FMODE_WRITE);
-# endif
-#endif
 	if (ret < 0)
 	{
 	    bdput(dev);
@@ -735,11 +714,7 @@ static int exa_rdev_bdinit(struct exa_rdev_bh_struct *st, int major, int minor)
         bdev = exa_rdev_find_free_bdev();
         if (bdev == NULL)
         {
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 28)
-	    blkdev_put(dev);
-#else
 	    blkdev_put(dev, FMODE_READ|FMODE_WRITE);
-#endif
 	    bdput(dev);
             spin_unlock_irqrestore(&bdev_cache.exa_rdev_bdev_open, flags);
             return -ENOSPC;
@@ -752,17 +727,17 @@ static int exa_rdev_bdinit(struct exa_rdev_bh_struct *st, int major, int minor)
             max_sect_per_bio = EXA_RDEV_BVEC * SECT_PER_PAGE;
 
         if (max_sect_per_bio >
-                queue_max_phys_segments(dev->bd_disk->queue) * SECT_PER_PAGE)
+                queue_max_segments(dev->bd_disk->queue) * SECT_PER_PAGE)
             max_sect_per_bio =
-                queue_max_phys_segments(dev->bd_disk->queue) * SECT_PER_PAGE;
+                queue_max_segments(dev->bd_disk->queue) * SECT_PER_PAGE;
 
         if (max_sect_per_bio > queue_max_hw_sectors(dev->bd_disk->queue))
             max_sect_per_bio = queue_max_hw_sectors(dev->bd_disk->queue);
 
         if (max_sect_per_bio >
-                queue_max_hw_segments(dev->bd_disk->queue) * SECT_PER_PAGE)
+                queue_max_segments(dev->bd_disk->queue) * SECT_PER_PAGE)
             max_sect_per_bio =
-                queue_max_hw_segments(dev->bd_disk->queue) * SECT_PER_PAGE;
+                queue_max_segments(dev->bd_disk->queue) * SECT_PER_PAGE;
 
         bdev->max_sect_per_bio = max_sect_per_bio;
         bdev->refcount         = 1;
@@ -839,7 +814,11 @@ static int exa_rdev_add_bh(struct exa_rdev_bh_struct *st,
 #else
     bio->bi_iter.bi_sector  = req->sector;
 #endif
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(4,14,0))
     bio->bi_bdev    = bdev->dev;
+#else
+    bio_set_dev(bio, bdev->dev);
+#endif
     bio->bi_end_io  = exa_rdev_end_io;
     bio->bi_private = (void *)st;
     bio->bi_io_vec  = bio_a->bio_vec;
@@ -854,7 +833,7 @@ static int exa_rdev_add_bh(struct exa_rdev_bh_struct *st,
     bio->bi_flags = 1 << BIO_UPTODATE;
 #else
     bio->bi_flags = 0;
-    bio->bi_error = 0;
+    bio->bi_status = BLK_STS_OK;
 #endif
 
     for (bio->bi_vcnt = 0; bio->bi_vcnt < page_count; bio->bi_vcnt++)
@@ -891,23 +870,19 @@ static int exa_rdev_flush_bh(rdev_op_t op, struct bio *bio)
     switch (op)
     {
     case RDEV_OP_READ:
-        submit_bio(READ, bio);
+        __submit_bio(READ, bio);
         break;
 
     case RDEV_OP_WRITE:
-        submit_bio(WRITE, bio);
+        __submit_bio(WRITE, bio);
         break;
 
     case RDEV_OP_WRITE_BARRIER:
-#if LINUX_VERSION_CODE < KERNEL_VERSION(3,0,0)
-        submit_bio(WRITE | (1 << BIO_RW_BARRIER), bio);
-#else
 	/* FIXME WRITE_FLUSH_FUA is not equivalent to having a barrier, so this
 	 * may be wrong. Nevertheless, there seem to be some mix up between
 	 * barrier an fua in the user land part, so all this needs to be
 	 * reworked properly */
-        submit_bio(WRITE_FLUSH_FUA, bio);
-#endif
+        __submit_bio(WRITE_FLUSH_FUA, bio);
         break;
 
     case RDEV_OP_INVALID:
@@ -926,26 +901,6 @@ static int exa_rdev_flush_bh(rdev_op_t op, struct bio *bio)
 #endif
 
     return EXA_SUCCESS;
-}
-
-/**
- * Force all submited request (bio/buffer head) to start to be processed by
- * disk driver
- * @param st
- */
-static void exa_rdev_start_bh(struct exa_rdev_bh_struct *st)
-{
-#if LINUX_VERSION_CODE < KERNEL_VERSION(3,0,0)
-    struct request_queue *q = NULL;
-
-    if (st->bdev != NULL)
-	q = bdev_get_queue(st->bdev->dev);
-
-    if (q != NULL)
-	blk_run_backing_dev(&q->backing_dev_info, NULL);
-#else
-    /* This is supposed to be automatically on newer kernels */
-#endif
 }
 
 /**
@@ -994,7 +949,11 @@ static int exa_rdev_make_one(struct exa_rdev_bh_struct *st,
                        current, current->mm,
 #endif
                        (unsigned long) req->buffer,
-                       page_count, 1, 0, page_array, NULL);
+                       page_count,
+#if LINUX_VERSION_CODE < KERNEL_VERSION(4,9,0)
+                       1,
+#endif
+                       0, page_array, NULL);
     up_read(&current->mm->mmap_sem);
 
     if (page_count != i)
@@ -1061,9 +1020,6 @@ static int exa_rdev_wait_one(bool wait, user_land_io_handle_t *h,
 
     if (!one_io_finished && !wait)
         return RDEV_REQUEST_NONE_ENDED;
-
-    if (!one_io_finished)
-        exa_rdev_start_bh(st);
 
     do {
         down(&st->sem_bh);
@@ -1230,11 +1186,7 @@ static int exa_rdev_ioctl(struct inode *inode, struct file *filp,
             break;
 
 	case EXA_RDEV_FLUSH:
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(3,0,0)
             ret = blkdev_issue_flush(sfs->st->bdev->dev, GFP_NOIO, NULL);
-#else
-            ret = blkdev_issue_flush(sfs->st->bdev->dev, NULL);
-#endif
             break;
 
 	case EXA_RDEV_MAKE_REQUEST_NEW:

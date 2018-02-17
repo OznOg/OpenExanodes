@@ -110,11 +110,14 @@ void local_clinfo_components(int thr_nb, void *msg)
   }
 
 error:
+  /* The label needs an instruction and does not accept the assert as it is not
+   * an instruction ; thus keep the "useless" semicolon here */
+  ;
 #else
   for (i = EXA_MODULE__FIRST; i <= EXA_MODULE__LAST; i++)
       reply.modules[i] = true;
 #endif
-  COMPILE_TIME_ASSERT(sizeof(reply) <= ADM_MAILBOX_PAYLOAD_PER_NODE);
+  OS_STATIC_ASSERT(sizeof(reply) <= ADM_MAILBOX_PAYLOAD_PER_NODE);
   admwrk_reply(thr_nb, &reply, sizeof(reply));
 }
 
