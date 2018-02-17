@@ -153,7 +153,7 @@ bool adm_license_size_ok(const adm_license_t *license, uint64_t size,
     EXA_ASSERT(license != NULL);
     if (size > license->max_size)
     {
-        EXA_ASSERT(exa_get_human_size(maxsize_tib, strlen(maxsize_tib),
+        EXA_ASSERT(exa_get_human_size(maxsize_tib, sizeof(maxsize_tib),
                    license->max_size) != NULL);
         set_error(error_desc, -ADMIND_ERR_LICENSE,
                   "The license is limited in size to %s", maxsize_tib);

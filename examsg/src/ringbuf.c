@@ -241,6 +241,8 @@ examsgRngPutVaList(exa_ringbuf_t *rng, va_list ap)
 
   writewrap(rng, (const char*)&t, sizeof(t));
 
+  va_end(ap2);
+
   return msgsize;
 }
 
@@ -331,6 +333,8 @@ examsgRngGetVaList(exa_ringbuf_t *rng, va_list ap)
 
   readwrap(rng, (char*)&t, sizeof(t));
   EXA_ASSERT(!examsg_blktail_check(&t));
+
+  va_end(ap2);
 
   return h.size;
 }

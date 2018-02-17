@@ -83,6 +83,9 @@ static int check_name(names_to_check_t* names)
 
 ut_setup()
 {
+    char dir_name[] = "/tmp/Exanodes_XXXXXX";
+    mkdtemp(dir_name);
+    setenv("EXANODES_CACHE_DIR", dir_name, 0);
     adm_cluster_init();
 }
 
@@ -191,3 +194,94 @@ ut_test(too_long_cluster_name_returns_error)
     };
     UT_ASSERT(EXA_SUCCESS != check_name(&names));
 }
+
+static const char *const test_conf_bad_group_format =
+    "<?xml version=\"1.0\"?>\n\
+    <Exanodes release=\"%s\" config_version=\"1\" format_version=\"1\" >\n\
+       <diskgroup %s %s tainted=\"FALSE\" goal=\"STOPPED\" transaction=\"COMMITTED\" uuid=\"12345678:12345678:12345678:12345678\" sb_version=\"33\">\n\
+       </diskgroup>\n\
+       <cluster name=\"cluster\" uuid=\"12345678:12345678:12345678:12345678\">\n\
+           <node name=\"Node\" hostname=\"%s\" number=\"0\">\n\
+               <network hostname=\"1.2.3.4\"/>\n\
+               <disk uuid=\"12345678:12345678:12345678:12345678\"/>\n\
+           </node>\n\
+       </cluster>\n\
+    </Exanodes>";
+
+ut_test(no_layout)
+{
+    char test_conf[1024];
+    char error_msg[EXA_MAXSIZE_LINE + 1];
+    int res;
+
+    os_snprintf(test_conf, sizeof(test_conf), test_conf_bad_group_format, EXA_VERSION,
+		"name=\"group\"", "", adm_hostname());
+
+    res = adm_deserialize_from_memory(test_conf, strlen(test_conf),
+                                      error_msg, false);
+    UT_ASSERT_EQUAL(-ADMIND_ERR_CONFIG_LOAD, res);
+    UT_ASSERT_EQUAL_STR("Unspecified layout type for group \"group\"", error_msg);
+}
+
+ut_test(bad_layout_name)
+{
+    char test_conf[1024];
+    char error_msg[EXA_MAXSIZE_LINE + 1];
+    int res;
+
+    os_snprintf(test_conf, sizeof(test_conf), test_conf_bad_group_format, EXA_VERSION,
+		"name=\"group\"", "layout=\"dummy layout name\"", adm_hostname());
+
+    res = adm_deserialize_from_memory(test_conf, strlen(test_conf),
+                                      error_msg, false);
+    UT_ASSERT_EQUAL(-ADMIND_ERR_CONFIG_LOAD, res);
+    UT_ASSERT_EQUAL_STR("Invalid layout \"dummy layout name\" for group \"group\"", error_msg);
+}
+
+ut_test(empty_group_name)
+{
+    char test_conf[1024];
+    char error_msg[EXA_MAXSIZE_LINE + 1];
+    int res;
+
+    os_snprintf(test_conf, sizeof(test_conf), test_conf_bad_group_format, EXA_VERSION,
+		"name=\"\"", "layout=\"rain1\"", adm_hostname());
+
+    res = adm_deserialize_from_memory(test_conf, strlen(test_conf),
+                                      error_msg, false);
+    UT_ASSERT_EQUAL(-ADMIND_ERR_CONFIG_LOAD, res);
+    UT_ASSERT_EQUAL_STR("Empty value for attribute 'name' in <diskgroup>", error_msg);
+}
+
+ut_test(no_group_name_tag)
+{
+    char test_conf[1024];
+    char error_msg[EXA_MAXSIZE_LINE + 1];
+    int res;
+
+    os_snprintf(test_conf, sizeof(test_conf), test_conf_bad_group_format, EXA_VERSION,
+		"", "layout=\"rain1\"", adm_hostname());
+
+    res = adm_deserialize_from_memory(test_conf, strlen(test_conf),
+                                      error_msg, false);
+    UT_ASSERT_EQUAL(-ADMIND_ERR_CONFIG_LOAD, res);
+    UT_ASSERT_EQUAL_STR("Missing attribute 'name' in <diskgroup>", error_msg);
+}
+
+ut_test(group_ok)
+{
+    char test_conf[1024];
+    char error_msg[EXA_MAXSIZE_LINE + 1];
+    int res;
+
+    os_snprintf(test_conf, sizeof(test_conf), test_conf_bad_group_format, EXA_VERSION,
+		"name=\"group\"", "layout=\"rain1\"", adm_hostname());
+
+    res = adm_deserialize_from_memory(test_conf, strlen(test_conf),
+                                      error_msg, false);
+    if (res != EXA_SUCCESS)
+        ut_printf("-->%s<--- error: %s", test_conf, error_msg);
+    UT_ASSERT_EQUAL(EXA_SUCCESS, res);
+}
+
+

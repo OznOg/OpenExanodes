@@ -10,6 +10,7 @@
 #define RDEV_SB_H
 
 #include "common/include/uuid.h"
+#include "os/include/os_assert.h"
 
 /* FIXME Some entities use 'superblock' in full, some use the abbreviated
          'sb' form... Consistency ought to be fixed */
@@ -22,13 +23,23 @@
 #endif
 
 /** Magic of an Rdev superblock */
-#define EXA_RDEV_SB_MAGIC "EXANODES DISK"
+#define EXA_RDEV_SB_MAGIC "EXANODES DISK\0\0"
 
 /** Rdev superblock at the beginning of an Exanodes disk */
 typedef struct
 {
-    char magic[16];       /**< Must contain EXA_RDEV_SB_MAGIC */
-    exa_uuid_t uuid;      /**< UUID of the disk */
+    char magic[sizeof(EXA_RDEV_SB_MAGIC)]; /**< Must contain EXA_RDEV_SB_MAGIC */
+    exa_uuid_t uuid;                       /**< UUID of the disk */
 } rdev_superblock_t;
+
+/*
+ * Dummy function just here to be able to use static assert
+ */
+static inline void exa_rdev_test_sizeof_magic(void)
+{
+    rdev_superblock_t dummy;
+    /* For alignment purpose, the magic MUST be 16 bytes */
+    COMPILE_TIME_ASSERT(sizeof(dummy.magic) == 16);
+}
 
 #endif /* RDEV_SB_H */

@@ -85,14 +85,14 @@ static void td_merge_lock(device_t *disk_device, header_t *header)
 {
     int i;
 
-    EXA_ASSERT(header->type = NBD_HEADER_LOCK);
+    EXA_ASSERT(header->type == NBD_HEADER_LOCK);
     EXA_ASSERT(header->lock.op == NBD_REQ_TYPE_LOCK
                || header->lock.op == NBD_REQ_TYPE_UNLOCK);
 
     switch (header->lock.op)
     {
     case NBD_REQ_TYPE_LOCK:
-        if (disk_device->nb_locked_zone > NBMAX_DISK_LOCKED_ZONES)
+        if (disk_device->nb_locked_zone >= NBMAX_DISK_LOCKED_ZONES)
         {
             disk_device->locking_return = -1;
             return;

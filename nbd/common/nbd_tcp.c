@@ -691,6 +691,8 @@ int tcp_connect_to_peer(nbd_tcp_t *nbd_tcp, exa_nodeid_t nid)
 
     if (os_inet_aton(peer->ip_addr, &node_addr) == 0)
     {
+        os_thread_rwlock_unlock(&tcp->peers_lock);
+
         exalog_error("can't get IP address of %s", peer->ip_addr);
         return -NET_ERR_INVALID_HOST;
     }

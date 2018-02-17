@@ -769,7 +769,7 @@ static struct adm_node *
 adm_deserialize_node(void *data, const xmlChar **attrs)
 {
     adm_deserialize_state_t *state = (adm_deserialize_state_t *)data;
-    struct adm_node *node;
+    struct adm_node *node = NULL;
     const char *name = NULL;
     const char *hostname = NULL;
     const char *number = NULL;
@@ -815,7 +815,7 @@ adm_deserialize_node(void *data, const xmlChar **attrs)
     adm_validate_spof_id(state, node, spof_id_str);
 
     if (state->failed)
-	return NULL;
+        goto error;
 
     ret = adm_cluster_insert_node(node);
     if (ret != EXA_SUCCESS)
@@ -829,6 +829,8 @@ adm_deserialize_node(void *data, const xmlChar **attrs)
     return node;
 
 error:
+    if (node != NULL)
+        adm_node_delete(node);
     state->failed = true;
     return NULL;
 }
@@ -933,7 +935,7 @@ adm_deserialize_disk(void *data, const xmlChar **attrs)
 
     adm_validate_uuid(state, &disk->uuid, uuid);
     if (state->failed)
-	return;
+        goto error;
 
     if (state->current.node == adm_myself())
     {
@@ -974,6 +976,9 @@ adm_deserialize_disk(void *data, const xmlChar **attrs)
     return;
 
 error:
+    if (disk != NULL)
+        adm_disk_delete(disk);
+
     state->failed = true;
 }
 
@@ -1021,21 +1026,27 @@ adm_deserialize_group(void *data, const xmlChar **attrs)
     }
 
     adm_validate_exaname(state, group->name, name);
+    if (layout == NULL) {
+        os_snprintf(state->error_msg, EXA_MAXSIZE_LINE + 1,
+        	    "Unspecified layout type for group \"%s\"", group->name);
+        goto error;
+    }
+
     group->layout = vrt_layout_from_name(layout);
     if (!VRT_LAYOUT_IS_VALID(group->layout))
     {
 	os_snprintf(state->error_msg, EXA_MAXSIZE_LINE + 1,
 		    "Invalid layout \"%s\" for group \"%s\"", layout,
                     group->name);
-        state->failed = TRUE;
-        return NULL;
+        state->failed = true;
+        goto error;
     }
     adm_validate_uuid(state, &group->uuid, uuid);
     adm_validate_transaction(state, &group->committed, transaction);
     adm_validate_group_goal(state, &group->goal, goal);
     adm_validate_boolean(state, &group->tainted, tainted);
     if (state->failed)
-	return NULL;
+	goto error;
 
     group->sb_version = sb_version_load(&group->uuid);
     if (group->sb_version == NULL)
@@ -1069,6 +1080,9 @@ adm_deserialize_group(void *data, const xmlChar **attrs)
     return group;
 
 error:
+    if (group != NULL)
+        adm_group_free(group);
+
     state->failed = true;
     return NULL;
 }
@@ -1210,7 +1224,7 @@ adm_deserialize_volume(void *data, const xmlChar **attrs)
     adm_validate_uint32(state, &volume->readahead, readahead);
 
     if (state->failed)
-	return NULL;
+	goto error;
 
     ret = adm_group_insert_volume(state->current.group, volume);
     if (ret != EXA_SUCCESS)
@@ -1224,6 +1238,8 @@ adm_deserialize_volume(void *data, const xmlChar **attrs)
     return volume;
 
 error:
+    if (volume != NULL)
+        adm_volume_free(volume);
     state->failed = true;
     return NULL;
 }
@@ -1293,7 +1309,7 @@ adm_deserialize_fs(void *data, const xmlChar **attrs)
 
     adm_validate_exaname(state, fs->type, type);
     if (state->failed)
-	return NULL;
+	goto error;
 
     /* FIXME calling fs_get_definition make the include
      * admind/services/fs/generic_fs.h necessary and link to the service fs lib
@@ -1312,7 +1328,7 @@ adm_deserialize_fs(void *data, const xmlChar **attrs)
 
     /* Don't use fs->committed below if it is not correctly parsed. */
     if (state->failed)
-	return NULL;
+	goto error;
 
     adm_validate_uint64(state, &fs->size, size);
 
@@ -1328,7 +1344,7 @@ adm_deserialize_fs(void *data, const xmlChar **attrs)
     }
 
     if (state->failed)
-	return NULL;
+	goto error;
 
     EXA_ASSERT(state->element == DISKGROUP_LOGICAL_VOLUME_FS);
     state->current.volume->filesystem = fs;
@@ -1337,6 +1353,8 @@ adm_deserialize_fs(void *data, const xmlChar **attrs)
     return fs;
 
 error:
+    if (fs != NULL)
+        adm_fs_free(fs);
     state->failed = true;
     return NULL;
 }

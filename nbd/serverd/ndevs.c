@@ -241,6 +241,7 @@ int export_device(const exa_uuid_t *uuid, char *device_path)
     {
         exalog_error("maximum number of exportable devices exceeded");
         err = -NBD_ERR_NB_RDEVS_CREATED;
+        goto error;
     }
 
     dev->dev_index = i;
