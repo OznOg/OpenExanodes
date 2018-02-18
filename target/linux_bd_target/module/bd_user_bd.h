@@ -53,21 +53,17 @@ struct bd_session
     struct bd_user_queue   *bd_user_queue_user; /*! Address in user space */
     long bd_major;                      /*! Major number of the block device of this session */
     struct bd_root_list     bd_root; /*! Element used to store bd_requests */
-    struct bd_minor        *bd_minor_last; /*! used to read all queue */
     struct bd_minor        *bd_minor; /*! Link structure of gendisk minor */
-    struct bd_event         bd_new_rq; /*! Event to wake up user if there are some  new Rq */
-    struct bd_event         bd_thread_event; /*! Event to wake up main kernel thread if there are new queue, new Rq done by user, if it's time to end,... */
+    struct bd_event        *bd_new_rq; /*! Event to wake up user if there are some  new Rq */
+    struct bd_event        *bd_thread_event; /*! Event to wake up main kernel thread if there are new queue, new Rq done by user, if it's time to end,... */
     struct bd_session      *bd_next_session; /*! Link to next session */
     struct task_struct     *bd_task; /*! main task for  get_user_pages(current, mm, addr, 1, write, 0, &page, NULL); */
     struct page           **bd_unaligned_buf; /*! used to manage the buffer that do not fit in page */
 
     struct bd_request      *pending_req;
-    struct bd_minor        *pending_minor;
-    int pending_info;
+    struct bd_minor        *last_minor_processed;
 
     struct completion       bd_end_completion;
-
-    long         bd_in_rq;
 
     atomic_t     total_use_count;
 
@@ -89,17 +85,18 @@ void  bd_end_request(struct bd_kernel_queue *,  int err);
 int   bd_prepare_request(struct bd_kernel_queue *);
 int   bd_register_drv(struct bd_session *);
 void  bd_unregister_drv(struct bd_session *);
-void  bd_flush_q(struct bd_session *session, int err);
+void  bd_flush_q(struct bd_session *session);
 int   bd_minor_add_new(struct bd_session *session, int minor,
                        unsigned long size_in512_bytes, bool readonly);
 void bd_put_session(struct bd_session **);
-long bd_post_new_rq(struct bd_session *);
+
+long bd_post_new_rq(struct bd_session *session, struct bd_request *req);
 
 struct bd_session *bd_launch_session(struct bd_init *init);
 
 const char *bd_minor_name(const struct bd_minor *bd_minor);
 
-void  bd_end_q(struct bd_minor *bd_minor, int err);
+void  cancel_all_requests(struct bd_minor *bd_minor);
 int   bd_minor_remove(struct bd_minor *bd_minor);
 int   bd_minor_set_size(struct bd_minor *bd_minor,
                         unsigned long size_in512_bytes);

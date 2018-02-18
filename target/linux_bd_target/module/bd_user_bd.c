@@ -186,76 +186,88 @@ static void bd_end_one_req(struct bd_request *req, int err);
  * In this file bd_request (any process) are called asynchronously
  * all other function are called synchronously */
 
+static struct bd_minor *minor_get_next(struct bd_minor *minor)
+{
+    if (minor == NULL)
+        return NULL;
+
+    if (minor->bd_next == NULL)
+        return minor->bd_session->bd_minor;
+
+    return minor->bd_next;
+}
+
+static struct bd_request *minor_get_req(struct bd_minor *minor)
+{
+    struct bd_request *req;
+
+    if (minor->dead)
+        return NULL;
+
+    if (minor->bd_gen_disk->queue == NULL)
+        return NULL;
+
+    if (minor->need_sync == 1)
+    {
+        /* There are outstanding IOs, we need to wait their completion before
+         * processing any new request on this minor */
+        if (minor->current_run > 0)
+            return NULL;
+
+        /* There are no outstanding IOs => the sync was completed, we can reset
+         * the flag */
+        minor->need_sync = 0;
+    }
+
+    do {
+        req = bd_list_remove(&minor->bd_list, LISTNOWAIT);
+
+        /* try to find a non barrier request */
+        if (req == NULL)
+            return NULL;
+
+        if (req->info == BD_INFO_INTERNAL_BARRIER)
+        {
+            bd_list_post(&minor->bd_list.root->free, req);
+
+            if (minor->current_run > 0)
+            {
+                minor->need_sync = 1;
+                /* stop processing this minor as a sync is awaited before resuming */
+                return NULL;
+            }
+        }
+    } while (req->info == BD_INFO_INTERNAL_BARRIER);
+
+    return req;
+}
+
 /**
  * Searching for onr next request in all queue with a simple round robin
  * fairness algorithm
  * @param session target session
  * @return a Request pointer or NULL if all queue was full
  */
-static void bd_next_queue(struct bd_session *session)
+static struct bd_request *bd_next_queue(struct bd_session *session)
 {
-    struct bd_minor *first;
+    struct bd_minor *minor;
+    struct bd_request *req = NULL;
 
-    session->pending_req = NULL;
+    if (session->bd_minor == NULL)
+        return NULL;
 
-    if (session->bd_minor_last == NULL)
-        session->bd_minor_last = session->bd_minor;
-
-    first = session->bd_minor_last;
-    if (first == NULL)
-        return;
-
-    session->pending_minor = first;
-    do
+    /* go thru all minors, starting after the last one processed */
+    for (minor = minor_get_next(session->last_minor_processed);
+         minor != NULL && minor != session->last_minor_processed;
+         minor = minor_get_next(session->last_minor_processed))
     {
-        do
-        {
-            if (session->pending_minor->dead)
-                break;
+        req = minor_get_req(minor);
+        if (req != NULL) /* Take the first available request */
+            break;
+    }
 
-            if (session->pending_minor->bd_gen_disk->queue == NULL)
-                break;
-
-            if (session->pending_minor->need_sync == 1)
-            {
-                if (session->pending_minor->current_run > 0)
-                    break;
-
-                session->pending_minor->need_sync = 0;
-            }
-
-            session->pending_req =
-                bd_list_remove(&session->pending_minor->bd_list, LISTNOWAIT);
-
-            while (session->pending_req != NULL
-                   && session->pending_req->info == BD_INFO_INTERNAL_BARRIER)
-            {
-                bd_end_one_req(session->pending_req, 0);
-                session->pending_req = NULL;
-
-                if (session->pending_minor->current_run > 0)
-                    session->pending_minor->need_sync = 1;
-                else
-                    session->pending_req =
-                        bd_list_remove(&session->pending_minor->bd_list, LISTNOWAIT);
-            }
-
-            if (session->pending_req == NULL)
-                break;
-
-            session->pending_info = session->pending_req->info;
-            session->bd_minor_last = session->pending_minor;
-            return;
-
-        } while (1);
-
-	/* per default we continue on the same disk */
-        session->pending_minor = session->pending_minor->bd_next;
-
-        if (session->pending_minor == NULL)
-            session->pending_minor = session->bd_minor;
-
-    } while (session->pending_minor != first);
+    session->last_minor_processed = minor;
+    return req;
 }
 
 
@@ -396,7 +408,7 @@ struct block_device_operations bd_blk_fops;
 int bd_prepare_request(struct bd_kernel_queue *Q)
 {
     Q->bd_op = Q->bd_req->rw;
-    Q->bd_minor = Q->bd_session->pending_minor->minor;
+    Q->bd_minor = Q->bd_req->bd_minor->minor;
     check_size(Q);
 
     Q->bd_blk_num = BIO_OFFSET(Q->bd_req->first_bio);
@@ -427,9 +439,7 @@ static void bd_end_io(struct bio *bio, int err)
  */
 static void bd_end_one_req(struct bd_request *req, int err)
 {
-    static DEFINE_SPINLOCK(callback_sl);
     struct bio *bio;
-    unsigned long flags;
 
     if (req == NULL)
     {
@@ -437,21 +447,13 @@ static void bd_end_one_req(struct bd_request *req, int err)
         return;
     }
 
-    if (req->info == BD_INFO_INTERNAL_BARRIER)
-    {
-        bd_list_post(&req->bd_minor->bd_list.root->free, req);
-        return;
-    }
-
     bio = req->first_bio;
-    spin_lock_irqsave(&callback_sl, flags);
     while (bio != NULL)
     {
         struct bio *next_bio = BIO_NEXT(bio);
         bd_end_io(bio, err);
         bio = next_bio;
     }
-    spin_unlock_irqrestore(&callback_sl, flags);
     bd_list_post(&req->bd_minor->bd_list.root->free, req);
 }
 
@@ -486,21 +488,18 @@ void bd_end_request(struct bd_kernel_queue *Q, int err)
  * @param session target session associated with queue device
  * @param minor minor number associated with queue device
  */
-void bd_end_q(struct bd_minor *bd_minor, int err)
+void cancel_all_requests(struct bd_minor *bd_minor)
 {
-    struct bd_request *req = NULL;
+    struct bd_request *req = bd_minor->bd_session->pending_req;
 
-    if (bd_minor->bd_session->pending_minor != NULL
-        && bd_minor->bd_session->pending_minor->minor == bd_minor->minor
-        && bd_minor->bd_session->pending_req != NULL)
+    if (req != NULL && req->bd_minor->minor == bd_minor->minor)
     {
-        bd_end_one_req(bd_minor->bd_session->pending_req, -EIO);
+        bd_end_one_req(req, -EIO);
         bd_minor->bd_session->pending_req = NULL;
-        bd_minor->bd_session->pending_minor = NULL;
     }
 
     while ((req = bd_list_remove(&bd_minor->bd_list, LISTNOWAIT)) != NULL)
-        bd_end_one_req(req, err);
+        bd_end_one_req(req, -EIO);
 }
 
 
@@ -510,36 +509,33 @@ void bd_end_q(struct bd_minor *bd_minor, int err)
  * @param err 0 try to add as many as we can request to bd_kernel_queue,
  * -EIO :all request must be remove and end with error
  * */
-void bd_flush_q(struct bd_session *session, int err)
+void bd_flush_q(struct bd_session *session)
 {
+    struct bd_request *req;
+
     do
     {
-        if (session->pending_req == NULL)
+        /* take a new request only if there is no pending one */
+        if (session->pending_req != NULL)
         {
-            bd_next_queue(session);
-            if (session->pending_req == NULL)
-                bd_next_queue(session);
-
-            /* if we have selected a req of disk A for previous req and there
-	     * are only request for disk A pending, the first BdNextQueue will
-	     * not get it because it have the old focus */
+            req = session->pending_req;
+            session->pending_req = NULL;
+        } else {
+            req = bd_next_queue(session);
         }
-        if (session->pending_req == NULL)
-            return;
 
-        if (err == 0)
+        if (req == NULL)
+            return; /* nothing to do */
+
+        if (bd_post_new_rq(session, req) != 0)
         {
-            if (bd_post_new_rq(session) != 0)
-                return; /* This Req cannot be added, so probably no more Req
-                         * can be added now, but we keep this request that
-                         * cannot be added */
-            session->pending_minor->current_run++;
+            session->pending_req = req;
+            return; /* This Req cannot be added, so probably no more Req
+                     * can be added now, but we keep this request that
+                     * cannot be added */
         }
-        else
-            bd_end_one_req(session->pending_req, err);
-
-        session->pending_req = NULL;
-        session->pending_minor = NULL;
+        /* the request was posted, update the outstanding counter */
+        req->bd_minor->current_run++;
     } while (1);
 }
 
@@ -565,95 +561,60 @@ static void bd_submit_bio_with_info(struct bio *bio, int rw)
 {
     struct bd_minor *bd_minor = BIO_BD_MINOR(bio);
     struct bd_session *session = bd_minor->bd_session;
-    struct bd_request *req = NULL, *reqpre = NULL, *reqpost = NULL;
-    bool submited = false, needevent = false;
+    struct bd_request *req = NULL;
     int info = 0;
     int cpu;
 
-    do
+    OS_ASSERT_VERBOSE(!bio_barrier(bio) || rw == 1, "%d %d",
+            (unsigned)bio_barrier(bio), rw);
+
+    if (bio_barrier(bio) && session->bd_barrier_enable == 1)
+        info = BD_INFO_BARRIER;
+
+    cpu = part_stat_lock();
+    part_stat_inc(cpu, &bd_minor->bd_gen_disk->part0, ios[rw]);
+    part_stat_add(cpu, &bd_minor->bd_gen_disk->part0, sectors[rw],
+            bio_sectors(bio));
+    part_stat_unlock();
+
+    if (info != BD_INFO_BARRIER)
     {
-        OS_ASSERT_VERBOSE(!bio_barrier(bio) || rw == 1, "%u %d",
-                          (unsigned)bio_barrier(bio), rw);
+        if (bd_concat_bio(bio, rw, info,
+                    bd_minor->bd_session->bd_buffer_size,
+                    &bd_minor->bd_list))
+            return;
+    }
+    else
+    {
+        struct bd_request *reqpre = bd_list_remove(&bd_minor->bd_list.root->free, LISTWAIT);
 
-        if (bio_barrier(bio) && session->bd_barrier_enable == 1)
-            info = BD_INFO_BARRIER;
+        reqpre->first_bio = NULL;
+        reqpre->info = BD_INFO_INTERNAL_BARRIER;
+        reqpre->bd_minor = bd_minor;
 
-	cpu = part_stat_lock();
-        part_stat_inc(cpu, &bd_minor->bd_gen_disk->part0, ios[rw]);
-        part_stat_add(cpu, &bd_minor->bd_gen_disk->part0, sectors[rw],
-		      bio_sectors(bio));
-	part_stat_unlock();
+        bd_list_post(&bd_minor->bd_list, reqpre);
+    }
 
-        if (info != BD_INFO_BARRIER)
-        {
-            if (bd_concat_bio(bio, rw, info,
-                              bd_minor->bd_session->bd_buffer_size,
-                              &bd_minor->bd_list))
-                return;
-        }
-        else
-        {
-            reqpre = bd_list_remove(&bd_minor->bd_list.root->free, LISTWAIT);
-            reqpost = bd_list_remove(&bd_minor->bd_list.root->free, LISTWAIT);
-            if (reqpre == NULL || reqpost == NULL)
-                break;
+    req = bd_list_remove(&bd_minor->bd_list.root->free, LISTWAIT);
 
-            reqpre->first_bio = NULL;
-            reqpre->info = BD_INFO_INTERNAL_BARRIER;
-            reqpre->bd_minor = bd_minor;
-            reqpost->first_bio = NULL;
-            reqpost->info = BD_INFO_INTERNAL_BARRIER;
-            reqpost->bd_minor = bd_minor;
-        }
+    req->first_bio = bio;
+    req->bd_minor = bd_minor;
+    req->rw = rw;
+    req->info = info;
 
-        req = bd_list_remove(&bd_minor->bd_list.root->free, LISTWAIT);
+    bd_list_post(&bd_minor->bd_list, req);
 
-        if (req == NULL)
-            break;
+    if (info == BD_INFO_BARRIER)
+    {
+        struct bd_request *reqpost = bd_list_remove(&bd_minor->bd_list.root->free, LISTWAIT);
 
-        req->first_bio = bio;
-        req->bd_minor = bd_minor;
-        req->rw = rw;
-        req->info = info;
+        reqpost->first_bio = NULL;
+        reqpost->info = BD_INFO_INTERNAL_BARRIER;
+        reqpost->bd_minor = bd_minor;
+        bd_list_post(&bd_minor->bd_list, reqpost);
+    }
 
-        if (reqpre != NULL)
-        {
-            if (bd_list_post(&bd_minor->bd_list, reqpre) < 0)
-                break;
-
-            needevent = true;
-        }
-        reqpre = NULL;
-
-        if (bd_list_post(&bd_minor->bd_list, req) < 0)
-            break;
-
-        req = NULL;
-        submited = true;
-        needevent = true;
-
-        if (reqpost != NULL)
-            if (bd_list_post(&bd_minor->bd_list, reqpost) < 0)
-                break;
-
-        reqpost = NULL;
-    } while (0);
-
-    if (reqpre != NULL)
-        bd_list_post(&bd_minor->bd_list.root->free, reqpre);
-
-    if (reqpost != NULL)
-        bd_list_post(&bd_minor->bd_list.root->free, reqpost);
-
-    if (req != NULL)
-        bd_list_post(&bd_minor->bd_list.root->free, req);
-
-    if (!submited)
-        bd_end_io(bio, -EIO);
-
-    /* Don't explicitelly call BdFlusQ to avoid deadlock */
-    if (needevent)
-        bd_new_event(&session->bd_thread_event, BD_EVENT_ACK_NEW);
+    bd_wakeup(session->bd_thread_event);
 }
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 4, 0)
@@ -697,7 +658,7 @@ int bd_minor_remove(struct bd_minor *bd_minor)
     struct bd_session *session = bd_minor->bd_session;
 
     if (bd_minor->dead)
-        bd_end_q(bd_minor, -EIO);
+        cancel_all_requests(bd_minor);
 
     if (!atomic_dec_and_test(&bd_minor->use_count))
     {
@@ -708,9 +669,9 @@ int bd_minor_remove(struct bd_minor *bd_minor)
     bd_log_info("RefCount reach 0 for minor %s (%d)\n",
                 bd_minor->bd_name, bd_minor->minor);
 
-    bd_end_q(bd_minor, -EIO);
-    if (session->bd_minor_last == bd_minor)
-        session->bd_minor_last = session->bd_minor;
+    cancel_all_requests(bd_minor);
+    if (session->last_minor_processed == bd_minor)
+        session->last_minor_processed = session->bd_minor;
 
     del_gendisk(bd_minor->bd_gen_disk);
     put_disk(bd_minor->bd_gen_disk);

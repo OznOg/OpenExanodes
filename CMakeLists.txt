@@ -256,7 +256,7 @@ if (WIN32)
 
 else (WIN32)
     set(KMODULE_LIST "")
-    set(KERNEL_CFLAGS "")
+    set(KERNEL_CFLAGS "-std=gnu99")
     if (NOT WITH_LIBAIO)
 	set(KMODULE_LIST "${KMODULE_LIST} krdev")
     endif()

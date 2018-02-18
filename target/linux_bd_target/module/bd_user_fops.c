@@ -120,8 +120,8 @@ static int bd_fops_open(struct inode *I, struct file *F)
  *                  ,-1=Error   create a new session to handle
  *                          "Major" block device ; all minor are disable (size=0)
  *                          if "Major==0" Major return the new Major
- * BD_IOCTL_SEM_ACK     0=Ok,-1=Error        New ack event (wake up kernel thread if necessary
- * BD_IOCTL_SEM_NEW     """""""""""""        Wait for a new event "new request"
+ * BD_IOCTL_SEM_POST     0=Ok,-1=Error        New ack event (wake up kernel thread if necessary
+ * BD_IOCTL_SEM_WAIT     """""""""""""        Wait for a new event "new request"
  * BD_IOCTL_NEWMINOR                         Add a new minor device with state supend and new state
  * BD_IOCTL_DELMINOR                         Remove a minor
  *                 */
@@ -165,29 +165,16 @@ static int bd_fops_ioctl(struct inode *I, struct file *F,
             return session->bd_major; /* All is ok */
         }
 
-    case BD_IOCTL_SEM_ACK:
-        bd_new_event(&session->bd_thread_event, BD_EVENT_ACK_NEW);
+    case BD_IOCTL_SEM_POST:
+        bd_wakeup(session->bd_thread_event);
         return 0;
 
-    case BD_IOCTL_SEM_NEW_UP:
-        bd_new_event(&session->bd_new_rq, BD_EVENT_ACK_NEW);
+    case BD_IOCTL_CLEANUP:
+        bd_wakeup(session->bd_new_rq);
         return 0;
 
-    case BD_IOCTL_SEM_NEW:
-        {
-            unsigned long temp = 0;
-            int err = bd_wait_event(&session->bd_new_rq, &temp, NULL);
-            if (temp == BD_EVENT_TIMEOUT)
-                return -EAGAIN;
-
-            if (err == 1)
-                return -EINTR;
-
-            if (err == 2)
-                return -EBADF;
-
-        }
-        return 0;
+    case BD_IOCTL_SEM_WAIT:
+	return bd_wait(session->bd_new_rq);
 
     case BD_IOCTL_SETSIZE:
     case BD_IOCTL_NEWMINOR:
@@ -209,20 +196,20 @@ static int bd_fops_ioctl(struct inode *I, struct file *F,
         msg.bd_minor = minor.bd_minor;
         msg.bd_minor_readonly = minor.readonly;
 
-        bd_new_event_msg_wait_processed(&session->bd_thread_event, &msg);
+        bd_new_event_msg_wait_processed(session->bd_thread_event, &msg);
         return msg.bd_result;
     }
 
     case BD_IOCTL_DELMINOR:
         msg.bd_type = BD_EVENT_DEL;
         msg.bd_minor = arg;
-        bd_new_event_msg_wait_processed(&session->bd_thread_event, &msg);
+        bd_new_event_msg_wait_processed(session->bd_thread_event, &msg);
         return msg.bd_result;
 
     case BD_IOCTL_IS_INUSE:
         msg.bd_type = BD_EVENT_IS_INUSE;
         msg.bd_minor = arg;
-        bd_new_event_msg_wait_processed(&session->bd_thread_event, &msg);
+        bd_new_event_msg_wait_processed(session->bd_thread_event, &msg);
         return msg.bd_result;
 
     default:
@@ -243,8 +230,7 @@ static int bd_fops_release(struct inode *I, struct file *F)
     msg.bd_type = BD_EVENT_KILL;
 
     /* Send a Kill event to the thread and wait for it's end of processing */
-    bd_new_event_msg_wait_processed(&session->bd_thread_event, &msg);
-    wait_for_completion(&session->bd_end_completion);
+    bd_new_event_msg_wait_processed(session->bd_thread_event, &msg);
 
     /* now Session wil be no more used because block device are down */
     bd_put_session(&session);

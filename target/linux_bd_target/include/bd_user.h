@@ -14,10 +14,10 @@
 /* IOCTL contants */
 
 #define BD_IOCTL_INIT           0x2d    /* create a new session */
-#define BD_IOCTL_SEM_ACK        0x2e    /* up the bd_rq_ok */
-#define BD_IOCTL_SEM_NEW        0x2f    /* down the bd_new_rq */
+#define BD_IOCTL_SEM_POST       0x2e    /* up the bd_rq_ok */
+#define BD_IOCTL_SEM_WAIT       0x2f    /* down the bd_new_rq */
 #define BD_IOCTL_NEWMINOR       0x30    /* Set the size of one minor blockdevice */
-#define BD_IOCTL_SEM_NEW_UP     0x31    /* up BdBewRq, used to repost a new request */
+#define BD_IOCTL_CLEANUP        0x31    /* Called when cleaning up the session */ 
 #define BD_IOCTL_DELMINOR       0x35
 #define BD_IOCTL_SETSIZE        0x38
 #define BD_IOCTL_IS_INUSE       0x39
@@ -68,7 +68,6 @@ struct bd_request
 
 #define BDUSE_FREE      0  /*! free queue entry */
 #define BDUSE_USED      1  /*! used queue entry */
-#define BDUSE_SUSPEND   2  /*! supended queue entry */
 
 /*
  * struct bd_kernel_queue and struct bd_user_queue are used to comminicate
@@ -90,7 +89,7 @@ struct bd_kernel_queue
     volatile int       next;      /*! link list, only use to remove and proccessed entry */
     int bd_minor;
     char bd_op;                   /*! 0 READ or 1 WRITE */
-    volatile char      bd_use;    /*! Kernel set this to BDUSE_USED when it's valid, and BDUSE_SUSPEND if supespended
+    volatile char      bd_use;    /*! Kernel set this to BDUSE_USED when it's valid
                                    * Before setting this to BDUSE_USED, kernel must to zeroed
                                    * the associated bd_user_queue entry
                                    * note if bduse != BDUSE_FREE, it's the buffer is mapped in user */

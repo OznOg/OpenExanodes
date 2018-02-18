@@ -26,7 +26,7 @@
  * so it is not needed to add multiple if N event is pendeing ONLY ONE MORE event need
  * to be received by the caller.
  */
-#define BD_EVENT_ACK_NEW        1       /* event to signal a new ack by user or a new queue from kernel*/
+#define BD_EVENT_POST           1       /* event to signal a new ack by user or a new queue from kernel*/
 #define BD_EVENT_KILL           2       /* event to signal that the session will be killed */
 #define BD_EVENT_SUSPEND        4       /* some minor is now suspended, do the right thing */
 #define BD_EVENT_RESUME         8       /* suspend -> up */
@@ -34,7 +34,6 @@
 #define BD_EVENT_DEL            32      /* destroy a node */
 #define BD_EVENT_DOWN           64      /* suspend / active -> down */
 #define BD_EVENT_UP             128     /* suspend -> up */
-#define BD_EVENT_TIMEOUT        512     /* Timeout */
 #define BD_EVENT_SETSIZE        1024    /* resizing a minor */
 #define BD_EVENT_IS_INUSE       2048    /* test if a minor is in use (opened) */
 
@@ -50,24 +49,11 @@ struct bd_event_msg
     struct bd_event_msg *next;
 };
 
-struct bd_event
-{
-    spinlock_t bd_event_sl;                  /**< Used to protect access to BdEventAnother */
-    struct semaphore       bd_event_sem;     /**< Used to up/down a semaphore if necessary */
-    int                    bd_event_another; /**< Used to say if a new event is pending */
-    int                    bd_event_waiting; /**< Used to say if we waiting on the semaphore */
-    unsigned long          bd_type;          /**< type of waiting Event */
-    volatile unsigned long bd_event_number;  /**< Used for NewEventWaiting */
-    struct bd_event_msg   *bd_old_msg;       /**< last msg processed */
-    struct bd_event_msg   *bd_msg;
-};
+struct bd_event;
 
 void bd_new_event_msg_wait_processed(struct bd_event *bd_event,
-                                     struct bd_event_msg *msg);
+                                     struct bd_event_msg *msg) __attribute__((nonnull (1, 2)));
 
-void bd_new_event(struct bd_event *bd_event, unsigned long bd_type);
-int  bd_wait_event(struct bd_event *bd_event, unsigned long *bd_type,
-                   struct bd_event_msg  **bd_event_msg);
-
-
+int bd_wait(struct bd_event *bd_event);
+void bd_wakeup(struct bd_event *bd_event);
 #endif

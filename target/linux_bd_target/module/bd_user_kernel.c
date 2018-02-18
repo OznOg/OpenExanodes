@@ -23,9 +23,16 @@
 #include <linux/slab.h>
 #include <linux/sched/signal.h>
 
-/* if we wait for a new ack request for more than CLIENT_TIMEOUT secondes, i
- * stop to wait */
-#define CLIENT_TIMEOUT 20 * HZ /* 20 seconds */
+struct bd_event
+{
+    spinlock_t bd_event_sl;                  /**< Used to protect access to BdEventAnother */
+    struct semaphore       bd_event_sem;     /**< Used to up/down a semaphore if necessary */
+    bool                   has_pending_event; /**< Used to say if a new event is pending */
+    bool                   exiting; /**< Used to say if we waiting on the semaphore */
+    bool                   wait_for_new_event; /**< Used to say if we waiting on the semaphore */
+    unsigned long          bd_type;          /**< type of waiting Event */
+    struct bd_event_msg   *bd_msg;
+};
 
 /* This file have all Event management, queue management function and
  * the core of BdAcqThread that map new request, end completed request
@@ -40,20 +47,55 @@
 #define NUM_MAPPED_PAGES(session) \
     (((session)->bd_max_queue * (session)->bd_buffer_size) / PAGE_SIZE)
 
-/* BdEvent machanism us use to have processing consumption
- * and less deadlock, no more semaphore out of bound, the main idea is :
- * The event "receiver" test and process all possibely cause of event at each event,
- * so it is not needed to add multiple if N event is pendeing ONLY ONE MORE event need
- * to be received by the caller.
- */
-
-static void bd_timedout(unsigned long arg)
+int bd_wait(struct bd_event *bd_event)
 {
-    struct bd_event *bd_event = (struct bd_event *) arg;
+    unsigned long flags;
 
-    bd_new_event(bd_event, BD_EVENT_TIMEOUT);
+    spin_lock_irqsave(&bd_event->bd_event_sl, flags);
+
+    while (!bd_event->has_pending_event && !bd_event->exiting)
+    {
+        spin_unlock_irqrestore(&bd_event->bd_event_sl, flags);
+
+        if (down_interruptible(&bd_event->bd_event_sem) != 0)
+            return -EINTR;
+
+        spin_lock_irqsave(&bd_event->bd_event_sl, flags);
+    }
+
+    bd_event->has_pending_event = false;
+
+    spin_unlock_irqrestore(&bd_event->bd_event_sl, flags);
+
+    /* no real need for locking here as exiting flag cannot be reset */
+    return bd_event->exiting ? -EBADFD : 0;
 }
 
+/** Add new event of type BdType wake up thread only if needed
+ * @param bd_event event structure that will be used
+ * @param[in] BdType type of event we send
+ */
+void bd_wakeup(struct bd_event *bd_event)
+{
+    unsigned long flags;
+
+    spin_lock_irqsave(&bd_event->bd_event_sl, flags);
+
+    if (bd_event->exiting)
+    {
+        spin_unlock_irqrestore(&bd_event->bd_event_sl, flags);
+        return;
+    }
+
+    /* if not signaled yet for pending event, set the flag and up the semaphore */
+    if (!bd_event->has_pending_event)
+    {
+        bd_event->has_pending_event = true;
+        up(&bd_event->bd_event_sem);
+    }
+
+    spin_unlock_irqrestore(&bd_event->bd_event_sl, flags);
+}
 
 /**
  * Wait for a new event, down on a semaphore if needed, exit if the Event was closed
@@ -67,146 +109,44 @@ static void bd_timedout(unsigned long arg)
  *        2 when exiting (cancelling events ?)
  *        3 when ???
  */
-int bd_wait_event(struct bd_event *bd_event, unsigned long *bd_type,
-                  struct bd_event_msg **bd_event_msg)
+static int bd_wait_event(struct bd_event *bd_event, unsigned long *bd_type,
+                         struct bd_event_msg  **msg) __attribute__((nonnull (1, 2, 3)));
+static int bd_wait_event(struct bd_event *bd_event, unsigned long *bd_type,
+                         struct bd_event_msg  **msg)
 {
     unsigned long flags;
-    bool wait;
-    int int_val = 0;
-    struct bd_event_msg *old_bd_event_msg = NULL;
-    struct bd_event_msg *bd_event_msg_temp = NULL;
-
-    OS_ASSERT(bd_type != NULL);
-    *bd_type = 0;
-
-    if (bd_event_msg != NULL)
-        *bd_event_msg = NULL;
-
-    do
-    {
-        wait = false;
-        spin_lock_irqsave(&bd_event->bd_event_sl, flags);
-        if (bd_event->bd_event_another != 2)
-        {
-            bd_event->bd_event_number++;
-            old_bd_event_msg = bd_event->bd_old_msg;
-            bd_event->bd_old_msg = NULL;
-        }
-
-        switch (bd_event->bd_event_another)
-        {
-        case 0:
-            wait = true;
-            break;
-
-        case 1:
-            bd_event->bd_event_another = 0;
-            *bd_type = bd_event->bd_type;
-
-            bd_event->bd_type = 0;
-            if (bd_event_msg != NULL)
-            {
-                *bd_event_msg = bd_event->bd_msg;
-                bd_event->bd_old_msg = bd_event->bd_msg;
-                bd_event->bd_msg = NULL;
-            }
-            else if (bd_event->bd_msg != NULL)
-                int_val = 3; /* BdMsg was not get, so we have messages lose ! */
-
-            bd_event->bd_event_number++;
-            break;
-
-        case 2:
-            int_val = 2;
-            break;
-
-        default:
-            OS_ASSERT_VERBOSE(false, "ExaBd: Invalid value %d", bd_event->bd_event_another);
-            break;
-        }
-
-        bd_event->bd_event_waiting = wait ? 1 : 0;
-
-        spin_unlock_irqrestore(&bd_event->bd_event_sl, flags);
-
-        while (old_bd_event_msg != NULL)
-        {
-            bd_event_msg_temp = old_bd_event_msg->next; /* we use BdEventMsgTemp because OldBdEventMsg can be cleared after up ! */
-            complete(&old_bd_event_msg->bd_event_completion);
-            old_bd_event_msg = bd_event_msg_temp;
-        }
-        if (wait)
-        {
-            struct timer_list timeout;
-            init_timer(&timeout);
-            timeout.function = bd_timedout;
-            timeout.data = (unsigned long) bd_event;
-            timeout.expires = jiffies + CLIENT_TIMEOUT; /* seconds timer */
-            add_timer(&timeout);
-            if (down_interruptible(&bd_event->bd_event_sem) != 0)
-            {
-                int_val = 1;
-                *bd_type = 0;
-
-                if (bd_event_msg != NULL)
-                    *bd_event_msg = NULL;
-
-                /* down failed but if in a short time someone else add an
-                 * event, he will perhaps do a up, so we must check this and
-                 * say we don't wait more */
-                spin_lock_irqsave(&bd_event->bd_event_sl, flags);
-
-                wait = bd_event->bd_event_another == 1;
-                bd_event->bd_event_waiting = 0;
-
-                spin_unlock_irqrestore(&bd_event->bd_event_sl, flags);
-
-                /* another process add an event in the short time so down it !
-                 * we don't read this event now, but it will be read in the next
-                 * call of this function*/
-                if (wait)
-                    down(&bd_event->bd_event_sem);
-
-                wait = false;
-            }
-            del_timer_sync(&timeout);
-        }
-    } while (wait);
-
-    return int_val;
-}
-
-
-/** Add new event of type BdType wake up thread only if needed
- * @param bd_event event structure that will be used
- * @param[in] BdType type of event we send
- */
-void bd_new_event(struct bd_event *bd_event, unsigned long bd_type)
-{
-    unsigned long flags;
-    bool wait = false;
 
     spin_lock_irqsave(&bd_event->bd_event_sl, flags);
 
-    if (bd_event->bd_event_another == 2)
+    if (bd_event->exiting)
     {
         spin_unlock_irqrestore(&bd_event->bd_event_sl, flags);
-        return;
+        return -EBADF;
     }
 
-    bd_event->bd_type = bd_event->bd_type | bd_type;
+    while (!bd_event->has_pending_event)
+    {
+        spin_unlock_irqrestore(&bd_event->bd_event_sl, flags);
 
-    wait = bd_event->bd_event_waiting == 1 && bd_event->bd_event_another == 0;
+        if (down_interruptible(&bd_event->bd_event_sem) != 0)
+            return -EINTR;
 
-    if (bd_event->bd_event_another == 0)
-        bd_event->bd_event_another = 1;
+        spin_lock_irqsave(&bd_event->bd_event_sl, flags);
+    }
+
+    /* An event is pending => process it */
+    bd_event->has_pending_event = false;
+
+    *bd_type = bd_event->bd_type;
+    *msg     = bd_event->bd_msg;
+
+    bd_event->bd_type = 0;
+    bd_event->bd_msg = NULL;
 
     spin_unlock_irqrestore(&bd_event->bd_event_sl, flags);
 
-    if (wait)
-        up(&bd_event->bd_event_sem);
+    return 0;
 }
-
 
 /**
  * Add a message with waiting for it's have been received and processed by Event receiver
@@ -217,16 +157,13 @@ void bd_new_event_msg_wait_processed(struct bd_event *bd_event,
                                      struct bd_event_msg *msg)
 {
     unsigned long flags;
-    bool wait;
-
-    if (msg == NULL)
-        return;
+    bool someone_waits;
 
     init_completion(&msg->bd_event_completion);
 
     spin_lock_irqsave(&bd_event->bd_event_sl, flags);
 
-    if (bd_event->bd_event_another == 2)
+    if (bd_event->exiting)
     {
         spin_unlock_irqrestore(&bd_event->bd_event_sl, flags);
         msg->bd_result = -1;
@@ -235,37 +172,19 @@ void bd_new_event_msg_wait_processed(struct bd_event *bd_event,
 
     bd_event->bd_type = bd_event->bd_type | msg->bd_type;
 
-    wait = bd_event->bd_event_waiting == 1 && bd_event->bd_event_another == 0;
+    someone_waits = bd_event->wait_for_new_event && !bd_event->has_pending_event;
 
-    bd_event->bd_event_another = 1;
+    bd_event->has_pending_event = true;
     msg->next = bd_event->bd_msg;
     bd_event->bd_msg = msg;
 
-    spin_unlock_irqrestore(&bd_event->bd_event_sl, flags);
-
-    if (wait)
+    if (someone_waits)
         up(&bd_event->bd_event_sem);
+
+    spin_unlock_irqrestore(&bd_event->bd_event_sl, flags);
 
     wait_for_completion(&msg->bd_event_completion);
 }
-
-
-/** init an event structure
- * @param[out] BdEvent new event structure
- * @param[in] Name name of the event
- */
-static void bd_event_init(struct bd_event *bd_event, char *name)
-{
-    bd_event->bd_event_waiting = 0;     /* no BdWaitEvent() waiting for an event */
-    bd_event->bd_event_another = 0;     /* no other event posted */
-    bd_event->bd_event_number = 0;      /* next event loop will be the first, only debug data */
-    bd_event->bd_type = 0;
-    bd_event->bd_msg = NULL;
-    bd_event->bd_old_msg = NULL;
-    spin_lock_init(&bd_event->bd_event_sl);
-    sema_init(&bd_event->bd_event_sem, 0);
-}
-
 
 /** wake up all function waiting for an event and force all other to abort now
  * and in future
@@ -273,31 +192,58 @@ static void bd_event_init(struct bd_event *bd_event, char *name)
  */
 static void bd_event_close(struct bd_event *bd_event)
 {
+    struct bd_event_msg *msg;
     unsigned long flags;
-    bool wait = false;
-    struct bd_event_msg *temp;
 
     spin_lock_irqsave(&bd_event->bd_event_sl, flags);
-    if (bd_event->bd_event_waiting == 1 && bd_event->bd_event_another == 0)
-        wait = true;
 
-    bd_event->bd_event_another = 2;
+    bd_event->exiting = true;
+
     spin_unlock_irqrestore(&bd_event->bd_event_sl, flags);
-    while (bd_event->bd_msg != NULL)    /* end all waiting processed function */
-    {
-        temp = bd_event->bd_msg->next;
-        complete(&bd_event->bd_msg->bd_event_completion);
-        bd_event->bd_msg = temp;
-    }
-    while (bd_event->bd_old_msg != NULL) /* end all waiting processed function */
-    {
-        temp = bd_event->bd_old_msg->next;
-        complete(&bd_event->bd_old_msg->bd_event_completion);
-        bd_event->bd_old_msg = temp;
-    }
 
-    if (wait)
-        up(&bd_event->bd_event_sem);    /* perhaps one waiting for event */
+    bd_wakeup(bd_event); /* make sure waiter is released */
+
+    while ((msg = bd_event->bd_msg) != NULL)    /* end all waiting processed function */
+    {
+        msg->bd_result = -EBADFD;
+        complete(&msg->bd_event_completion);
+        bd_event->bd_msg = bd_event->bd_msg->next;
+    }
+}
+
+static void __cleanup(struct bd_session *session)
+{
+    bd_event_close(session->bd_new_rq);
+    bd_event_close(session->bd_thread_event);
+
+    for (int i = 0; i < NUM_MAPPED_PAGES(session); i++)
+        if (session->bd_unaligned_buf[i] != NULL)
+            put_page(session->bd_unaligned_buf[i]);
+
+    vfree(session->bd_unaligned_buf);
+    vfree(session->bd_kernel_queue);
+    vfree(session->bd_user_queue);
+}
+
+
+/** init an event structure
+ * @return new event structure
+ */
+static struct bd_event *bd_event_init(void)
+{
+    struct bd_event *bd_event = vmalloc(sizeof(*bd_event));
+    if (bd_event == NULL)
+        return NULL;
+
+    bd_event->exiting = false; 
+    bd_event->wait_for_new_event = false; /* no BdWaitEvent() waiting for an event */
+    bd_event->has_pending_event = false;     /* no other event posted */
+    bd_event->bd_type = 0;
+    bd_event->bd_msg = NULL;
+    spin_lock_init(&bd_event->bd_event_sl);
+    sema_init(&bd_event->bd_event_sem, 0);
+
+    return bd_event;
 }
 
 /*
@@ -326,7 +272,7 @@ static void bd_event_close(struct bd_event *bd_event)
  *        -1   request cannot be added to bd_kernel_queue and mapped, so
  *             nothing was done
  */
-long bd_post_new_rq(struct bd_session *session)
+long bd_post_new_rq(struct bd_session *session, struct bd_request *req)
 {
     struct bd_kernel_queue *bd_kq = session->bd_kernel_queue;
     int next;
@@ -337,8 +283,8 @@ long bd_post_new_rq(struct bd_session *session)
     if (next == BD_FREE_QUEUE)
         return -1; /* no rq free, so do nothing */
 
-    bd_kq[next].bd_req = session->pending_req;
-    session->bd_user_queue[next].bd_info = session->pending_info;
+    bd_kq[next].bd_req = req;
+    session->bd_user_queue[next].bd_info = req->info;
 
     /* will set BdBlkSize BdBlkNum */
     if (bd_prepare_request(&bd_kq[next]) == -1)
@@ -356,8 +302,7 @@ long bd_post_new_rq(struct bd_session *session)
         (*session->bd_new_request.last_index_add + 1) % session->bd_max_queue;
 
     /* one new request, so up the semaphore to call the user process */
-    session->bd_in_rq++;
-    bd_new_event(&session->bd_new_rq, BD_EVENT_ACK_NEW);
+    bd_wakeup(session->bd_new_rq);
     return 0;
 }
 
@@ -371,7 +316,6 @@ static void bd_rq_remove(int req_num, struct bd_session *session)
 {
     struct bd_kernel_queue *bd_kq = session->bd_kernel_queue;
 
-    session->bd_in_rq--;
     bd_end_request(&bd_kq[req_num], session->bd_user_queue[req_num].bd_result);
 
     bd_kq[req_num].bd_use = BDUSE_FREE;
@@ -412,14 +356,11 @@ static void bd_ack_rq(struct bd_session *session)
         if (i == BD_FREE_QUEUE || i > session->bd_max_queue - 1)
             continue;
 
-        if (session->bd_kernel_queue[i].bd_use == BDUSE_SUSPEND)
-            continue; /* don't do anything with suspended request */
-
         if (session->bd_kernel_queue[i].bd_use == BDUSE_FREE)
             continue; /* error, probably receive a request after a disk was DOWNed */
 
         bd_rq_remove(i, session);       /* ack the request with the error given by the user */
-        bd_flush_q(session, 0);     /* add in user space as lot as we can the pending request */
+        bd_flush_q(session);     /* add in user space as lot as we can the pending request */
     }
 }
 
@@ -464,15 +405,15 @@ static void bd_ack_all_pending(struct bd_session *session, int minor)
     }
 }
 
-/* if nothing arrive in 20 mn and some request pending, dump !
- * FIXME What is the purpose of this dump ? Actually, the dump is supposed to
- * happen if IOs are blocked for more than TIMEOUT_BEFORE_DUMP_IN_SECOND but
- * is that really the role of exa_bd to decide in his own to make the node
- * crash ? */
-#define TIMEOUT_BEFORE_DUMP_IN_SECOND (20 * 60)
-
-#define TIMEOUT_BEFORE_DUMP (TIMEOUT_BEFORE_DUMP_IN_SECOND /\
-                             (CLIENT_TIMEOUT / HZ))
+void __minor_cancel_all(struct bd_minor *bd_minor)
+{
+    /* after Dead==true, all new req will be ack with
+     * error, so ack with error all pending */
+    bd_minor->dead = true;
+    bd_close_list(&bd_minor->bd_list);
+    bd_ack_all_pending(bd_minor->bd_session, bd_minor->minor);
+    bd_minor_remove(bd_minor);
+}
 
 /**
  * For a session, unmap all pending request in user mode and ack them with
@@ -485,24 +426,14 @@ static void abort_all_pending_requests(struct bd_session *session)
     struct bd_minor *bd_minor = session->bd_minor;
 
     bd_ack_all_pending(session, -1);
-    bd_flush_q(session, -EIO);
     while (bd_minor != NULL)
     {
         if (!bd_minor->dead)
         {
-            bd_minor->dead = true;
-            bd_close_list(&bd_minor->bd_list);
-            /* after Dead==1, all new req will be ack with error,
-             * so ack with error all pending
-             */
-            bd_ack_all_pending(session, bd_minor->minor);
-            /* Removing all minor associated with this dev */
-            bd_minor_remove(bd_minor);
+            __minor_cancel_all(bd_minor);
         }
         bd_minor = bd_minor->bd_next;
     }
-
-    bd_event_close(&session->bd_new_rq);
 }
 
 /**
@@ -523,11 +454,10 @@ static void abort_all_pending_requests(struct bd_session *session)
 
 static int bd_ack_rq_thread(void *arg)
 {
+    bool running = true;
     unsigned long type;
     struct bd_event_msg *msg;
     struct bd_session *session = arg;
-    int i;
-    int nb_timeout = 0;
 
 #if (LINUX_VERSION_CODE < KERNEL_VERSION(3, 8, 0))
     /* The name of the thread of exa_bd in processes list will be of the form:
@@ -538,93 +468,39 @@ static int bd_ack_rq_thread(void *arg)
     siginitsetinv(&current->blocked, sigmask(SIGKILL));
     do
     {
-        int int_val = bd_wait_event(&session->bd_thread_event, &type, &msg);
-        if (type != BD_EVENT_TIMEOUT || int_val == 1 || session->bd_in_rq == 0)
-            nb_timeout = 0;
-        else
-            nb_timeout++;
+        int int_val = bd_wait_event(session->bd_thread_event, &type, &msg);
 
-        if ((nb_timeout == TIMEOUT_BEFORE_DUMP && session->bd_in_rq > 0)
-            || int_val == 1)
+        if (int_val == -EINTR)
         {
-            type = BD_EVENT_ACK_NEW;
-
-            bd_log_error("Core dumping \n");
-
-            abort_all_pending_requests(session);
-
-            {
-                bd_log_error("exa_bd have detected a potentiel freeze\n"
-                             "exa_bd stop all volumes\n"
-                             "exa_bd sending SIGABRT to process %s\n",
-                             session->bd_task->comm);
-                {
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,27)
-                    kill_proc(session->bd_task->pid, SIGABRT, 0);
-#else
-                    send_sig(SIGABRT, session->bd_task, 0);
-#endif
-                }
-            }
-        }
-
-        if (int_val == 1)
             flush_signals(current);     /* in case of SIGUP or another thing, we must ignore it, only a release can kill this thread */
-
-        if ((type & BD_EVENT_KILL) != 0)
-        {
-            bd_log_info("BD_EVENT_KILL\n");
-
-            abort_all_pending_requests(session);
-
-            for (i = 0; i < NUM_MAPPED_PAGES(session); i++)
-            {
-                if (session->bd_unaligned_buf[i] == NULL)
-                    break;
-                put_page(session->bd_unaligned_buf[i]);
-            }
-
-            vfree(session->bd_unaligned_buf);
-
-            vfree(session->bd_kernel_queue);
-            vfree(session->bd_user_queue);
-            /* we ending, so all event queue is down, this Close also signal to the BD_EVENT_KILL
-               that the messaged have been proceed */
-            bd_event_close(&session->bd_thread_event);
-            complete_and_exit(&session->bd_end_completion, 0);
-            /* now all is done, so exit, the caller must vfree(Session) */
-            return 0;
+            continue;
         }
 
-        if ((type & BD_EVENT_ACK_NEW) != 0)
+        OS_ASSERT_VERBOSE(int_val == 0, "An error occured while waiting an event %d", int_val);
+
+        if ((type & BD_EVENT_POST) != 0)
         {
             bd_ack_rq(session); /* wait for something and ack all user finished request */
-            bd_flush_q(session, 0);     /* add in user space as lot as we can the pending request */
+            bd_flush_q(session);     /* add in user space as lot as we can the pending request */
         }
 
         while (msg != NULL)
         {
             struct bd_minor *bd_minor = NULL;
-            msg->bd_result = 0;
+            /* find minor for message (unless message is about new minor creation) */
             if (msg->bd_type != BD_EVENT_NEW)
             {
-                msg->bd_result = -1;
-                bd_minor = session->bd_minor;
-                while (bd_minor != NULL)
-                {
+                for (bd_minor = session->bd_minor; bd_minor != NULL; bd_minor = bd_minor->bd_next)
                     if (bd_minor->minor == msg->bd_minor && !bd_minor->dead)
-                    {
-                        msg->bd_result = 0;
                         break;
-                    }
-                    bd_minor = bd_minor->bd_next;
+                if (bd_minor == NULL)
+                {
+                    /* minor not found */
+                    msg->bd_result = -EBADSLT;
+                    complete(&msg->bd_event_completion);
+                    msg = msg->next;
+                    continue;
                 }
-            }
-
-            if (msg->bd_result == -1)
-            {
-                msg = msg->next;
-                continue;
             }
 
             switch (msg->bd_type)
@@ -633,6 +509,11 @@ static int bd_ack_rq_thread(void *arg)
                 msg->bd_result = bd_minor_add_new(session, msg->bd_minor,
                                                   msg->bd_minor_size_in512_bytes,
                                                   msg->bd_minor_readonly);
+                break;
+
+            case BD_EVENT_KILL:
+                /* threal will exit once all message are handled */
+                running = false;
                 break;
 
             case BD_EVENT_SETSIZE:
@@ -645,31 +526,33 @@ static int bd_ack_rq_thread(void *arg)
                 {
                     if (atomic_read(&bd_minor->use_count) == 1)
                     {
-                        /* after Dead==true, all new req will be ack with
-                         * error, so ack with error all pending */
-                        bd_minor->dead = true;
-                        bd_close_list(&bd_minor->bd_list);
-                        bd_ack_all_pending(session, msg->bd_minor);
-                        msg->bd_result = bd_minor_remove(bd_minor);
+                        __minor_cancel_all(bd_minor);
+                        msg->bd_result = 0;
                     }
                     else
                     {
                         /* The block device is in use. */
-                        msg->bd_result = -1;
+                        msg->bd_result = -EUSERS;
                     }
                 }
                 break;
 
             case BD_EVENT_IS_INUSE:
-		/* FIXME why > 1 ? */
+                /* FIXME why > 1 ? */
                 msg->bd_result = (atomic_read(&bd_minor->use_count) > 1);
                 break;
             }
 
+            complete(&msg->bd_event_completion);
             msg = msg->next;
         }
-    } while (1);
-    return 0;                   /* to avoid warning */
+    } while (running);
+
+    abort_all_pending_requests(session);
+
+    __cleanup(session);
+
+    return 0;
 }
 
 
@@ -677,7 +560,6 @@ static void bd_get_session(struct bd_session *session)
 {
     atomic_inc(&session->total_use_count);
 }
-
 
 /**
  * This function Launch a session thread and initialise and allocated all neede data.
@@ -732,8 +614,11 @@ struct bd_session *bd_launch_session(struct bd_init *init)
     session->bd_major = 0;
     session->bd_task = current;
 
-    bd_event_init(&session->bd_new_rq, "NewRq");
-    bd_event_init(&session->bd_thread_event, "ThreadEvent");
+    session->bd_new_rq       = bd_event_init();
+    session->bd_thread_event = bd_event_init();
+
+    if (!session->bd_new_rq || !session->bd_thread_event)
+        goto error;
 
     session->bd_unaligned_buf = vmalloc(session->bd_max_queue
                                         * session->bd_buffer_size / PAGE_SIZE
@@ -876,33 +761,7 @@ error:
                  init->bd_max_queue, init->bd_buffer_size,
                  session->bd_page_size);
 
-    bd_event_close(&session->bd_new_rq);
-    bd_event_close(&session->bd_thread_event);
-
-    if (session->bd_unaligned_buf)
-    {
-        for (i = 0; i < NUM_MAPPED_PAGES(session); i++)
-        {
-            if (session->bd_unaligned_buf[i] == NULL)
-                break;
-
-            put_page(session->bd_unaligned_buf[i]);
-        }
-        bd_log_error("Exanodes BD open session failed allocated only %d "
-                     "buffer on %lu UnalignedBuf %p\n", i,
-                     NUM_MAPPED_PAGES(session), session->bd_unaligned_buf);
-        vfree(session->bd_unaligned_buf);
-    }
-
-    bd_log_error("Exanodes BD open session failed bd_user_queue %p "
-                 "bd_kernel_queue %p\n", session->bd_user_queue,
-                 session->bd_kernel_queue);
-
-    if (session->bd_user_queue)
-        vfree(session->bd_user_queue);
-
-    if (session->bd_kernel_queue)
-        vfree(session->bd_kernel_queue);
+    __cleanup(session);
 
     vfree(session);
     return NULL;
