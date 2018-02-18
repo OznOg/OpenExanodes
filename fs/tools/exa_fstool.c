@@ -306,7 +306,7 @@ int main(int argc, char *argv[])
           goto done;
       }
 
-      COMPILE_TIME_ASSERT(sizeof("sfs") <= sizeof(fs.fstype))
+      COMPILE_TIME_ASSERT(sizeof("sfs") <= sizeof(fs.fstype));
       sz = os_strlcpy(fs.fstype, "sfs", sizeof(fs.fstype));
 
       sz = os_strlcpy(fs.devpath, argv[2], sizeof(fs.devpath));
