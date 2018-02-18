@@ -34,17 +34,6 @@
 
 static volatile bool bd_target_run;
 
-struct header
-{
-    long     req_num;
-    int      buf_num;
-    int      request_type;
-    uint64_t sector;
-    uint64_t sector_nb;
-    void    *buffer;
-    int      info;
-};
-
 struct tab_session
 {
     /* User structure pointer get by kernel mmap This structure must be read only */
