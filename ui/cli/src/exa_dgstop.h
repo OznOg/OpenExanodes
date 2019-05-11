@@ -19,6 +19,7 @@ class exa_dgstop : public exa_dgcommand
 
   exa_dgstop (int argc, char *argv[]);
 
+  static constexpr const char *name() { return "exa_dgstop"; } 
   void init_options();
   void init_see_alsos();
 

@@ -111,8 +111,8 @@ int main(int argc, char *argv[])
     cli.register_cmd<exa_dgdelete>("exa_dgdelete");
     cli.register_cmd<exa_dgdiskadd>("exa_dgdiskadd");
     cli.register_cmd<exa_dgdiskrecover>("exa_dgdiskrecover");
-    cli.register_cmd<exa_dgstart>("exa_dgstart");
-    cli.register_cmd<exa_dgstop>("exa_dgstop");
+    cli.register_cmd<exa_dgstart>();
+    cli.register_cmd<exa_dgstop>();
     cli.register_cmd<exa_vlcreate>("exa_vlcreate");
     cli.register_cmd<exa_vldelete>("exa_vldelete");
     cli.register_cmd<exa_vlresize>("exa_vlresize");

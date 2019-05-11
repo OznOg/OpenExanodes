@@ -30,6 +30,12 @@ public:
     }
 
     template <class Command>
+    void register_cmd()
+    {
+        _exa_commands.insert(std::make_pair(Command::name(), command_factory<Command>));
+    }
+
+    template <class Command>
     void register_cmd(const std::string& cmd_name)
     {
         _exa_commands.insert(std::make_pair(cmd_name, command_factory<Command>));
