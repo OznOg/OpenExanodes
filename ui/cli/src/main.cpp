@@ -90,61 +90,66 @@ int main(int argc, char *argv[])
 
     Cli<
 #ifdef WITH_COMMANDS
-    exa_dgstart, exa_dgstop
-#endif
-    > cli;
-#ifdef WITH_COMMANDS
-    cli.register_cmd<exa_clcreate>("exa_clcreate");
-    cli.register_cmd<exa_cldelete>("exa_cldelete");
-    cli.register_cmd<exa_cldiskadd>("exa_cldiskadd");
-    cli.register_cmd<exa_cldiskdel>("exa_cldiskdel");
-    cli.register_cmd<exa_clinfo>("exa_clinfo");
-    cli.register_cmd<exa_cllicense>("exa_cllicense");
-    cli.register_cmd<exa_clnodeadd>("exa_clnodeadd");
-    cli.register_cmd<exa_clnodedel>("exa_clnodedel");
-    cli.register_cmd<exa_clnoderecover>("exa_clnoderecover");
-    cli.register_cmd<exa_clnodestart>("exa_clnodestart");
-    cli.register_cmd<exa_clnodestop>("exa_clnodestop");
-    cli.register_cmd<exa_clreconnect>("exa_clreconnect");
-    cli.register_cmd<exa_clstart>("exa_clstart");
-    cli.register_cmd<exa_clstats>("exa_clstats");
-    cli.register_cmd<exa_clstop>("exa_clstop");
-    cli.register_cmd<exa_cltrace>("exa_cltrace");
-    cli.register_cmd<exa_cltune>("exa_cltune");
-    cli.register_cmd<exa_dgcreate>("exa_dgcreate");
-    cli.register_cmd<exa_dgdelete>("exa_dgdelete");
-    cli.register_cmd<exa_dgdiskadd>("exa_dgdiskadd");
-    cli.register_cmd<exa_dgdiskrecover>("exa_dgdiskrecover");
-    cli.register_cmd<exa_vlcreate>("exa_vlcreate");
-    cli.register_cmd<exa_vldelete>("exa_vldelete");
-    cli.register_cmd<exa_vlresize>("exa_vlresize");
-    cli.register_cmd<exa_vlstart>("exa_vlstart");
-    cli.register_cmd<exa_vlstop>("exa_vlstop");
-    cli.register_cmd<exa_vltune>("exa_vltune");
-    cli.register_cmd<exa_unexpand>("exa_unexpand");
-    cli.register_cmd<exa_expand>("exa_expand");
-    cli.register_cmd<exa_makeconfig>("exa_makeconfig");
+        exa_clcreate,
+        exa_cldelete,
+        exa_cldiskadd,
+        exa_cldiskdel,
+        exa_clinfo,
+        exa_cllicense,
+        exa_clnodeadd,
+        exa_clnodedel,
+        exa_clnoderecover,
+        exa_clnodestart,
+        exa_clnodestop,
+        exa_clreconnect,
+        exa_clstart,
+        exa_clstats,
+        exa_clstop,
+        exa_cltrace,
+        exa_cltune,
+        exa_dgcreate,
+        exa_dgstart,
+        exa_dgstop,
+        exa_dgdelete,
+        exa_dgdiskadd,
+        exa_dgdiskrecover,
+        exa_vlcreate,
+        exa_vldelete,
+        exa_vlresize,
+        exa_vlstart,
+        exa_vlstop,
+        exa_vltune,
 
 #ifdef WITH_FS
-    cli.register_cmd<exa_fscheck>("exa_fscheck");
-    cli.register_cmd<exa_fscreate>("exa_fscreate");
-    cli.register_cmd<exa_fsdelete>("exa_fsdelete");
-    cli.register_cmd<exa_fsresize>("exa_fsresize");
-    cli.register_cmd<exa_fsstart>("exa_fsstart");
-    cli.register_cmd<exa_fsstop>("exa_fsstop");
-    cli.register_cmd<exa_fstune>("exa_fstune");
+        exa_fscheck,
+        exa_fscreate,
+        exa_fsdelete,
+        exa_fsresize,
+        exa_fsstart,
+        exa_fsstop,
+        exa_fstune,
 #endif
 
 #ifdef WITH_MONITORING
-    cli.register_cmd<exa_clmonitorstart>("exa_clmonitorstart");
-    cli.register_cmd<exa_clmonitorstop>("exa_clmonitorstop");
+        exa_clmonitorstart,
+        exa_clmonitorstop,
 #endif
+
+        exa_unexpand,
+        exa_expand,
+        exa_makeconfig
 #endif // WITH_COMMANDS
 
-#if WITH_TOOLS
-    cli.register_cmd<exa_dgreset>("exa_dgreset");
-    cli.register_cmd<exa_dgcheck>("exa_dgcheck");
+#ifdef WITH_TOOLS
+#ifdef WITH_COMMANDS
+        , // need a comma separator for template arguments...
+          // ths is quite ugly, but I did not find any better solution for now
 #endif
+        exa_dgreset,
+        exa_dgcheck
+#endif
+
+        > cli;
     try
     {
         char *arg = argv[0];
