@@ -66,10 +66,20 @@ public:
 
     typedef std::shared_ptr<Command>(*factory_t)(int argc, char *argv[]);
 
-    Command(int argc, char *argv[]);
+    Command(int argc, char *argv[])
+        : _argc(argc)
+          , _argv(argv)
+          , _options()
+          , _args()
+          , _param_groups()
+          , _see_also()
+          , _show_hidden(true)
+          , _timeout(0)
+          , _in_progress_hidden(true)
+    {}
 
-    virtual ~Command();
 
+    virtual ~Command() = default;
 
     typedef std::function < void (const std::string & node,
                                     exa_error_code error_code,

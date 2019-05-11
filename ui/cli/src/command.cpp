@@ -151,21 +151,6 @@ void Line::output_info(Exabase &exa, bool error,
 }
 
 
-Command::Command(int argc, char *argv[])
-    : _argc(argc)
-    , _argv(argv)
-    , _options()
-    , _args()
-    , _param_groups()
-    , _see_also()
-    , _show_hidden(true)
-    , _timeout(0)
-    , _in_progress_hidden(true)
-{}
-
-
-Command::~Command()
-{ }
 
 void Command::init_options()
 {
@@ -174,10 +159,6 @@ void Command::init_options()
     add_option('v', "version", "Display version information and exit.",
                0, false, false);
 }
-
-
-void Command::init_see_alsos()
-{}
 
 
 void Command::add_option(const char short_opt,
