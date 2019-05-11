@@ -56,11 +56,10 @@ std::string exa_dgstart::get_short_description(bool) const
 }
 
 
-void exa_dgstart::dump_full_description(std::ostream &out,
-                                        bool show_hidden) const
+std::string exa_dgstart::get_full_description(bool show_hidden) const
 {
-    out << "Start the disk group " << ARG_DISKGROUP_GROUPNAME
-        << " of the cluster " << ARG_DISKGROUP_CLUSTERNAME << std::endl;
+    return "Start the disk group " + ARG_DISKGROUP_GROUPNAME
+           + " of the cluster " + ARG_DISKGROUP_CLUSTERNAME;
 }
 
 

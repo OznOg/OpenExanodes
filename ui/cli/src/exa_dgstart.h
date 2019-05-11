@@ -27,7 +27,7 @@ class exa_dgstart final : public exa_dgcommand
 protected:
 
     std::string get_short_description(bool show_hidden) const override;
-    void dump_full_description(std::ostream& out, bool show_hidden = false) const override;
+    std::string get_full_description(bool show_hidden) const override;
     void dump_examples(std::ostream& out, bool show_hidden = false) const override;
 };
 

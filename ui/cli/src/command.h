@@ -131,6 +131,12 @@ public:
     virtual void dump_short_description (std::ostream& out, bool show_hidden = false) const {
         out << get_short_description(show_hidden);
     }
+
+    virtual std::string get_full_description(bool show_hidden) const { return ""; }
+
+    virtual void dump_full_description (std::ostream& out, bool show_hidden = false) const {
+        out << get_full_description(show_hidden) << std::endl;
+    }
 protected:
 
     static const std::string TIMEOUT_ARG_NAME;
@@ -219,7 +225,6 @@ protected:
 
 
     virtual void dump_synopsis (std::ostream& out, bool show_hidden = false) const;
-    virtual void dump_full_description (std::ostream& out, bool show_hidden = false) const = 0;
     virtual void dump_examples (std::ostream& out, bool show_hidden = false) const = 0;
     virtual void dump_see_also (std::ostream& out, bool show_hidden = false) const;
     virtual void dump_output_section (std::ostream& out, bool show_hidden = false) const;
