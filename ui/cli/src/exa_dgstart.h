@@ -20,15 +20,15 @@ class exa_dgstart final : public exa_dgcommand
   using exa_dgcommand::exa_dgcommand;
   using exa_dgcommand::init_options;
 
-  void init_see_alsos();
+  void init_see_alsos() override;
 
-  void run();
+  void run() override;
 
 protected:
 
-    void dump_short_description (std::ostream& out, bool show_hidden = false) const;
-    void dump_full_description(std::ostream& out, bool show_hidden = false) const;
-    void dump_examples(std::ostream& out, bool show_hidden = false) const;
+    std::string get_short_description(bool show_hidden) const override;
+    void dump_full_description(std::ostream& out, bool show_hidden = false) const override;
+    void dump_examples(std::ostream& out, bool show_hidden = false) const override;
 };
 
 

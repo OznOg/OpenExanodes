@@ -126,6 +126,11 @@ public:
 
     void show_version() const;
 
+    virtual std::string get_short_description(bool show_hidden) const { return ""; }
+
+    virtual void dump_short_description (std::ostream& out, bool show_hidden = false) const {
+        out << get_short_description(show_hidden);
+    }
 protected:
 
     static const std::string TIMEOUT_ARG_NAME;
@@ -201,6 +206,7 @@ protected:
 		  bool multiple = false);
 
     void add_see_also (const std::string& see_also);
+    void add_see_also(const std::vector<std::string> &see_also);
 
     virtual void parse_opt_args (const std::map<char, std::string>& opt_args);
     virtual void parse_non_opt_args (const std::vector<std::string>& non_opt_args) = 0;
@@ -211,7 +217,6 @@ protected:
 		       const std::string& section,
 		       bool show_hidden = false) const;
 
-    virtual void dump_short_description (std::ostream& out, bool show_hidden = false) const = 0;
 
     virtual void dump_synopsis (std::ostream& out, bool show_hidden = false) const;
     virtual void dump_full_description (std::ostream& out, bool show_hidden = false) const = 0;

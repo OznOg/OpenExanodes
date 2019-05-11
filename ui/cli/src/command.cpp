@@ -240,6 +240,11 @@ void Command::add_arg(const std::string &arg_name,
 }
 
 
+void Command::add_see_also(const std::vector<std::string> &see_also)
+{
+    _see_also.insert(see_also.begin(), see_also.end());
+}
+
 void Command::add_see_also(const std::string &see_also)
 {
     _see_also.insert(see_also);
