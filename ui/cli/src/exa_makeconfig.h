@@ -36,6 +36,8 @@ class exa_makeconfig : public Command
   exa_makeconfig (int argc, char * argv []);
   ~exa_makeconfig ();
 
+  static constexpr const char *name() { return "exa_makeconfig"; }
+
   void init_options();
   void init_see_alsos();
 

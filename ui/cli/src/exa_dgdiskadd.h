@@ -23,6 +23,8 @@ class exa_dgdiskadd : public exa_dgcommand
 
     using exa_dgcommand::exa_dgcommand;
 
+    static constexpr const char *name() { return "exa_dgdiskadd"; }
+
     void init_options();
     void init_see_alsos();
 

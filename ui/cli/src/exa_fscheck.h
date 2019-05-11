@@ -24,6 +24,8 @@ class exa_fscheck : public exa_fscommand
   exa_fscheck (int argc, char *argv[]);
   ~exa_fscheck ();
 
+  static constexpr const char *name() { return "exa_fscheck"; }
+
   void init_options();
   void init_see_alsos();
 

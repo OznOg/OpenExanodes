@@ -25,6 +25,8 @@ public:
 
   exa_cltune(int argc, char *argv[]);
 
+  static constexpr const char *name() { return "exa_cltune"; }
+
   void init_options();
   void init_see_alsos();
 

@@ -21,6 +21,8 @@ class exa_vldelete : public exa_vlcommand
   exa_vldelete (int argc, char * argv []);
   ~exa_vldelete ();
 
+  static constexpr const char *name() { return "exa_vldelete"; }
+
   void init_options();
   void init_see_alsos();
 

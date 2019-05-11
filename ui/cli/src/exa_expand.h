@@ -21,6 +21,8 @@ public:
     exa_expand(int argc, char *argv[]);
     ~exa_expand();
 
+    static constexpr const char *name() { return "exa_expand"; }
+
     void init_options();
     void init_see_alsos();
 

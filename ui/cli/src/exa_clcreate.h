@@ -30,6 +30,7 @@ class exa_clcreate : public exa_clcommand
   exa_clcreate (int argc, char *argv[]);
   ~exa_clcreate ();
 
+  static constexpr const char *name() { return "exa_clcreate"; }
   void init_options();
   void init_see_alsos();
 

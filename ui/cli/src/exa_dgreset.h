@@ -18,6 +18,8 @@ public:
     exa_dgreset(int argc, char *argv[]);
     ~exa_dgreset();
 
+    static constexpr const char *name() { return "exa_dgreset"; }
+
     void init_options();
     void init_see_alsos();
 
@@ -33,4 +35,3 @@ protected:
 
 
 #endif // __EXA_DGRESET_H__
-

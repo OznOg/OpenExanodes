@@ -18,6 +18,8 @@ public:
     exa_dgcheck(int argc, char *argv[]);
     ~exa_dgcheck();
 
+    static constexpr const char *name() { return "exa_dgcheck"; }
+
     void init_options();
     void init_see_alsos();
 
@@ -33,4 +35,3 @@ protected:
 
 
 #endif // __EXA_DGCHECK_H__
-

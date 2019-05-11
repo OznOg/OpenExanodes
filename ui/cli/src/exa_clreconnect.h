@@ -24,6 +24,8 @@ class exa_clreconnect : public exa_clcommand
   exa_clreconnect (int argc, char *argv[]);
   ~exa_clreconnect ();
 
+  static constexpr const char *name() { return "exa_clreconnect"; }
+
   void init_options();
   void init_see_alsos();
 
@@ -45,4 +47,3 @@ class exa_clreconnect : public exa_clcommand
 
 
 #endif  // __EXA_CLRECONNECT_H__
-

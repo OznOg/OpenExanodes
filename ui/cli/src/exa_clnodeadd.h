@@ -26,6 +26,8 @@ public:
   exa_clnodeadd(int argc, char *argv[]);
   ~exa_clnodeadd();
 
+  static constexpr const char *name() { return "exa_clnodeadd"; }
+
   void init_options();
   void init_see_alsos();
 

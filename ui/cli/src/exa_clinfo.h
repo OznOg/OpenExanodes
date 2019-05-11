@@ -27,6 +27,8 @@ public:
     exa_clinfo(int argc, char *argv[]);
     ~exa_clinfo();
 
+    static constexpr const char *name() { return "exa_clinfo"; }
+
     void init_options();
     void init_see_alsos();
 

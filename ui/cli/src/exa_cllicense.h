@@ -21,6 +21,8 @@ public:
     exa_cllicense(int argc, char *argv[]);
     ~exa_cllicense();
 
+    static constexpr const char *name() { return "exa_cllicense"; }
+
     void init_options();
     void init_see_alsos();
 

@@ -21,6 +21,8 @@ public:
 
     exa_clmonitorstart(int argc, char *argv[]);
 
+    static constexpr const char *name() { return "exa_clmonitorstart"; }
+
     void init_options();
     void init_see_alsos();
 

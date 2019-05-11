@@ -18,6 +18,8 @@ class exa_clstop : public exa_clnodestop
 {
 public:
     exa_clstop(int argc, char *argv[]);
+  
+  static constexpr const char *name() { return "exa_clstop"; }
 
   void init_options();
   void init_see_alsos();

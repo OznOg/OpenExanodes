@@ -20,6 +20,8 @@ public:
 
     exa_clstats(int argc, char *argv[]);
 
+  static constexpr const char *name() { return "exa_clstats"; }
+
   void init_options();
   void init_see_alsos();
 

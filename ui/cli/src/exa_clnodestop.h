@@ -22,6 +22,8 @@ public:
     exa_clnodestop(int argc, char *argv[]);
     ~exa_clnodestop();
 
+    static constexpr const char *name() { return "exa_clnodestop"; }
+
     void init_options();
     void init_see_alsos();
 

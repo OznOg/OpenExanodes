@@ -24,6 +24,8 @@ public:
   exa_cltrace (int argc, char *argv[]);
   ~exa_cltrace ();
 
+  static constexpr const char *name() { return "exa_cltrace"; }
+
   void init_options();
   void init_see_alsos();
 

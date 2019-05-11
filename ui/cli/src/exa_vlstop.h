@@ -24,6 +24,8 @@ class exa_vlstop : public exa_vlcommand
   exa_vlstop (int argc, char * argv []);
   ~exa_vlstop ();
 
+  static constexpr const char *name() { return "exa_vlstop"; }
+
   void init_options();
   void init_see_alsos();
 

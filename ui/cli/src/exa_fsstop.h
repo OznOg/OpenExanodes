@@ -23,6 +23,8 @@ class exa_fsstop : public exa_fscommand
   exa_fsstop (int argc, char * argv []);
   ~exa_fsstop ();
 
+  static constexpr const char *name() { return "exa_fsstop"; }
+
   void init_options();
   void init_see_alsos();
 

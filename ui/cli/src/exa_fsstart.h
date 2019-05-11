@@ -25,6 +25,8 @@ class exa_fsstart : public exa_fscommand
   exa_fsstart (int argc, char * argv []);
   ~exa_fsstart ();
 
+  static constexpr const char *name() { return "exa_fsstart"; }
+
   void init_options();
   void init_see_alsos();
 

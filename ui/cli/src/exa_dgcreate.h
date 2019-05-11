@@ -33,6 +33,8 @@ public:
           , nb_spare(-1)
     {}
 
+    static constexpr const char *name() { return "exa_dgcreate"; }
+
     void init_options();
     void init_see_alsos();
 

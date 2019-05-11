@@ -20,6 +20,8 @@ class exa_unexpand : public Command
   exa_unexpand (int argc, char * argv []);
   ~exa_unexpand ();
 
+  static constexpr const char *name() { return "exa_unexpand"; }
+
   void init_options();
   void init_see_alsos();
 

@@ -21,6 +21,8 @@ public:
 
     exa_clnodedel(int argc, char *argv[]);
 
+    static constexpr const char *name() { return "exa_clnodedel"; }
+
     void init_options();
     void init_see_alsos();
 

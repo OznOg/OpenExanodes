@@ -23,6 +23,8 @@ class exa_vlstart : public exa_vlcommand
   exa_vlstart (int argc, char * argv []);
   ~exa_vlstart ();
 
+  static constexpr const char *name() { return "exa_vlstart"; }
+
   void init_options();
   void init_see_alsos();
 

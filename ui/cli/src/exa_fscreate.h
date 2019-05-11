@@ -24,6 +24,8 @@ public:
 
     exa_fscreate(int argc, char *argv[]);
 
+    static constexpr const char *name() { return "exa_fscreate"; }
+
     void init_options();
     void init_see_alsos();
 

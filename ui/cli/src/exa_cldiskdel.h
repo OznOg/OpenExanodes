@@ -23,6 +23,8 @@ public:
 
     exa_cldiskdel(int argc, char *argv[]);
 
+    static constexpr const char *name() { return "exa_cldiskdel"; }
+
     void init_options();
     void init_see_alsos();
 

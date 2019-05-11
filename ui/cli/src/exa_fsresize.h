@@ -23,6 +23,8 @@ class exa_fsresize : public exa_fscommand
   exa_fsresize (int argc, char *argv[]);
   ~exa_fsresize ();
 
+  static constexpr const char *name() { return "exa_fsresize"; }
+
   void init_options();
   void init_see_alsos();
 
