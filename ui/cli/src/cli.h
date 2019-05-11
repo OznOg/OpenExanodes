@@ -11,9 +11,10 @@
 
 
 #include "ui/cli/src/command.h"
+#include "ui/common/include/cli_log.h"
 
 
-
+template <class... Commands>
 class Cli
 {
 public:
@@ -41,22 +42,137 @@ public:
         _exa_commands.insert(std::make_pair(cmd_name, command_factory<Command>));
     }
 
-    factory_t find_cmd_factory(const std::string& name);
+    factory_t find_cmd_factory(const std::string& name)
+    {
+        std::map<std::string, factory_t>::const_iterator it =
+            _exa_commands.find(name);
+        if (it == _exa_commands.end())
+            return 0;
+        return it->second;
+    }
+
 
     void usage();
 
-
-protected:
+    Cli() {
+        (register_cmd<Commands>() , ...);
+    }
 
 private:
-
-    static Cli& instance();
     std::map<std::string, factory_t > _exa_commands;
 
 };
 
 
+#include <iostream>
+#include <iomanip>
+
+/* Index of each group of commands */
+#define INDEX_CL    0
+#define INDEX_NODE  1
+#define INDEX_DG    2
+#define INDEX_VL    3
+#define INDEX_MISC  4
+
+#define INDEX__FIRST  INDEX_CL
+#define INDEX__LAST   INDEX_MISC
+
+/* Number of command groups */
+#define NUM_GROUPS  (INDEX__LAST + 1)
+
+static inline const std::string group_names[NUM_GROUPS] = {
+    "CLUSTER", "NODE", "GROUP", "VOLUME", "MISC"
+};
+
+static inline bool begins_with(const std::string &str, const std::string &prefix)
+{
+    return str.substr(0, prefix.length()) == prefix;
+}
 
 
+/**
+ * Get the index of the group the specified command belongs to.
+ *
+ * @return Group index
+ */
+static inline int index_of_command(const std::string &cmd)
+{
+    if (begins_with(cmd, "exa_clnode"))
+        return INDEX_NODE;
+    else if (begins_with(cmd, "exa_cl"))
+        return INDEX_CL;
+    else if (begins_with(cmd, "exa_dg"))
+        return INDEX_DG;
+    else if (begins_with(cmd, "exa_vl"))
+        return INDEX_VL;
+    else
+        return INDEX_MISC;
+}
+
+
+template <class... Commands>
+void Cli<Commands...>::usage()
+{
+    std::list<std::string> cmd_groups[NUM_GROUPS];
+    size_t maxlen[NUM_GROUPS];
+    int index;
+
+    exa_cli_info("Known commands (exa_cli -h):\n");
+
+    for (index = INDEX__FIRST; index <= INDEX__LAST; index++)
+        maxlen[index] = 0;
+
+    for (auto it = _exa_commands.begin();
+         it != _exa_commands.end(); ++it)
+    {
+        std::string cmd_name = it->first;
+
+        index = index_of_command(cmd_name);
+        cmd_groups[index].push_back(cmd_name);
+        if (cmd_name.length() > maxlen[index])
+            maxlen[index] = cmd_name.length();
+    }
+
+    /* Align column headers and data to the left */
+    std::cout << std::setiosflags(std::ios::left);
+
+    for (index = INDEX__FIRST; index <= INDEX__LAST; index++)
+    {
+        if (index > INDEX__FIRST)
+            std::cout << " ";
+        std::cout << std::setw(maxlen[index]) << group_names[index];
+    }
+    std::cout << std::endl;
+
+    bool done = false;
+    while (!done)
+    {
+        int empty_groups = 0;
+
+        for (index = INDEX__FIRST; index <= INDEX__LAST; index++)
+        {
+            std::string cmd_name;
+
+            if (cmd_groups[index].size() == 0)
+            {
+                cmd_name = "";
+                empty_groups++;
+            }
+            else
+            {
+                cmd_name = cmd_groups[index].front();
+                cmd_groups[index].pop_front();
+            }
+
+            if (index > INDEX__FIRST)
+                std::cout << " ";
+            std::cout << std::setw(maxlen[index]) << cmd_name;
+        }
+
+        std::cout << std::endl;
+
+        done = (empty_groups == NUM_GROUPS);
+    }
+}
 
 #endif  // __CLI_H__

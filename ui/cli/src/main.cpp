@@ -88,7 +88,11 @@ int main(int argc, char *argv[])
      */
     os_random_init();
 
-    Cli cli;
+    Cli<
+#ifdef WITH_COMMANDS
+    exa_dgstart, exa_dgstop
+#endif
+    > cli;
 #ifdef WITH_COMMANDS
     cli.register_cmd<exa_clcreate>("exa_clcreate");
     cli.register_cmd<exa_cldelete>("exa_cldelete");
@@ -111,8 +115,6 @@ int main(int argc, char *argv[])
     cli.register_cmd<exa_dgdelete>("exa_dgdelete");
     cli.register_cmd<exa_dgdiskadd>("exa_dgdiskadd");
     cli.register_cmd<exa_dgdiskrecover>("exa_dgdiskrecover");
-    cli.register_cmd<exa_dgstart>();
-    cli.register_cmd<exa_dgstop>();
     cli.register_cmd<exa_vlcreate>("exa_vlcreate");
     cli.register_cmd<exa_vldelete>("exa_vldelete");
     cli.register_cmd<exa_vlresize>("exa_vlresize");

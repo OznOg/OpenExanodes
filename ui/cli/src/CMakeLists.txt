@@ -63,7 +63,6 @@ set(EXA_CLI_COMMON_SOURCES
 
 set(EXA_CLI_COMMAND_LIB_SOURCES
     cli_log_impl.cpp
-    cli.cpp
     command.cpp
     command_arg.cpp
     command_option.cpp
