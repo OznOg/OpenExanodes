@@ -53,7 +53,7 @@ while (my $line = <TYPE_FILE>) {
 
     next if !$line;
 
-    if ($line =~ /^typedef enum ExamsgType {$/) {
+    if ($line =~ /^typedef enum ExamsgType \{$/) {
 	$in_enum = 1;
 	next;
     }
