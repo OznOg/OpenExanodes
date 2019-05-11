@@ -29,7 +29,7 @@ class AdmindCommand: private boost::noncopyable
 {
 private:
     const std::string name;
-    std::shared_ptr<xmlDoc> xml_cmd;
+    std::unique_ptr<xmlDoc, decltype(&xmlFreeDoc)> xml_cmd;
     xmlNodePtr params;
 
 public:
