@@ -18,21 +18,17 @@ class Cli
 {
 public:
 
-    Cli();
-
-    virtual ~Cli();
-
     Command::factory_t register_cmd_factory(const std::string& cmd_name, Command::factory_t factory);
     Command::factory_t find_cmd_factory(const std::string& name);
 
     void usage();
 
-    static Cli& instance();
 
 protected:
 
 private:
 
+    static Cli& instance();
     std::map<std::string, Command::factory_t > _exa_commands;
 
 };

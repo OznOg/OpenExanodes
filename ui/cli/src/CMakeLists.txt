@@ -73,7 +73,6 @@ set(EXA_CLI_COMMAND_LIB_SOURCES
     exa_clcommand.cpp
     exa_dgcommand.cpp
     exa_vlcommand.cpp
-    license.cpp
     ${FS_COMMAND_LIB_SOURCES}
     info_help.cpp)
 
@@ -85,7 +84,8 @@ add_dependencies(exa_cli_command_lib git.h)
 add_library(exa_cli_lib
     ${EXA_CLI_COMMON_SOURCES})
 
-add_executable(exa_cli all_commands.cpp)
+add_executable(exa_cli license.cpp)
+    
 
 target_link_libraries(exa_cli
     exa_cli_lib
@@ -115,7 +115,6 @@ endif (WITH_TOOLS)
 
 if (NOT WIN32)
     add_executable(exa_pod
-        all_commands.cpp
         exa_dgreset.cpp
         exa_dgcheck.cpp
         info_pod.cpp)
@@ -133,7 +132,6 @@ endif (NOT WIN32)
 if (WITH_DOCS)
 
     add_executable(exa_referenceguide
-        all_commands.cpp
         info_referenceguide.cpp)
 
     target_link_libraries(exa_referenceguide

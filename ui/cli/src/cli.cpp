@@ -12,12 +12,6 @@
 #include <iostream>
 #include <iomanip>
 
-Cli::Cli()
-{ }
-
-Cli::~Cli()
-{}
-
 /* Index of each group of commands */
 #define INDEX_CL    0
 #define INDEX_NODE  1
@@ -135,15 +129,6 @@ Command::factory_t Cli::find_cmd_factory(const std::string &name)
         return 0;
     return it->second;
 }
-
-
-Cli &Cli::instance()
-{
-    static Cli cli;
-
-    return cli;
-}
-
 
 Command::factory_t Cli::register_cmd_factory(const std::string &cmd_name,
                                              Command::factory_t factory)
