@@ -45,17 +45,6 @@ const std::string exa_dgcreate::OPT_ARG_LAYOUT_SSTRIPING(Command::Boldify(
 const std::string exa_dgcreate::OPT_ARG_LAYOUT_RAINX(Command::Boldify(
                                                          RAINX_NAME));
 
-exa_dgcreate::exa_dgcreate(int argc, char *argv[])
-    : exa_dgcommand(argc, argv)
-    , startgroup(false)
-    , alldisks(false)
-    , nb_spare(-1)
-{}
-
-
-exa_dgcreate::~exa_dgcreate()
-{}
-
 void exa_dgcreate::init_options()
 {
     exa_dgcommand::init_options();

@@ -19,10 +19,6 @@ exa_dgstop::exa_dgstop(int argc, char *argv[])
     , _force(false)
 {}
 
-
-exa_dgstop::~exa_dgstop()
-{}
-
 void exa_dgstop::init_options()
 {
     exa_dgcommand::init_options();

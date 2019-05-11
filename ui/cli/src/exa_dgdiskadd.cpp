@@ -19,14 +19,6 @@ const std::string exa_dgdiskadd::OPT_ARG_DISK_HOSTNAME(Command::Boldify(
                                                            "HOSTNAME"));
 const std::string exa_dgdiskadd::OPT_ARG_DISK_PATH(Command::Boldify("PATH"));
 
-exa_dgdiskadd::exa_dgdiskadd(int argc, char *argv[])
-    : exa_dgcommand(argc, argv)
-{}
-
-
-exa_dgdiskadd::~exa_dgdiskadd()
-{}
-
 void exa_dgdiskadd::init_options()
 {
     exa_dgcommand::init_options();
