@@ -12,20 +12,6 @@
 
 using std::string;
 
-exa_dgstart::exa_dgstart(int argc, char *argv[])
-    : exa_dgcommand(argc, argv)
-{}
-
-
-exa_dgstart::~exa_dgstart()
-{}
-
-void exa_dgstart::init_options()
-{
-    exa_dgcommand::init_options();
-}
-
-
 void exa_dgstart::init_see_alsos()
 {
     add_see_also("exa_dgcreate");
@@ -61,12 +47,6 @@ void exa_dgstart::run()
 
     if (error_code != EXA_SUCCESS)
         throw CommandException(error_code);
-}
-
-
-void exa_dgstart::parse_opt_args(const std::map<char, std::string> &opt_args)
-{
-    exa_dgcommand::parse_opt_args(opt_args);
 }
 
 

@@ -202,7 +202,7 @@ protected:
 
     void add_see_also (const std::string& see_also);
 
-    virtual void parse_opt_args (const std::map<char, std::string>& opt_args) = 0;
+    virtual void parse_opt_args (const std::map<char, std::string>& opt_args);
     virtual void parse_non_opt_args (const std::vector<std::string>& non_opt_args) = 0;
 
     void dump_usage (std::ostream& out, bool show_hidden = false) const;

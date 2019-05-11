@@ -22,10 +22,6 @@ exa_dgcommand::exa_dgcommand(int argc, char *argv[])
     , _group_name("")
 {}
 
-
-exa_dgcommand::~exa_dgcommand()
-{}
-
 void exa_dgcommand::init_options()
 {
     Command::init_options();
@@ -40,13 +36,6 @@ void exa_dgcommand::init_options()
     add_arg(ARG_DISKGROUP_CLUSTERNAME + ":" + ARG_DISKGROUP_GROUPNAME, 10,
             false);
 }
-
-
-void exa_dgcommand::parse_opt_args(const std::map<char, std::string> &opt_args)
-{
-    Command::parse_opt_args(opt_args);
-}
-
 
 void exa_dgcommand::parse_non_opt_args(
     const std::vector<std::string> &non_opt_args)

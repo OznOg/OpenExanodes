@@ -12,15 +12,14 @@
 #include "ui/cli/src/cli.h"
 
 
-class exa_dgstart : public exa_dgcommand
+class exa_dgstart final : public exa_dgcommand
 {
 
  public:
 
-  exa_dgstart (int argc, char *argv[]);
-  ~exa_dgstart ();
+  using exa_dgcommand::exa_dgcommand;
+  using exa_dgcommand::init_options;
 
-  void init_options();
   void init_see_alsos();
 
   void run();
@@ -30,11 +29,6 @@ protected:
     void dump_short_description (std::ostream& out, bool show_hidden = false) const;
     void dump_full_description(std::ostream& out, bool show_hidden = false) const;
     void dump_examples(std::ostream& out, bool show_hidden = false) const;
-
-    void parse_opt_args (const std::map<char, std::string>& opt_args);
-
- private:
-
 };
 
 
