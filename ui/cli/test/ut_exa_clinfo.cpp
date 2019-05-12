@@ -143,6 +143,8 @@ static void test_display_info(const std::string& expected_output,
     int argc = sizeof(argv)/sizeof(char*);
 
     __exa_clinfo cmd;
+    cmd.init_options();
+    cmd.init_see_alsos();
 
     cmd.parse(argc, argv);
 
@@ -267,7 +269,7 @@ ut_test(display_volume_status_fs)
     const string expected(
 "VOLUMES:\n"
 " dg_test:fs_test             1.0G  SHARED\n"
-" bdev | /dev/exa/dg_test/fs_test\n"
+" bdev | /dev/exa/dg_test/fs_test  (type 'sfs')\n"
 "                IN USE       sam60\n"
 "\n"
 );
@@ -285,6 +287,7 @@ ut_test(display_fs_status)
 "FILE SYSTEMS                 SIZE  USED  AVAIL TYPE     OPTIONS MOUNTPOINT\n"
 " dg_test:fs_test             (NO INFO)         sfs              /mnt/fs_test\n"
 "                MOUNTED      sam60\n"
+"                WILL START   sam66 sam67\n"
 "\n"
 );
     test_display_info(expected, xml_clinfo_with_fs,
