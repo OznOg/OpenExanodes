@@ -10,7 +10,6 @@
 #define __EXA_CLLICENSE_H__
 
 #include "ui/cli/src/exa_clcommand.h"
-#include "ui/cli/src/cli.h"
 
 class exa_cllicense : public exa_clcommand
 {

@@ -9,7 +9,6 @@
 #define       __EXA_CLDELETE_H__
 
 #include "ui/cli/src/exa_clcommand.h"
-#include "ui/cli/src/cli.h"
 
 
 

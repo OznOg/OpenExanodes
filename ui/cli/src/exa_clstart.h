@@ -9,7 +9,7 @@
 #define       __EXA_CLSTART_H__
 
 #include "ui/cli/src/exa_clcommand.h"
-#include "ui/cli/src/cli.h"
+
 class exa_clstart : public exa_clcommand
 {
 public:

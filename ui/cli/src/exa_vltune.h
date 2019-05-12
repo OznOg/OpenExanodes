@@ -9,9 +9,6 @@
 #define __EXA_VLTUNE_H__
 
 #include "ui/cli/src/exa_vlcommand.h"
-#include "ui/cli/src/cli.h"
-
-
 
 class exa_vltune : public exa_vlcommand
 {

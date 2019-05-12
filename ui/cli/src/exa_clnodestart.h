@@ -9,7 +9,6 @@
 #define __EXA_CLNODESTART_H__
 
 #include "ui/cli/src/exa_clcommand.h"
-#include "ui/cli/src/cli.h"
 
 
 class exa_clnodestart: public exa_clcommand

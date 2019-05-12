@@ -10,7 +10,6 @@
 
 
 #include "ui/cli/src/exa_clcommand.h"
-#include "ui/cli/src/cli.h"
 #include "common/include/exa_config.h"
 
 

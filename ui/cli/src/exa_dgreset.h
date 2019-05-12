@@ -9,8 +9,6 @@
 #define __EXA_DGRESET_H__
 
 #include "ui/cli/src/exa_dgcommand.h"
-#include "ui/cli/src/cli.h"
-
 
 class exa_dgreset : public exa_dgcommand
 {

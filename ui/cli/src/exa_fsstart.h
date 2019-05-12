@@ -10,8 +10,6 @@
 
 
 #include "ui/cli/src/exa_fscommand.h"
-#include "ui/cli/src/cli.h"
-
 
 
 class exa_fsstart : public exa_fscommand

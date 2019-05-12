@@ -10,9 +10,6 @@
 
 
 #include "ui/cli/src/exa_vlcommand.h"
-#include "ui/cli/src/cli.h"
-
-
 
 class exa_vlstop : public exa_vlcommand
 {

@@ -9,8 +9,6 @@
 #define __EXA_DGCREATE_H__
 
 #include "ui/cli/src/exa_dgcommand.h"
-#include "ui/cli/src/cli.h"
-
 
 class exa_dgcreate : public exa_dgcommand
 {

@@ -7,7 +7,6 @@
  */
 
 #include "ui/cli/src/exa_clcreate.h"
-#include "ui/cli/src/cli.h"
 #include "ui/cli/src/license.h"
 
 #include <sys/stat.h>

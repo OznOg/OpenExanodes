@@ -9,8 +9,6 @@
 #define  __EXA_FSCREATE_H__
 
 #include "ui/cli/src/exa_fscommand.h"
-#include "ui/cli/src/cli.h"
-
 
 class exa_fscreate : public exa_fscommand
 {

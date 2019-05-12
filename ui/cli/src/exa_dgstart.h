@@ -9,8 +9,6 @@
 #define  __EXA_DGSTART_H__
 
 #include "ui/cli/src/exa_dgcommand.h"
-#include "ui/cli/src/cli.h"
-
 
 class exa_dgstart final : public exa_dgcommand
 {

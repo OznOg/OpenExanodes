@@ -8,7 +8,6 @@
 
 #include "ui/cli/src/exa_unexpand.h"
 
-#include "ui/cli/src/cli.h"
 #include "ui/common/include/common_utils.h"
 #include "ui/common/include/exa_expand.h"
 

@@ -11,7 +11,6 @@
 #include <boost/lexical_cast.hpp>
 
 #include "common/include/exa_constants.h"
-#include "ui/cli/src/cli.h"
 #include "ui/common/include/admindcommand.h"
 #include "ui/common/include/cli_log.h"
 

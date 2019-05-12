@@ -9,8 +9,6 @@
 #define __EXA_CLSTATS_H__
 
 #include "ui/cli/src/exa_clcommand.h"
-#include "ui/cli/src/cli.h"
-
 
 class exa_clstats : public exa_clcommand
 {

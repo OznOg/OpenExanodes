@@ -10,7 +10,6 @@
 #define  __EXA_CLMONITORSTOP_H__
 
 #include "ui/cli/src/exa_clcommand.h"
-#include "ui/cli/src/cli.h"
 
 class exa_clmonitorstop: public exa_clcommand
 {

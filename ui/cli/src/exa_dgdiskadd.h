@@ -10,8 +10,6 @@
 
 
 #include "ui/cli/src/exa_dgcommand.h"
-#include "ui/cli/src/cli.h"
-
 
 class exa_dgdiskadd : public exa_dgcommand
 {

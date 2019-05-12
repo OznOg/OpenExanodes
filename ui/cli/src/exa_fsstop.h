@@ -9,9 +9,6 @@
 #define  __EXA_FSSTOP_H__
 
 #include "ui/cli/src/exa_fscommand.h"
-#include "ui/cli/src/cli.h"
-
-
 
 class exa_fsstop : public exa_fscommand
 {

@@ -9,8 +9,6 @@
 #define  __EXA_DGSTOP_H__
 
 #include "ui/cli/src/exa_dgcommand.h"
-#include "ui/cli/src/cli.h"
-
 
 class exa_dgstop : public exa_dgcommand
 {
