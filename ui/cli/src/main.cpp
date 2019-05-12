@@ -90,58 +90,58 @@ int main(int argc, char *argv[])
 
     Cli cli;
 #ifdef WITH_COMMANDS
-    cli.register_cmd_factory("exa_clcreate", command_factory<exa_clcreate> );
-    cli.register_cmd_factory("exa_cldelete", command_factory<exa_cldelete> );
-    cli.register_cmd_factory("exa_cldiskadd", command_factory<exa_cldiskadd> );
-    cli.register_cmd_factory("exa_cldiskdel", command_factory<exa_cldiskdel> );
-    cli.register_cmd_factory("exa_clinfo", command_factory<exa_clinfo> );
-    cli.register_cmd_factory("exa_cllicense", command_factory<exa_cllicense> );
-    cli.register_cmd_factory("exa_clnodeadd", command_factory<exa_clnodeadd> );
-    cli.register_cmd_factory("exa_clnodedel", command_factory<exa_clnodedel> );
-    cli.register_cmd_factory("exa_clnoderecover", command_factory<exa_clnoderecover> );
-    cli.register_cmd_factory("exa_clnodestart", command_factory<exa_clnodestart> );
-    cli.register_cmd_factory("exa_clnodestop", command_factory<exa_clnodestop> );
-    cli.register_cmd_factory("exa_clreconnect", command_factory<exa_clreconnect> );
-    cli.register_cmd_factory("exa_clstart", command_factory<exa_clstart> );
-    cli.register_cmd_factory("exa_clstats", command_factory<exa_clstats> );
-    cli.register_cmd_factory("exa_clstop", command_factory<exa_clstop> );
-    cli.register_cmd_factory("exa_cltrace", command_factory<exa_cltrace> );
-    cli.register_cmd_factory("exa_cltune", command_factory<exa_cltune> );
-    cli.register_cmd_factory("exa_dgcreate", command_factory<exa_dgcreate> );
-    cli.register_cmd_factory("exa_dgdelete", command_factory<exa_dgdelete> );
-    cli.register_cmd_factory("exa_dgdiskadd", command_factory<exa_dgdiskadd> );
-    cli.register_cmd_factory("exa_dgdiskrecover", command_factory<exa_dgdiskrecover> );
-    cli.register_cmd_factory("exa_dgstart", command_factory<exa_dgstart> );
-    cli.register_cmd_factory("exa_dgstop", command_factory<exa_dgstop> );
-    cli.register_cmd_factory("exa_vlcreate", command_factory<exa_vlcreate> );
-    cli.register_cmd_factory("exa_vldelete", command_factory<exa_vldelete> );
-    cli.register_cmd_factory("exa_vlresize", command_factory<exa_vlresize> );
-    cli.register_cmd_factory("exa_vlstart", command_factory<exa_vlstart> );
-    cli.register_cmd_factory("exa_vlstop", command_factory<exa_vlstop> );
-    cli.register_cmd_factory("exa_vltune", command_factory<exa_vltune> );
-    cli.register_cmd_factory("exa_unexpand", command_factory<exa_unexpand> );
-    cli.register_cmd_factory("exa_expand", command_factory<exa_expand> );
-    cli.register_cmd_factory("exa_makeconfig", command_factory<exa_makeconfig> );
+    cli.register_cmd<exa_clcreate>("exa_clcreate");
+    cli.register_cmd<exa_cldelete>("exa_cldelete");
+    cli.register_cmd<exa_cldiskadd>("exa_cldiskadd");
+    cli.register_cmd<exa_cldiskdel>("exa_cldiskdel");
+    cli.register_cmd<exa_clinfo>("exa_clinfo");
+    cli.register_cmd<exa_cllicense>("exa_cllicense");
+    cli.register_cmd<exa_clnodeadd>("exa_clnodeadd");
+    cli.register_cmd<exa_clnodedel>("exa_clnodedel");
+    cli.register_cmd<exa_clnoderecover>("exa_clnoderecover");
+    cli.register_cmd<exa_clnodestart>("exa_clnodestart");
+    cli.register_cmd<exa_clnodestop>("exa_clnodestop");
+    cli.register_cmd<exa_clreconnect>("exa_clreconnect");
+    cli.register_cmd<exa_clstart>("exa_clstart");
+    cli.register_cmd<exa_clstats>("exa_clstats");
+    cli.register_cmd<exa_clstop>("exa_clstop");
+    cli.register_cmd<exa_cltrace>("exa_cltrace");
+    cli.register_cmd<exa_cltune>("exa_cltune");
+    cli.register_cmd<exa_dgcreate>("exa_dgcreate");
+    cli.register_cmd<exa_dgdelete>("exa_dgdelete");
+    cli.register_cmd<exa_dgdiskadd>("exa_dgdiskadd");
+    cli.register_cmd<exa_dgdiskrecover>("exa_dgdiskrecover");
+    cli.register_cmd<exa_dgstart>("exa_dgstart");
+    cli.register_cmd<exa_dgstop>("exa_dgstop");
+    cli.register_cmd<exa_vlcreate>("exa_vlcreate");
+    cli.register_cmd<exa_vldelete>("exa_vldelete");
+    cli.register_cmd<exa_vlresize>("exa_vlresize");
+    cli.register_cmd<exa_vlstart>("exa_vlstart");
+    cli.register_cmd<exa_vlstop>("exa_vlstop");
+    cli.register_cmd<exa_vltune>("exa_vltune");
+    cli.register_cmd<exa_unexpand>("exa_unexpand");
+    cli.register_cmd<exa_expand>("exa_expand");
+    cli.register_cmd<exa_makeconfig>("exa_makeconfig");
 
 #ifdef WITH_FS
-    cli.register_cmd_factory("exa_fscheck", command_factory<exa_fscheck> );
-    cli.register_cmd_factory("exa_fscreate", command_factory<exa_fscreate> );
-    cli.register_cmd_factory("exa_fsdelete", command_factory<exa_fsdelete> );
-    cli.register_cmd_factory("exa_fsresize", command_factory<exa_fsresize> );
-    cli.register_cmd_factory("exa_fsstart", command_factory<exa_fsstart> );
-    cli.register_cmd_factory("exa_fsstop", command_factory<exa_fsstop> );
-    cli.register_cmd_factory("exa_fstune", command_factory<exa_fstune> );
+    cli.register_cmd<exa_fscheck>("exa_fscheck");
+    cli.register_cmd<exa_fscreate>("exa_fscreate");
+    cli.register_cmd<exa_fsdelete>("exa_fsdelete");
+    cli.register_cmd<exa_fsresize>("exa_fsresize");
+    cli.register_cmd<exa_fsstart>("exa_fsstart");
+    cli.register_cmd<exa_fsstop>("exa_fsstop");
+    cli.register_cmd<exa_fstune>("exa_fstune");
 #endif
 
 #ifdef WITH_MONITORING
-    cli.register_cmd_factory("exa_clmonitorstart", command_factory<exa_clmonitorstart> );
-    cli.register_cmd_factory("exa_clmonitorstop", command_factory<exa_clmonitorstop> );
+    cli.register_cmd<exa_clmonitorstart>("exa_clmonitorstart");
+    cli.register_cmd<exa_clmonitorstop>("exa_clmonitorstop");
 #endif
 #endif // WITH_COMMANDS
 
 #if WITH_TOOLS
-    cli.register_cmd_factory("exa_dgreset", command_factory<exa_dgreset> );
-    cli.register_cmd_factory("exa_dgcheck", command_factory<exa_dgcheck> );
+    cli.register_cmd<exa_dgreset>("exa_dgreset");
+    cli.register_cmd<exa_dgcheck>("exa_dgcheck");
 #endif
     try
     {
@@ -151,7 +151,7 @@ int main(int argc, char *argv[])
 
         boost::to_lower(scmd);
 
-        Command::factory_t factory = cli.find_cmd_factory(scmd);
+        auto factory = cli.find_cmd_factory(scmd);
 
         /*
          * If we couldn't find the command in the name we were invoked, try

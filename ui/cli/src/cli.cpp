@@ -66,8 +66,7 @@ void Cli::usage()
     for (index = INDEX__FIRST; index <= INDEX__LAST; index++)
         maxlen[index] = 0;
 
-    for (std::map<std::string, Command::factory_t>::const_iterator it =
-             _exa_commands.begin();
+    for (auto it = _exa_commands.begin();
          it != _exa_commands.end(); ++it)
     {
         std::string cmd_name = it->first;
@@ -121,20 +120,13 @@ void Cli::usage()
 }
 
 
-Command::factory_t Cli::find_cmd_factory(const std::string &name)
+Cli::factory_t Cli::find_cmd_factory(const std::string &name)
 {
-    std::map<std::string, Command::factory_t>::const_iterator it =
+    std::map<std::string, factory_t>::const_iterator it =
         _exa_commands.find(name);
     if (it == _exa_commands.end())
         return 0;
     return it->second;
-}
-
-Command::factory_t Cli::register_cmd_factory(const std::string &cmd_name,
-                                             Command::factory_t factory)
-{
-    _exa_commands.insert(std::make_pair(cmd_name, factory));
-    return factory;
 }
 
 

@@ -64,8 +64,6 @@ class Command
 {
 public:
 
-    typedef std::shared_ptr<Command>(*factory_t)(int argc, char *argv[]);
-
     Command(int argc, char *argv[])
         : _argc(argc)
           , _argv(argv)
@@ -292,15 +290,5 @@ private:
 
 EXA_BASIC_EXCEPTION_DECL(CommandException, exa::Exception);
 
-
-template<class T>std::shared_ptr<Command>
-command_factory(int argc, char *argv[])
-{
-    std::shared_ptr<Command> inst(new T(argc, argv));
-    inst->init_options();
-    inst->init_see_alsos();
-    inst->parse ();
-    return inst;
-}
 
 #endif /* __COMMAND_H__ */
