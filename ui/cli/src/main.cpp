@@ -158,21 +158,21 @@ int main(int argc, char *argv[])
 
         boost::to_lower(scmd);
 
-        auto factory = cli.find_cmd_factory(scmd);
+        auto cmd = cli.find_cmd(scmd);
 
         /*
          * If we couldn't find the command in the name we were invoked, try
          * again with the first parameter.
          */
-        if ((factory == NULL) && argc > 1)
+        if ((cmd == nullptr) && argc > 1)
         {
             ++argv;
             --argc;
 
-            factory = cli.find_cmd_factory(argv[0]);
+            cmd = cli.find_cmd(argv[0]);
         }
 
-        if (factory == NULL)
+        if (cmd == nullptr)
         {
             if (scmd != "exa_cli")
                 exa_cli_error("Unknown command %s\n", scmd.c_str());
@@ -180,8 +180,7 @@ int main(int argc, char *argv[])
             throw CommandException(EXA_ERR_CMD_PARSING);
         }
 
-        std::shared_ptr<Command> cmd = (*factory)(argc, argv);
-        cmd->run();
+        cmd->run(argc, argv);
     }
     catch (exa::Exception &e)
     {

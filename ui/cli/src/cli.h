@@ -13,35 +13,34 @@
 #include "ui/cli/src/command.h"
 #include "ui/common/include/cli_log.h"
 
+#include <memory>
 
 template <class... Commands>
 class Cli
 {
-public:
-
-    typedef std::shared_ptr<Command>(*factory_t)(int argc, char *argv[]);
-
     template<class T>
-    static std::shared_ptr<Command> command_factory(int argc, char *argv[]) {
-        std::shared_ptr<Command> inst(new T);
-        inst->init_options();
-        inst->init_see_alsos();
-        inst->parse (argc, argv);
-        return inst;
+    static std::shared_ptr<Command> factory() {
+        return std::make_shared<T>();
     }
 
-    factory_t find_cmd_factory(const std::string& name)
+public:
+
+    std::shared_ptr<Command> find_cmd(const std::string& name)
     {
-        static std::map<std::string, factory_t > _exa_commands = {
-            { Commands::name(), command_factory<Commands> } ...
+        static const std::map<std::string, std::shared_ptr<Command>(*)()> _exa_commands = {
+            { Commands::name(), factory<Commands> } ...
         };
 
         auto it = _exa_commands.find(name);
         if (it == _exa_commands.end())
-            return 0;
-        return it->second;
+            return nullptr;
+        auto cmd = it->second();
+        if (cmd != nullptr) {
+            cmd->init_options();
+            cmd->init_see_alsos();
+        }
+        return cmd;
     }
-
 
     void usage();
 

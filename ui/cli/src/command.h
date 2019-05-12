@@ -115,10 +115,12 @@ public:
      * (instead, the factory should be friend, etc)*/
     virtual void init_options() = 0;
     virtual void init_see_alsos() = 0;
-
     void parse(int _argc, char *_argv[]);
 
-    virtual void run() = 0;
+    void run(int _argc, char *_argv[]) {
+        parse(_argc, _argv);
+        run();
+    }
 
     void show_version() const;
 
@@ -244,6 +246,8 @@ protected:
 			       char pad_char = ' ');
 
 private:
+
+    virtual void run() = 0;
 
     void add_to_param_groups(const std::shared_ptr<CommandParam>& param);
     void generate_valid_param_combinations();
