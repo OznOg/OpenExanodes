@@ -30,22 +30,13 @@ public:
         return inst;
     }
 
-    template <class Command>
-    void register_cmd()
-    {
-        _exa_commands.insert(std::make_pair(Command::name(), command_factory<Command>));
-    }
-
-    template <class Command>
-    void register_cmd(const std::string& cmd_name)
-    {
-        _exa_commands.insert(std::make_pair(cmd_name, command_factory<Command>));
-    }
-
     factory_t find_cmd_factory(const std::string& name)
     {
-        std::map<std::string, factory_t>::const_iterator it =
-            _exa_commands.find(name);
+        static std::map<std::string, factory_t > _exa_commands = {
+            { Commands::name(), command_factory<Commands> } ...
+        };
+
+        auto it = _exa_commands.find(name);
         if (it == _exa_commands.end())
             return 0;
         return it->second;
@@ -54,12 +45,7 @@ public:
 
     void usage();
 
-    Cli() {
-        (register_cmd<Commands>() , ...);
-    }
-
 private:
-    std::map<std::string, factory_t > _exa_commands;
 
 };
 
@@ -122,11 +108,8 @@ void Cli<Commands...>::usage()
     for (index = INDEX__FIRST; index <= INDEX__LAST; index++)
         maxlen[index] = 0;
 
-    for (auto it = _exa_commands.begin();
-         it != _exa_commands.end(); ++it)
+    for (auto cmd_name : { std::string(Commands::name())... })
     {
-        std::string cmd_name = it->first;
-
         index = index_of_command(cmd_name);
         cmd_groups[index].push_back(cmd_name);
         if (cmd_name.length() > maxlen[index])
