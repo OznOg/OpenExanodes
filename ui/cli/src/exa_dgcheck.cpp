@@ -10,10 +10,6 @@
 #include "ui/common/include/admindcommand.h"
 #include "ui/common/include/cli_log.h"
 
-Command::factory_t exa_dgcheck_factory =
-    Cli::instance().register_cmd_factory(
-        "exa_dgcheck", command_factory<exa_dgcheck> );
-
 exa_dgcheck::exa_dgcheck(int argc, char *argv[])
     : exa_dgcommand(argc, argv)
 {}

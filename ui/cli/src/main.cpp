@@ -59,6 +59,11 @@
 #include "ui/cli/src/exa_clmonitorstop.h"
 #endif
 
+#ifdef WITH_TOOLS
+#include "ui/cli/src/exa_dgreset.h"
+#include "ui/cli/src/exa_dgcheck.h"
+#endif
+
 #include "os/include/os_network.h"
 #include "os/include/os_random.h"
 #include "os/include/os_file.h"
@@ -84,6 +89,7 @@ int main(int argc, char *argv[])
     os_random_init();
 
     Cli cli;
+#ifdef WITH_COMMANDS
     cli.register_cmd_factory("exa_clcreate", command_factory<exa_clcreate> );
     cli.register_cmd_factory("exa_cldelete", command_factory<exa_cldelete> );
     cli.register_cmd_factory("exa_cldiskadd", command_factory<exa_cldiskadd> );
@@ -130,6 +136,12 @@ int main(int argc, char *argv[])
 #ifdef WITH_MONITORING
     cli.register_cmd_factory("exa_clmonitorstart", command_factory<exa_clmonitorstart> );
     cli.register_cmd_factory("exa_clmonitorstop", command_factory<exa_clmonitorstop> );
+#endif
+#endif // WITH_COMMANDS
+
+#if WITH_TOOLS
+    cli.register_cmd_factory("exa_dgreset", command_factory<exa_dgreset> );
+    cli.register_cmd_factory("exa_dgcheck", command_factory<exa_dgcheck> );
 #endif
     try
     {

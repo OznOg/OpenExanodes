@@ -10,10 +10,6 @@
 #include "ui/common/include/admindcommand.h"
 #include "ui/common/include/cli_log.h"
 
-Command::factory_t exa_dgreset_factory =
-    Cli::instance().register_cmd_factory(
-        "exa_dgreset", command_factory<exa_dgreset> );
-
 exa_dgreset::exa_dgreset(int argc, char *argv[])
     : exa_dgcommand(argc, argv)
 {}
