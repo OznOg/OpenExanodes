@@ -15,9 +15,6 @@
 class exa_dgreset : public exa_dgcommand
 {
 public:
-    exa_dgreset(int argc, char *argv[]);
-    ~exa_dgreset();
-
     static constexpr const char *name() { return "exa_dgreset"; }
 
     void init_options();

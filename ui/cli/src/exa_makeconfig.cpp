@@ -46,15 +46,10 @@ const std::string exa_makeconfig::OPT_ARG_LAYOUT_RAINX(Command::Boldify(
 const std::string exa_makeconfig::OPT_ARG_EXTRA_DGOPTION(Command::Boldify(
                                                              "DGOPTION"));
 
-exa_makeconfig::exa_makeconfig(int argc, char *argv[])
-    : Command(argc, argv)
-    , want_group(false)
+exa_makeconfig::exa_makeconfig()
+    : want_group(false)
     , group_id(DEFAULT_NUMBER_OF_GROUP)
     , number_of_group(DEFAULT_NUMBER_OF_GROUP)
-{}
-
-
-exa_makeconfig::~exa_makeconfig()
 {}
 
 void exa_makeconfig::init_options()

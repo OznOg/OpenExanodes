@@ -17,14 +17,9 @@ using std::string;
 const std::string exa_fsstop::OPT_ARG_NODE_HOSTNAMES(Command::Boldify(
                                                          "HOSTNAMES"));
 
-exa_fsstop::exa_fsstop(int argc, char *argv[])
-    : exa_fscommand(argc, argv)
-    , allnodes(false)
+exa_fsstop::exa_fsstop()
+    : allnodes(false)
     , forcemode(false)
-{}
-
-
-exa_fsstop::~exa_fsstop()
 {}
 
 void exa_fsstop::init_options()

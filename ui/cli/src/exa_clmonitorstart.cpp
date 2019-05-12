@@ -28,8 +28,7 @@ const std::string exa_clmonitorstart::OPT_ARG_SNMPDPORT_PORT(Command::Boldify(
                                                                  "PORT"));
 
 exa_clmonitorstart::exa_clmonitorstart(int argc, char *argv[])
-    : exa_clcommand(argc, argv)
-    , _snmpd_host("")
+    : _snmpd_host("")
     , _snmpd_port(MD_DEFAULT_MASTER_AGENTX_PORT)
 {}
 

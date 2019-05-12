@@ -23,10 +23,10 @@ public:
 
     template<class T>
     static std::shared_ptr<Command> command_factory(int argc, char *argv[]) {
-        std::shared_ptr<Command> inst(new T(argc, argv));
+        std::shared_ptr<Command> inst(new T);
         inst->init_options();
         inst->init_see_alsos();
-        inst->parse ();
+        inst->parse (argc, argv);
         return inst;
     }
 

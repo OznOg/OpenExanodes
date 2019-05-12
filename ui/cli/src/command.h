@@ -64,10 +64,8 @@ class Command
 {
 public:
 
-    Command(int argc, char *argv[])
-        : _argc(argc)
-          , _argv(argv)
-          , _options()
+    Command()
+        : _options()
           , _args()
           , _param_groups()
           , _see_also()
@@ -118,7 +116,7 @@ public:
     virtual void init_options() = 0;
     virtual void init_see_alsos() = 0;
 
-    void parse ();
+    void parse(int _argc, char *_argv[]);
 
     virtual void run() = 0;
 
@@ -139,7 +137,7 @@ protected:
 
     static const std::string TIMEOUT_ARG_NAME;
 
-    std::string get_name () const { return _argv[0]; }
+    std::string get_name () const { return _command_name; }
 
     /**
      * Add an option to the command.
@@ -268,8 +266,7 @@ protected:
 
 private:
 
-    int _argc;
-    char **_argv;
+    std::string _command_name;
     CommandOptions _options;  //!< valid command options definition
     CommandArgs _args;  //!< valid command arguments definition
     std::map<int,CommandParams> _param_groups; //!< groups of exclusive parameters

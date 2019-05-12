@@ -19,8 +19,6 @@ public:
     static const std::string OPT_ARG_DISK_HOSTNAME;
     static const std::string OPT_ARG_DISK_PATH;
 
-    exa_cldiskadd(int argc, char *argv[]);
-
     static constexpr const char *name() { return "exa_cldiskadd"; }
 
     void init_options();

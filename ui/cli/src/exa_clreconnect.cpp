@@ -19,15 +19,6 @@ using std::string;
 const std::string exa_clreconnect::OPT_ARG_NODE_HOSTNAME(Command::Boldify(
                                                              "HOSTNAME"));
 
-exa_clreconnect::exa_clreconnect(int argc, char *argv[])
-    : exa_clcommand(argc, argv)
-    , _reconnect_node("")
-{}
-
-
-exa_clreconnect::~exa_clreconnect()
-{}
-
 void exa_clreconnect::init_options()
 {
     exa_clcommand::init_options();

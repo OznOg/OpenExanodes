@@ -13,9 +13,8 @@
 
 using std::string;
 
-exa_dgstop::exa_dgstop(int argc, char *argv[])
-    : exa_dgcommand(argc, argv)
-    , _recursive(false)
+exa_dgstop::exa_dgstop()
+    : _recursive(false)
     , _force(false)
 {}
 

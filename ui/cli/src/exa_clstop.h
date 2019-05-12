@@ -17,7 +17,7 @@
 class exa_clstop : public exa_clnodestop
 {
 public:
-    exa_clstop(int argc, char *argv[]);
+    exa_clstop();
   
   static constexpr const char *name() { return "exa_clstop"; }
 

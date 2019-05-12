@@ -25,11 +25,6 @@ using std::shared_ptr;
 const std::string exa_clnoderecover::OPT_ARG_NODE_HOSTNAMES(Command::Boldify(
                                                                 "HOSTNAMES"));
 
-exa_clnoderecover::exa_clnoderecover(int argc, char *argv[])
-    : exa_clcommand(argc, argv)
-{}
-
-
 void exa_clnoderecover::init_options()
 {
     exa_clcommand::init_options();

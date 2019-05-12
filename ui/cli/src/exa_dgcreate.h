@@ -26,9 +26,8 @@ public:
     static const std::string OPT_ARG_LAYOUT_SSTRIPING;
     static const std::string OPT_ARG_LAYOUT_RAINX;
 
-    exa_dgcreate(int argc, char *argv[])
-        : exa_dgcommand(argc, argv)
-          , startgroup(false)
+    exa_dgcreate()
+        : startgroup(false)
           , alldisks(false)
           , nb_spare(-1)
     {}

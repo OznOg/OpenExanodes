@@ -22,7 +22,7 @@ public:
     static const std::string OPT_ARG_NBJOURNALS_NB;
     static const std::string OPT_ARG_RGSIZE_SIZE;
 
-    exa_fscreate(int argc, char *argv[]);
+    exa_fscreate();
 
     static constexpr const char *name() { return "exa_fscreate"; }
 

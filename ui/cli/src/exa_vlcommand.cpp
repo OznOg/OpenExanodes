@@ -19,17 +19,6 @@ const std::string exa_vlcommand::ARG_VOLUME_GROUPNAME(Command::Boldify(
 const std::string exa_vlcommand::ARG_VOLUME_VOLUMENAME(Command::Boldify(
                                                            "VOLUME"));
 
-exa_vlcommand::exa_vlcommand(int argc, char *argv[])
-    : Command(argc, argv)
-    , _cluster_name("")
-    , _group_name("")
-    , _volume_name("")
-{}
-
-
-exa_vlcommand::~exa_vlcommand()
-{}
-
 void exa_vlcommand::init_options()
 {
     Command::init_options();

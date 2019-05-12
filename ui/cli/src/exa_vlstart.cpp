@@ -17,17 +17,12 @@ using std::string;
 const std::string exa_vlstart::OPT_ARG_NODE_HOSTNAMES(Command::Boldify(
                                                           "HOSTNAMES"));
 
-exa_vlstart::exa_vlstart(int argc, char *argv[])
-    : exa_vlcommand(argc, argv)
+exa_vlstart::exa_vlstart() :
 #ifdef WITH_FS
-    , nofscheck(false)
+     nofscheck(false),
 #endif
-    , allnodes(true)
+     allnodes(true)
     , readonly(false)
-{}
-
-
-exa_vlstart::~exa_vlstart()
 {}
 
 void exa_vlstart::init_options()

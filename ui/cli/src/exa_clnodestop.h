@@ -19,8 +19,7 @@ public:
 
     static const std::string OPT_ARG_NODE_HOSTNAMES;
 
-    exa_clnodestop(int argc, char *argv[]);
-    ~exa_clnodestop();
+    exa_clnodestop();
 
     static constexpr const char *name() { return "exa_clnodestop"; }
 

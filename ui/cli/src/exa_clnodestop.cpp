@@ -19,17 +19,12 @@ using std::string;
 const std::string exa_clnodestop::OPT_ARG_NODE_HOSTNAMES(Command::Boldify(
                                                              "HOSTNAMES"));
 
-exa_clnodestop::exa_clnodestop(int argc, char *argv[])
-    : exa_clcommand(argc, argv)
-    , all_nodes(false)
+exa_clnodestop::exa_clnodestop()
+    : all_nodes(false)
     , force(false)
     , recursive(false)
     , node_expand("")
     , ignore_offline(false)
-{}
-
-
-exa_clnodestop::~exa_clnodestop()
 {}
 
 void exa_clnodestop::init_options()

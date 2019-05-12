@@ -23,8 +23,7 @@ public:
     static const std::string OPT_ARG_ACCESS_MODE;
     static const std::string OPT_ARG_LUN;
 
-    exa_vlcreate(int argc, char * argv []);
-    ~exa_vlcreate();
+    exa_vlcreate();
 
     static constexpr const char *name() { return "exa_vlcreate"; }
 

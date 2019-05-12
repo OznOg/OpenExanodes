@@ -17,8 +17,7 @@ class exa_unexpand : public Command
 
     static const std::string ARG_STRING;
 
-  exa_unexpand (int argc, char * argv []);
-  ~exa_unexpand ();
+  exa_unexpand();
 
   static constexpr const char *name() { return "exa_unexpand"; }
 

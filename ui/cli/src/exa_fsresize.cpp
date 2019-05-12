@@ -16,14 +16,9 @@ using std::string;
 
 const std::string exa_fsresize::OPT_ARG_SIZE_SIZE(Command::Boldify("SIZE"));
 
-exa_fsresize::exa_fsresize(int argc, char *argv[])
-    : exa_fscommand(argc, argv)
-    , sizeKB_uu64(0)
+exa_fsresize::exa_fsresize()
+    : sizeKB_uu64(0)
     , size_max(false)
-{}
-
-
-exa_fsresize::~exa_fsresize()
 {}
 
 void exa_fsresize::init_options()

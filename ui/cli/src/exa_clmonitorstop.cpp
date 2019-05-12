@@ -19,11 +19,6 @@
 
 using std::string;
 
-exa_clmonitorstop::exa_clmonitorstop(int argc, char *argv[])
-    : exa_clcommand(argc, argv)
-{}
-
-
 void exa_clmonitorstop::init_options()
 {
     exa_clcommand::init_options();

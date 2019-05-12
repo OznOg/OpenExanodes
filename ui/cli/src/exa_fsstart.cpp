@@ -18,15 +18,10 @@ const std::string exa_fsstart::OPT_ARG_NODE_HOSTNAMES(Command::Boldify(
                                                           "HOSTNAMES"));
 const std::string exa_fsstart::OPT_ARG_MOUNTPOINT_PATH(Command::Boldify("PATH"));
 
-exa_fsstart::exa_fsstart(int argc, char *argv[])
-    : exa_fscommand(argc, argv)
-    , allnodes(false)
+exa_fsstart::exa_fsstart()
+    : allnodes(false)
     , mount_point("")
     , read_only(false)
-{}
-
-
-exa_fsstart::~exa_fsstart()
 {}
 
 void exa_fsstart::init_options()

@@ -21,16 +21,10 @@ using std::string;
 
 const std::string exa_vlresize::OPT_ARG_SIZE_SIZE(Command::Boldify("SIZE"));
 
-exa_vlresize::exa_vlresize(int argc, char *argv[])
-    : exa_vlcommand(argc, argv)
-    , nofscheck(false)
+exa_vlresize::exa_vlresize()
+    : nofscheck(false)
     , sizeKB_uu64(0)
     , size_max(false)
-
-{}
-
-
-exa_vlresize::~exa_vlresize()
 {}
 
 void exa_vlresize::init_options()

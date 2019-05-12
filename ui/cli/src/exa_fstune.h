@@ -21,8 +21,7 @@ public:
     static const std::string ARG_PARAMETER_PARAMETER;
     static const std::string ARG_PARAMETER_VALUE;
 
-    exa_fstune(int argc, char * argv []);
-    ~exa_fstune();
+    exa_fstune();
 
     static constexpr const char *name() { return "exa_fstune"; }
 

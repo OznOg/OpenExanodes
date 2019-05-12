@@ -18,8 +18,7 @@ using std::string;
 
 /* FIXME calling the constructor of exa_clnodestop means that we'll get */
 /* duplicate options, and irrelevant "see also"... */
-exa_clstop::exa_clstop(int argc, char *argv[])
-    : exa_clnodestop(argc, argv)
+exa_clstop::exa_clstop() : exa_clnodestop()
 {
     all_nodes = true;
 }

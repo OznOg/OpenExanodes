@@ -19,8 +19,6 @@ public:
 
     static const std::string OPT_ARG_NODE_HOSTNAMES;
 
-    exa_clnoderecover(int argc, char *argv[]);
-
     static constexpr const char *name() { return "exa_clnoderecover"; }
 
     void init_options();

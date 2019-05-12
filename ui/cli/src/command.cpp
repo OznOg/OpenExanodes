@@ -270,8 +270,15 @@ void Command::add_to_param_groups(const std::shared_ptr<CommandParam> &param)
 }
 
 
-void Command::parse()
+void Command::parse(int _argc, char *_argv[])
 {
+    /* FIXME _command_name is a hack to access the command name from here.
+     * it should probably be given by the command itself, but:
+     *   - it was done thru argv[0] in the legacy code
+     *   - I plan to deeply rework hierarchy, thus I don't really want to go
+     *   thru the 47 commands to add a function that will be removed after
+     */
+    _command_name = _argv[0];
     static struct option null_long_opt = { NULL, 0, NULL, 0};
 
     /* prepare parameters for getopt_long calls */

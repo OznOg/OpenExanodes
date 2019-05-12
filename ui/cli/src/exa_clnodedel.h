@@ -19,8 +19,6 @@ public:
 
     static const std::string OPT_ARG_NODE_HOSTNAME;
 
-    exa_clnodedel(int argc, char *argv[]);
-
     static constexpr const char *name() { return "exa_clnodedel"; }
 
     void init_options();

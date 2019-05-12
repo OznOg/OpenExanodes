@@ -19,9 +19,7 @@ class exa_fsresize : public exa_fscommand
 
     static const std::string OPT_ARG_SIZE_SIZE;
 
-
-  exa_fsresize (int argc, char *argv[]);
-  ~exa_fsresize ();
+  exa_fsresize();
 
   static constexpr const char *name() { return "exa_fsresize"; }
 

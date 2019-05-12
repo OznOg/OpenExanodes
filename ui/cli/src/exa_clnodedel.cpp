@@ -18,11 +18,6 @@ using std::string;
 const std::string exa_clnodedel::OPT_ARG_NODE_HOSTNAME(Command::Boldify(
                                                            "HOSTNAME"));
 
-exa_clnodedel::exa_clnodedel(int argc, char *argv[])
-    : exa_clcommand(argc, argv)
-{}
-
-
 void exa_clnodedel::init_options()
 {
     exa_clcommand::init_options();

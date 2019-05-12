@@ -10,15 +10,6 @@
 #include "ui/common/include/admindcommand.h"
 #include "ui/common/include/cli_log.h"
 
-exa_dgreset::exa_dgreset(int argc, char *argv[])
-    : exa_dgcommand(argc, argv)
-{}
-
-
-exa_dgreset::~exa_dgreset()
-{}
-
-
 void exa_dgreset::init_options()
 {
     exa_dgcommand::init_options();

@@ -23,7 +23,7 @@ public:
     static const std::string OPT_ARG_NODE_HOSTNAME;
     static const std::string OPT_ARG_DATANETWORK_HOSTNAME;
 
-  exa_clnodeadd(int argc, char *argv[]);
+  exa_clnodeadd();
   ~exa_clnodeadd();
 
   static constexpr const char *name() { return "exa_clnodeadd"; }

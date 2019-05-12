@@ -44,9 +44,8 @@ typedef struct
     std::set<string> set;       /**< set of disks */
 }diskset_t;
 
-exa_clnodeadd::exa_clnodeadd(int argc, char *argv[])
-    : exa_clcommand(argc, argv)
-    , _xml_cfg(NULL)
+exa_clnodeadd::exa_clnodeadd()
+    : _xml_cfg(NULL)
     , _node_name("")
     , _disks("")
     , _datanetwork("")

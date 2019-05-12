@@ -23,7 +23,7 @@ public:
     static const std::string ARG_PARAMETER_PARAMETER;
     static const std::string ARG_PARAMETER_VALUE;
 
-  exa_cltune(int argc, char *argv[]);
+  exa_cltune();
 
   static constexpr const char *name() { return "exa_cltune"; }
 

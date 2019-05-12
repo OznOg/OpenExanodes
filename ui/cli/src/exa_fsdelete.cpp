@@ -14,13 +14,8 @@
 
 using std::string;
 
-exa_fsdelete::exa_fsdelete(int argc, char *argv[])
-    : exa_fscommand(argc, argv)
-    , metadata_recovery(false)
-
-{}
-
-exa_fsdelete::~exa_fsdelete()
+exa_fsdelete::exa_fsdelete()
+    : metadata_recovery(false)
 {}
 
 void exa_fsdelete::init_options()

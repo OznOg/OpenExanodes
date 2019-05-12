@@ -16,12 +16,6 @@ const std::string exa_dgcommand::ARG_DISKGROUP_CLUSTERNAME(Command::Boldify(
 const std::string exa_dgcommand::ARG_DISKGROUP_GROUPNAME(Command::Boldify(
                                                              "GROUPNAME"));
 
-exa_dgcommand::exa_dgcommand(int argc, char *argv[])
-    : Command(argc, argv)
-    , _cluster_name("")
-    , _group_name("")
-{}
-
 void exa_dgcommand::init_options()
 {
     Command::init_options();

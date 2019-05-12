@@ -20,8 +20,7 @@ class exa_fsstop : public exa_fscommand
 
     static const std::string OPT_ARG_NODE_HOSTNAMES;
 
-  exa_fsstop (int argc, char * argv []);
-  ~exa_fsstop ();
+  exa_fsstop();
 
   static constexpr const char *name() { return "exa_fsstop"; }
 

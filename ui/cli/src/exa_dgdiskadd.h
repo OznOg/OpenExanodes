@@ -21,8 +21,6 @@ class exa_dgdiskadd : public exa_dgcommand
     static const std::string OPT_ARG_DISK_PATH;
     static const std::string OPT_ARG_DISK_HOSTNAME;
 
-    using exa_dgcommand::exa_dgcommand;
-
     static constexpr const char *name() { return "exa_dgdiskadd"; }
 
     void init_options();

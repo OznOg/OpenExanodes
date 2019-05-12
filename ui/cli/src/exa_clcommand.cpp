@@ -11,15 +11,6 @@
 
 const std::string exa_clcommand::ARG_CLUSTERNAME(Command::Boldify("CLUSTERNAME"));
 
-exa_clcommand::exa_clcommand(int argc, char *argv[])
-    : Command(argc, argv)
-    , _cluster_name("")
-{}
-
-
-exa_clcommand::~exa_clcommand()
-{}
-
 void exa_clcommand::init_options()
 {
     Command::init_options();

@@ -18,7 +18,7 @@ public:
 
     static const std::string OPT_ARG_WRAPPING_N;
 
-    exa_clstats(int argc, char *argv[]);
+    exa_clstats();
 
   static constexpr const char *name() { return "exa_clstats"; }
 

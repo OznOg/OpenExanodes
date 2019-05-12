@@ -21,8 +21,7 @@ class exa_vlstop : public exa_vlcommand
 
     static const std::string OPT_ARG_NODE_HOSTNAMES;
 
-  exa_vlstop (int argc, char * argv []);
-  ~exa_vlstop ();
+  exa_vlstop();
 
   static constexpr const char *name() { return "exa_vlstop"; }
 

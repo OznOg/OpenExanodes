@@ -17,7 +17,6 @@ class exa_dgstart final : public exa_dgcommand
 
  public:
 
-  using exa_dgcommand::exa_dgcommand;
   using exa_dgcommand::init_options;
 
   static constexpr const char *name() { return "exa_dgstart"; } 

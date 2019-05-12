@@ -29,18 +29,13 @@ const std::string exa_cltrace::OPT_ARG_NODE_HOSTNAMES(Command::Boldify(
 
 static void sort_components();
 
-exa_cltrace::exa_cltrace(int argc, char *argv[])
-    : exa_clcommand(argc, argv)
-    , allnodes(false)
+exa_cltrace::exa_cltrace()
+    : allnodes(false)
     , component_index(-1)
     , level_index(-1)
 {
     sort_components();
 }
-
-
-exa_cltrace::~exa_cltrace()
-{}
 
 void exa_cltrace::init_options()
 {

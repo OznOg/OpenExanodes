@@ -17,8 +17,7 @@ class exa_fsdelete : public exa_fscommand
 
  public:
 
-  exa_fsdelete (int argc, char *argv[]);
-  ~exa_fsdelete ();
+  exa_fsdelete ();
 
   static constexpr const char *name() { return "exa_fsdelete"; }
 

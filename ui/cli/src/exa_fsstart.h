@@ -22,8 +22,7 @@ class exa_fsstart : public exa_fscommand
     static const std::string OPT_ARG_NODE_HOSTNAMES;
     static const std::string OPT_ARG_MOUNTPOINT_PATH;
 
-  exa_fsstart (int argc, char * argv []);
-  ~exa_fsstart ();
+  exa_fsstart();
 
   static constexpr const char *name() { return "exa_fsstart"; }
 

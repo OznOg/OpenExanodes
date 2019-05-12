@@ -22,13 +22,8 @@ const std::string exa_fstune::ARG_PARAMETER_PARAMETER(Command::Boldify(
                                                           "PARAMETER"));
 const std::string exa_fstune::ARG_PARAMETER_VALUE(Command::Boldify("VALUE"));
 
-exa_fstune::exa_fstune(int argc, char *argv[])
-    : exa_fscommand(argc, argv)
-    , _display_params(false)
-{}
-
-
-exa_fstune::~exa_fstune()
+exa_fstune::exa_fstune()
+    : _display_params(false)
 {}
 
 void exa_fstune::init_options()

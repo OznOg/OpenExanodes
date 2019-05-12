@@ -64,15 +64,6 @@ const std::string exa_clcreate::OPT_ARG_LICENSE_FILE(Command::Boldify("FILE"));
 const std::string exa_clcreate::OPT_ARG_DATANETWORK_HOSTNAME(Command::Boldify(
                                                                  "HOSTNAME"));
 
-exa_clcreate::exa_clcreate(int argc, char *argv[])
-    : exa_clcommand(argc, argv)
-    , _datanetwork("")
-{}
-
-
-exa_clcreate::~exa_clcreate()
-{}
-
 void exa_clcreate::init_options()
 {
     exa_clcommand::init_options();

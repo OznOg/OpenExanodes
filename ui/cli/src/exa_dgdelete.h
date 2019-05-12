@@ -18,8 +18,7 @@ class exa_dgdelete : public exa_dgcommand
 
  public:
 
-  exa_dgdelete (int argc, char *argv[]);
-  ~exa_dgdelete ();
+  exa_dgdelete();
 
   static constexpr const char *name() { return "exa_dgdelete"; }
 

@@ -18,15 +18,10 @@ const std::string exa_fscheck::OPT_ARG_NODE_HOSTNAME(Command::Boldify(
 const std::string exa_fscheck::OPT_ARG_PARAMETERS_STRING(Command::Boldify(
                                                              "STRING"));
 
-exa_fscheck::exa_fscheck(int argc, char *argv[])
-    : exa_fscommand(argc, argv)
-    , _node("")
+exa_fscheck::exa_fscheck()
+    : _node("")
     , _repair(false)
     , _parameters("")
-{}
-
-
-exa_fscheck::~exa_fscheck()
 {}
 
 void exa_fscheck::init_options()

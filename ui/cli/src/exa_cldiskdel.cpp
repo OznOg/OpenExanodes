@@ -20,11 +20,6 @@ const std::string exa_cldiskdel::OPT_ARG_DISK_HOSTNAME(Command::Boldify(
 const std::string exa_cldiskdel::OPT_ARG_DISK_PATH(Command::Boldify("PATH"));
 const std::string exa_cldiskdel::OPT_ARG_DISK_UUID(Command::Boldify("UUID"));
 
-exa_cldiskdel::exa_cldiskdel(int argc, char *argv[])
-    : exa_clcommand(argc, argv)
-{}
-
-
 void exa_cldiskdel::init_options()
 {
     exa_clcommand::init_options();

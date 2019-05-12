@@ -35,9 +35,8 @@ const std::string exa_cltune::ARG_PARAMETER_PARAMETER(Command::Boldify(
                                                           "PARAMETER"));
 const std::string exa_cltune::ARG_PARAMETER_VALUE(Command::Boldify("VALUE"));
 
-exa_cltune::exa_cltune(int argc, char *argv[])
-    : exa_clcommand(argc, argv)
-    , display_params(false)
+exa_cltune::exa_cltune()
+    : display_params(false)
     , verbose(false)
 {}
 

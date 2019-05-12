@@ -21,8 +21,6 @@ public:
     static const std::string OPT_ARG_DISK_PATH;
     static const std::string OPT_ARG_DISK_UUID;
 
-    exa_cldiskdel(int argc, char *argv[]);
-
     static constexpr const char *name() { return "exa_cldiskdel"; }
 
     void init_options();

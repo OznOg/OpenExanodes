@@ -24,8 +24,7 @@ public:
     static const std::string OPT_ARG_ONLY_ITEM;
     static const std::string OPT_ARG_WRAPPING_N;
 
-    exa_clinfo(int argc, char *argv[]);
-    ~exa_clinfo();
+    exa_clinfo();
 
     static constexpr const char *name() { return "exa_clinfo"; }
 

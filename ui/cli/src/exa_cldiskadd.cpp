@@ -19,12 +19,6 @@ const std::string exa_cldiskadd::OPT_ARG_DISK_HOSTNAME(Command::Boldify(
                                                            "HOSTNAME"));
 const std::string exa_cldiskadd::OPT_ARG_DISK_PATH(Command::Boldify("PATH"));
 
-exa_cldiskadd::exa_cldiskadd(int argc, char *argv[])
-    : exa_clcommand(argc, argv)
-    , _disk("")
-{}
-
-
 void exa_cldiskadd::init_options()
 {
     exa_clcommand::init_options();

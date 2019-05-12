@@ -33,8 +33,7 @@ class exa_makeconfig : public Command
 
     static const std::string OPT_ARG_EXTRA_DGOPTION;
 
-  exa_makeconfig (int argc, char * argv []);
-  ~exa_makeconfig ();
+  exa_makeconfig();
 
   static constexpr const char *name() { return "exa_makeconfig"; }
 

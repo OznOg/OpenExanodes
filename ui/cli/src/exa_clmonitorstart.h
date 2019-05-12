@@ -19,7 +19,7 @@ public:
     static const std::string OPT_ARG_SNMPDHOST_HOST;
     static const std::string OPT_ARG_SNMPDPORT_PORT;
 
-    exa_clmonitorstart(int argc, char *argv[]);
+    exa_clmonitorstart();
 
     static constexpr const char *name() { return "exa_clmonitorstart"; }
 

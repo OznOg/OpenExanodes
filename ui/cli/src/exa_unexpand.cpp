@@ -16,13 +16,8 @@ using std::string;
 
 const std::string exa_unexpand::ARG_STRING(Command::Boldify("STRING"));
 
-exa_unexpand::exa_unexpand(int argc, char *argv[])
-    : Command(argc, argv)
-    , _request("")
-{}
-
-
-exa_unexpand::~exa_unexpand()
+exa_unexpand::exa_unexpand()
+    : _request("")
 {}
 
 void exa_unexpand::init_options()

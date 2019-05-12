@@ -21,8 +21,7 @@ public:
     static const std::string OPT_ARG_COMPONENT_COMPONENT;
     static const std::string OPT_ARG_NODE_HOSTNAMES;
 
-  exa_cltrace (int argc, char *argv[]);
-  ~exa_cltrace ();
+  exa_cltrace();
 
   static constexpr const char *name() { return "exa_cltrace"; }
 

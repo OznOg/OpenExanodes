@@ -18,9 +18,6 @@ public:
     static const std::string OPT_ARG_FILENAME;
     static const std::string OPT_ARG_HOSTNAME;
 
-    exa_cllicense(int argc, char *argv[]);
-    ~exa_cllicense();
-
     static constexpr const char *name() { return "exa_cllicense"; }
 
     void init_options();

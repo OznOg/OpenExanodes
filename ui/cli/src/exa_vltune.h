@@ -34,8 +34,7 @@ public:
     static const std::string ARG_PARAMETER_PARAMETER;
     static const std::string ARG_PARAMETER_VALUE;
 
-    exa_vltune(int argc, char *argv[]);
-    ~exa_vltune();
+    exa_vltune();
 
     static constexpr const char *name() { return "exa_vltune"; }
 

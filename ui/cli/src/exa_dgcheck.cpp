@@ -10,15 +10,6 @@
 #include "ui/common/include/admindcommand.h"
 #include "ui/common/include/cli_log.h"
 
-exa_dgcheck::exa_dgcheck(int argc, char *argv[])
-    : exa_dgcommand(argc, argv)
-{}
-
-
-exa_dgcheck::~exa_dgcheck()
-{}
-
-
 void exa_dgcheck::init_options()
 {
     exa_dgcommand::init_options();

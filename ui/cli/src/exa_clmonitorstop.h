@@ -16,8 +16,6 @@ class exa_clmonitorstop: public exa_clcommand
 {
  public:
 
-  exa_clmonitorstop(int argc, char * argv []);
-
   static constexpr const char *name() { return "exa_clmonitorstop"; }
 
   void init_options();

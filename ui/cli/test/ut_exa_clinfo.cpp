@@ -85,10 +85,6 @@ static void assert_equal_output(const string& _expected,
 class __exa_clinfo : public exa_clinfo
 {
 public:
-    __exa_clinfo(int argc, char* argv[])
-        : exa_clinfo(argc, argv)
-    {};
-
     using exa_clinfo::exa_display_volumes_status;
 #ifdef WITH_FS
     using exa_clinfo::exa_display_fs_status;
@@ -146,7 +142,9 @@ static void test_display_info(const std::string& expected_output,
     };
     int argc = sizeof(argv)/sizeof(char*);
 
-    __exa_clinfo cmd(argc, argv);
+    __exa_clinfo cmd;
+
+    cmd.parse(argc, argv);
 
     // Clear __stdout to keep only output of exa_display_volumes_status
     __stdout.str("");

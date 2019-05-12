@@ -18,8 +18,7 @@ class exa_vldelete : public exa_vlcommand
 
  public:
 
-  exa_vldelete (int argc, char * argv []);
-  ~exa_vldelete ();
+  exa_vldelete ();
 
   static constexpr const char *name() { return "exa_vldelete"; }
 

@@ -24,9 +24,8 @@ const std::string exa_fscreate::OPT_ARG_TYPE_FSTYPE(Command::Boldify("FSTYPE"));
 const std::string exa_fscreate::OPT_ARG_NBJOURNALS_NB(Command::Boldify("NB"));
 const std::string exa_fscreate::OPT_ARG_RGSIZE_SIZE(Command::Boldify("SIZE"));
 
-exa_fscreate::exa_fscreate(int argc, char *argv[])
-    : exa_fscommand(argc, argv)
-    , sizeKB_uu64(0)
+exa_fscreate::exa_fscreate()
+    : sizeKB_uu64(0)
     , rg_sizeM(0)
     , nb_logs(-1)
 {}

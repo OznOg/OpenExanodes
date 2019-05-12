@@ -18,14 +18,9 @@ using std::string;
 const std::string exa_clnodestart::OPT_ARG_NODE_HOSTNAMES(Command::Boldify(
                                                               "HOSTNAMES"));
 
-exa_clnodestart::exa_clnodestart(int argc, char *argv[])
-    : exa_clcommand(argc, argv)
-    , node_expand("")
+exa_clnodestart::exa_clnodestart()
+    : node_expand("")
     , all_nodes(false)
-{}
-
-
-exa_clnodestart::~exa_clnodestart()
 {}
 
 void exa_clnodestart::init_options()

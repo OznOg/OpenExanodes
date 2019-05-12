@@ -19,11 +19,7 @@ protected:
 
     static const std::string ARG_CLUSTERNAME;
 
-    exa_clcommand(int argc, char *argv[]);
-
 public:
-
-    virtual ~exa_clcommand();
 
     static void check_name(const std::string &clname);
 

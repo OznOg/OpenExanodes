@@ -31,16 +31,6 @@ using std::string;
 const std::string exa_cllicense::OPT_ARG_FILENAME(Command::Boldify("FILENAME"));
 const std::string exa_cllicense::OPT_ARG_HOSTNAME(Command::Boldify("HOSTNAME"));
 
-exa_cllicense::exa_cllicense(int argc, char *argv[])
-    : exa_clcommand(argc, argv),
-    _license_file()
-{}
-
-
-exa_cllicense::~exa_cllicense()
-{}
-
-
 void exa_cllicense::init_options()
 {
     exa_clcommand::init_options();

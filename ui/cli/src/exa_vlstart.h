@@ -20,8 +20,7 @@ class exa_vlstart : public exa_vlcommand
 
     static const std::string OPT_ARG_NODE_HOSTNAMES;
 
-  exa_vlstart (int argc, char * argv []);
-  ~exa_vlstart ();
+  exa_vlstart ();
 
   static constexpr const char *name() { return "exa_vlstart"; }
 

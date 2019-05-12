@@ -59,9 +59,8 @@ typedef enum display_style_t
 
 const std::string exa_clstats::OPT_ARG_WRAPPING_N(Command::Boldify("N"));
 
-exa_clstats::exa_clstats(int argc, char *argv[])
-    : exa_clcommand(argc, argv)
-    , reset(false)
+exa_clstats::exa_clstats()
+    : reset(false)
     , display_style(STAT_GLOBAL | STAT_VOLUME | STAT_NDEV | STAT_VOL_ERR |
                     STAT_NDEV_ERR)
     , wrapping_in_nodes(EXA_CLI_MAX_NODE_PER_LINE)

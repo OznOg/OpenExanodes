@@ -138,9 +138,8 @@ struct exa_cmp_xmlnode_fs_lt
     }
 };
 
-exa_clinfo::exa_clinfo(int argc, char *argv[])
-    : exa_clcommand(argc, argv)
-    , volumes_info(true)
+exa_clinfo::exa_clinfo()
+    : volumes_info(true)
     , groups_info(true)
     , disks_info(true)
 #ifdef WITH_FS
@@ -154,10 +153,6 @@ exa_clinfo::exa_clinfo(int argc, char *argv[])
     , force_kilo(false)
     , display_group_config(false)
     , iscsi_details(false)
-{}
-
-
-exa_clinfo::~exa_clinfo()
 {}
 
 void exa_clinfo::init_options()

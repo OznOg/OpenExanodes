@@ -14,14 +14,9 @@
 
 using std::string;
 
-exa_vldelete::exa_vldelete(int argc, char *argv[])
-    : exa_vlcommand(argc, argv)
-    , nofscheck(false)
+exa_vldelete::exa_vldelete()
+    : nofscheck(false)
     , metadata_recovery(false)
-{}
-
-
-exa_vldelete::~exa_vldelete()
 {}
 
 void exa_vldelete::init_options()

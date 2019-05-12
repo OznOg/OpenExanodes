@@ -20,14 +20,6 @@ const std::string exa_dgdiskrecover::OPT_ARG_OLD_DISK_UUID(Command::Boldify(
 const std::string exa_dgdiskrecover::OPT_ARG_NEW_DISK_UUID(Command::Boldify(
                                                                "UUID2"));
 
-exa_dgdiskrecover::exa_dgdiskrecover(int argc, char *argv[])
-    : exa_dgcommand(argc, argv)
-{}
-
-
-exa_dgdiskrecover::~exa_dgdiskrecover()
-{}
-
 void exa_dgdiskrecover::init_options()
 {
     exa_dgcommand::init_options();

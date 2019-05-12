@@ -14,14 +14,9 @@
 
 using std::string;
 
-exa_dgdelete::exa_dgdelete(int argc, char *argv[])
-    : exa_dgcommand(argc, argv)
-    , _forcemode(false)
+exa_dgdelete::exa_dgdelete()
+    : _forcemode(false)
     , _recursive(false)
-{}
-
-
-exa_dgdelete::~exa_dgdelete()
 {}
 
 void exa_dgdelete::init_options()

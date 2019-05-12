@@ -17,16 +17,6 @@
 
 using std::string;
 
-exa_cldelete::exa_cldelete(int argc, char *argv[])
-    : exa_clcommand(argc, argv)
-    , _forcemode(false)
-    , _recursive(false)
-{}
-
-
-exa_cldelete::~exa_cldelete()
-{}
-
 void exa_cldelete::init_options()
 {
     exa_clcommand::init_options();

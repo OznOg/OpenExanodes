@@ -19,15 +19,10 @@ const std::string exa_fscommand::ARG_FILESYSTEM_GROUPNAME(Command::Boldify(
 const std::string exa_fscommand::ARG_FILESYSTEM_FSNAME(Command::Boldify(
                                                            "FSNAME"));
 
-exa_fscommand::exa_fscommand(int argc, char *argv[])
-    : Command(argc, argv)
-    , _cluster_name("")
+exa_fscommand::exa_fscommand()
+    : _cluster_name("")
     , _group_name("")
     , _fs_name("")
-{}
-
-
-exa_fscommand::~exa_fscommand()
 {}
 
 void exa_fscommand::init_options()

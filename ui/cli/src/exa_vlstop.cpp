@@ -17,15 +17,10 @@ using std::string;
 const std::string exa_vlstop::OPT_ARG_NODE_HOSTNAMES(Command::Boldify(
                                                          "HOSTNAMES"));
 
-exa_vlstop::exa_vlstop(int argc, char *argv[])
-    : exa_vlcommand(argc, argv)
-    , nofscheck(false)
+exa_vlstop::exa_vlstop()
+    : nofscheck(false)
     , force(false)
     , allnodes(true)
-{}
-
-
-exa_vlstop::~exa_vlstop()
 {}
 
 void exa_vlstop::init_options()

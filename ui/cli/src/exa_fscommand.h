@@ -21,11 +21,9 @@ protected:
     static const std::string ARG_FILESYSTEM_GROUPNAME;
     static const std::string ARG_FILESYSTEM_FSNAME;
 
-    exa_fscommand(int argc, char *argv[]);
+    exa_fscommand();
 
 public:
-
-    virtual ~exa_fscommand();
 
     static void check_name(const std::string &fsname);
 

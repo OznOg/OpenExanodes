@@ -21,9 +21,6 @@ protected:
     static const std::string ARG_DISKGROUP_GROUPNAME;
 
 public:
-    exa_dgcommand(int argc, char *argv[]);
-
-    virtual ~exa_dgcommand() = default;
 
     static void check_name(const std::string &dgname);
 
