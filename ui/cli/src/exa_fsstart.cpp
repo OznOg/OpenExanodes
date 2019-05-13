@@ -22,12 +22,7 @@ exa_fsstart::exa_fsstart()
     : allnodes(false)
     , mount_point("")
     , read_only(false)
-{}
-
-void exa_fsstart::init_options()
 {
-    exa_fscommand::init_options();
-
     add_option('n', "node", "Specify the nodes on which to start this file "
                "system. This option is a regular expansion (see exa_expand).",
                1, false, true, OPT_ARG_NODE_HOSTNAMES);

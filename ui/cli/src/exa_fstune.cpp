@@ -24,12 +24,7 @@ const std::string exa_fstune::ARG_PARAMETER_VALUE(Command::Boldify("VALUE"));
 
 exa_fstune::exa_fstune()
     : _display_params(false)
-{}
-
-void exa_fstune::init_options()
 {
-    exa_fscommand::init_options();
-
     add_option('l', "list", "Display all parameters and their current values.",
                1, false, false);
 

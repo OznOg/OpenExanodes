@@ -15,7 +15,7 @@ class exa_dgcheck : public exa_dgcommand
 public:
     static constexpr const char *name() { return "exa_dgcheck"; }
 
-    void init_options();
+    exa_dgcheck();
     void init_see_alsos();
 
     void run();

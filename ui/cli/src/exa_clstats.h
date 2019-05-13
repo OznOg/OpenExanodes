@@ -20,7 +20,6 @@ public:
 
   static constexpr const char *name() { return "exa_clstats"; }
 
-  void init_options();
   void init_see_alsos();
 
     void run();

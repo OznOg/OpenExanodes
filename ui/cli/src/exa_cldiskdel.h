@@ -22,7 +22,7 @@ public:
 
     static constexpr const char *name() { return "exa_cldiskdel"; }
 
-    void init_options();
+    exa_cldiskdel();
     void init_see_alsos();
 
     void run();

@@ -16,10 +16,8 @@ const std::string exa_dgcommand::ARG_DISKGROUP_CLUSTERNAME(Command::Boldify(
 const std::string exa_dgcommand::ARG_DISKGROUP_GROUPNAME(Command::Boldify(
                                                              "GROUPNAME"));
 
-void exa_dgcommand::init_options()
+exa_dgcommand::exa_dgcommand()
 {
-    Command::init_options();
-
     add_option('T', "timeout", "Max time for command to execute in seconds "
                "(0:infinite)", 0, false, true, TIMEOUT_ARG_NAME, "0");
     add_option('C', "no-color", "Disable color usage in terminal", 0, false,

@@ -24,15 +24,10 @@ public:
     static const std::string OPT_ARG_LAYOUT_SSTRIPING;
     static const std::string OPT_ARG_LAYOUT_RAINX;
 
-    exa_dgcreate()
-        : startgroup(false)
-          , alldisks(false)
-          , nb_spare(-1)
-    {}
+    exa_dgcreate();
 
     static constexpr const char *name() { return "exa_dgcreate"; }
 
-    void init_options();
     void init_see_alsos();
 
     void run();

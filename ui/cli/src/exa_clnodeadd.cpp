@@ -49,13 +49,7 @@ exa_clnodeadd::exa_clnodeadd()
     , _node_name("")
     , _disks("")
     , _datanetwork("")
-{}
-
-
-void exa_clnodeadd::init_options()
 {
-    exa_clcommand::init_options();
-
     add_option('c', "config", "Specify the initialization file.", 1, true, true,
                OPT_ARG_CONFIG_FILE);
     add_option('n', "node", "Specify the hostname of the node to add.", 1,

@@ -19,10 +19,8 @@ const std::string exa_dgdiskadd::OPT_ARG_DISK_HOSTNAME(Command::Boldify(
                                                            "HOSTNAME"));
 const std::string exa_dgdiskadd::OPT_ARG_DISK_PATH(Command::Boldify("PATH"));
 
-void exa_dgdiskadd::init_options()
+exa_dgdiskadd::exa_dgdiskadd()
 {
-    exa_dgcommand::init_options();
-
     add_option('i', "disk", "Specify disk to add.", 1, false, true,
                OPT_ARG_DISK_HOSTNAME + EXA_CONF_SEPARATOR + OPT_ARG_DISK_PATH);
 }

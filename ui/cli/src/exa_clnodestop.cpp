@@ -27,12 +27,7 @@ exa_clXstop<is_clstop>::exa_clXstop()
     , recursive(false)
     , node_expand("")
     , ignore_offline(false)
-{}
-
-template <bool is_clstop>
-void exa_clXstop<is_clstop>::init_options()
 {
-    exa_clcommand::init_options();
 
     if (!is_clstop)
     {

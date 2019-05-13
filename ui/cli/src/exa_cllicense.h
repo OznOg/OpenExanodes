@@ -19,7 +19,7 @@ public:
 
     static constexpr const char *name() { return "exa_cllicense"; }
 
-    void init_options();
+    exa_cllicense();
     void init_see_alsos();
 
     void run();

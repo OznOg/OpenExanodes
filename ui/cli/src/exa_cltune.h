@@ -25,7 +25,6 @@ public:
 
   static constexpr const char *name() { return "exa_cltune"; }
 
-  void init_options();
   void init_see_alsos();
 
   void run();

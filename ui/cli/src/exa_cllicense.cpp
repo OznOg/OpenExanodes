@@ -31,10 +31,8 @@ using std::string;
 const std::string exa_cllicense::OPT_ARG_FILENAME(Command::Boldify("FILENAME"));
 const std::string exa_cllicense::OPT_ARG_HOSTNAME(Command::Boldify("HOSTNAME"));
 
-void exa_cllicense::init_options()
+exa_cllicense::exa_cllicense()
 {
-    exa_clcommand::init_options();
-
     add_option('s', "set-license",
                "Deploy a new license on all the nodes of the cluster.",
                1, false, true, OPT_ARG_FILENAME);

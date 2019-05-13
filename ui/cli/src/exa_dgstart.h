@@ -15,8 +15,6 @@ class exa_dgstart final : public exa_dgcommand
 
  public:
 
-  using exa_dgcommand::init_options;
-
   static constexpr const char *name() { return "exa_dgstart"; } 
   void init_see_alsos() override;
 

@@ -35,7 +35,6 @@ public:
 
     static constexpr const char *name() { return "exa_vltune"; }
 
-    void init_options(void);
     void init_see_alsos(void);
 
     void run(void);

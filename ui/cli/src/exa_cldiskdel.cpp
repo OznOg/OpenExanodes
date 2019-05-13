@@ -20,10 +20,8 @@ const std::string exa_cldiskdel::OPT_ARG_DISK_HOSTNAME(Command::Boldify(
 const std::string exa_cldiskdel::OPT_ARG_DISK_PATH(Command::Boldify("PATH"));
 const std::string exa_cldiskdel::OPT_ARG_DISK_UUID(Command::Boldify("UUID"));
 
-void exa_cldiskdel::init_options()
+exa_cldiskdel::exa_cldiskdel()
 {
-    exa_clcommand::init_options();
-
     add_option('i', "disk", "The node and the path of the disk to remove.",
                1, false, true, OPT_ARG_DISK_HOSTNAME + EXA_CONF_SEPARATOR +
                OPT_ARG_DISK_PATH);

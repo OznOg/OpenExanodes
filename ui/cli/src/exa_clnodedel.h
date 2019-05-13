@@ -20,7 +20,7 @@ public:
 
     static constexpr const char *name() { return "exa_clnodedel"; }
 
-    void init_options();
+    exa_clnodedel();
     void init_see_alsos();
 
     void run();

@@ -21,7 +21,6 @@ test_command_parsing_ok(int argc, char *argv[])
         to_display << " " << const_cast<const char*>(argv[i]);
 
     T command;
-    command.init_options();
     command.init_see_alsos();
 
     try
@@ -51,7 +50,6 @@ test_command_parsing_fail(int argc, char *argv[])
         to_display << " " << const_cast<const char*>(argv[i]);
 
     T command;
-    command.init_options();
     command.init_see_alsos();
 
     try

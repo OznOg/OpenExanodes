@@ -21,12 +21,7 @@ const std::string exa_clnodestart::OPT_ARG_NODE_HOSTNAMES(Command::Boldify(
 exa_clnodestart::exa_clnodestart()
     : node_expand("")
     , all_nodes(false)
-{}
-
-void exa_clnodestart::init_options()
 {
-    exa_clcommand::init_options();
-
     add_option('n', "node", "Specify the nodes to start.", 1, false, true,
                OPT_ARG_NODE_HOSTNAMES);
     add_option('a', "all", "Start all nodes of the cluster.", 1, false, false);

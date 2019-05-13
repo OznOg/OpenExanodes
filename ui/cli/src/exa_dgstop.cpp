@@ -16,11 +16,7 @@ using std::string;
 exa_dgstop::exa_dgstop()
     : _recursive(false)
     , _force(false)
-{}
-
-void exa_dgstop::init_options()
 {
-    exa_dgcommand::init_options();
 
     add_option('r', "recursive", "Recursively stop the volumes"
 #ifdef WITH_FS

@@ -17,11 +17,7 @@ const std::string exa_unexpand::ARG_STRING(Command::Boldify("STRING"));
 
 exa_unexpand::exa_unexpand()
     : _request("")
-{}
-
-void exa_unexpand::init_options()
 {
-    Command::init_options();
     add_arg(ARG_STRING, 10, false, "", true);
 }
 

@@ -23,12 +23,7 @@ exa_vlstart::exa_vlstart() :
 #endif
      allnodes(true)
     , readonly(false)
-{}
-
-void exa_vlstart::init_options()
 {
-    exa_vlcommand::init_options();
-
 #ifdef WITH_BDEV
     add_option('r', "read-only",
                "Do not allow writes on this volume for specified nodes.",

@@ -16,9 +16,8 @@ using std::string;
 
 const std::string exa_expand::ARG_STRING(Command::Boldify("STRING"));
 
-void exa_expand::init_options()
+exa_expand::exa_expand()
 {
-    Command::init_options();
     add_arg(ARG_STRING, 10, false, "", true);
 }
 

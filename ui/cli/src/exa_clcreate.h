@@ -27,7 +27,7 @@ class exa_clcreate : public exa_clcommand
     static const std::string OPT_ARG_SPOFGROUP;
 
   static constexpr const char *name() { return "exa_clcreate"; }
-  void init_options();
+  exa_clcreate();
   void init_see_alsos();
 
   void run();

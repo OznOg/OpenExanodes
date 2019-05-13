@@ -28,13 +28,7 @@ exa_fscreate::exa_fscreate()
     : sizeKB_uu64(0)
     , rg_sizeM(0)
     , nb_logs(-1)
-{}
-
-
-void exa_fscreate::init_options()
 {
-    exa_fscommand::init_options();
-
     add_option('m', "mountpoint", "Mountpoint directory to be used on your "
                "nodes.", 1, false, true, OPT_ARG_MOUNTPOINT_PATH);
     add_option('t', "type", "File system type. Supported file systems are:\n"

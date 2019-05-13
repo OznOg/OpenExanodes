@@ -22,7 +22,6 @@ public:
 
     static constexpr const char *name() { return "exa_fstune"; }
 
-    void init_options();
     void init_see_alsos();
 
     void run();

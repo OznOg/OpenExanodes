@@ -17,12 +17,7 @@ using std::string;
 exa_vldelete::exa_vldelete()
     : nofscheck(false)
     , metadata_recovery(false)
-{}
-
-void exa_vldelete::init_options()
 {
-    exa_vlcommand::init_options();
-
     add_option('M', "metadata-recovery", "Force deletion after a failure "
                "during an exa_vlcreate.", 0, false, false);
 

@@ -19,12 +19,7 @@ const std::string exa_fsresize::OPT_ARG_SIZE_SIZE(Command::Boldify("SIZE"));
 exa_fsresize::exa_fsresize()
     : sizeKB_uu64(0)
     , size_max(false)
-{}
-
-void exa_fsresize::init_options()
 {
-    exa_fscommand::init_options();
-
     add_option('s', "size", "The new size, with a unit symbol like in 10G. "
                "The unit can be one char of K, M, G, T, P, E (For Kibi, Mebi, "
                "Gibi, Tebi, Pebi, Exbi). The decimal point is accepted like in "

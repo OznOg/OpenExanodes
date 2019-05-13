@@ -22,12 +22,7 @@ exa_fscheck::exa_fscheck()
     : _node("")
     , _repair(false)
     , _parameters("")
-{}
-
-void exa_fscheck::init_options()
 {
-    exa_fscommand::init_options();
-
     add_option('n', "node", "Node to check the filesystem on. If not specified "
                "a node will be chosen automatically.", 0, false, true,
                OPT_ARG_NODE_HOSTNAME);

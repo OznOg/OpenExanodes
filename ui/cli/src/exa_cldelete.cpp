@@ -17,10 +17,8 @@
 
 using std::string;
 
-void exa_cldelete::init_options()
+exa_cldelete::exa_cldelete() : _forcemode(false) , _recursive(false)
 {
-    exa_clcommand::init_options();
-
     /* short_opt, long_opt, description, mandatory, arg_expected, default_value */
     add_option('r', "recursive",
 #ifdef WITH_FS

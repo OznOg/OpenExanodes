@@ -22,7 +22,7 @@ class exa_clreconnect : public exa_clcommand
 
   static constexpr const char *name() { return "exa_clreconnect"; }
 
-  void init_options();
+  exa_clreconnect();
   void init_see_alsos();
 
   void run();

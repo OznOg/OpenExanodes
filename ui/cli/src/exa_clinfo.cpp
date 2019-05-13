@@ -153,12 +153,7 @@ exa_clinfo::exa_clinfo()
     , force_kilo(false)
     , display_group_config(false)
     , iscsi_details(false)
-{}
-
-void exa_clinfo::init_options()
 {
-    exa_clcommand::init_options();
-
     add_option('g', "group", "Display only groups information.",
                0, false, false);
     add_option('G', "group-config", "Display internal configuration of groups",

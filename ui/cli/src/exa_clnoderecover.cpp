@@ -25,10 +25,8 @@ using std::shared_ptr;
 const std::string exa_clnoderecover::OPT_ARG_NODE_HOSTNAMES(Command::Boldify(
                                                                 "HOSTNAMES"));
 
-void exa_clnoderecover::init_options()
+exa_clnoderecover::exa_clnoderecover()
 {
-    exa_clcommand::init_options();
-
     add_option('n', "node", "Specify the node(s) to recover.", 1, false, true,
                OPT_ARG_NODE_HOSTNAMES);
     add_option('j', "join", "Request a recovery of Exanodes configuration.",

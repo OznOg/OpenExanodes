@@ -16,12 +16,7 @@ using std::string;
 
 exa_fsdelete::exa_fsdelete()
     : metadata_recovery(false)
-{}
-
-void exa_fsdelete::init_options()
 {
-    exa_fscommand::init_options();
-
     add_option('M', "metadata-recovery",
                "Force deletion after a failure during an exa_fscreate.",
                0, false, false);

@@ -38,13 +38,7 @@ const std::string exa_cltune::ARG_PARAMETER_VALUE(Command::Boldify("VALUE"));
 exa_cltune::exa_cltune()
     : display_params(false)
     , verbose(false)
-{}
-
-
-void exa_cltune::init_options()
 {
-    exa_clcommand::init_options();
-
     add_option('V', "verbose", "When listing parameters, show their "
                "description.", 0, false, false);
 

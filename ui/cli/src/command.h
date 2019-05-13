@@ -64,16 +64,7 @@ class Command
 {
 public:
 
-    Command()
-        : _options()
-          , _args()
-          , _param_groups()
-          , _see_also()
-          , _show_hidden(true)
-          , _timeout(0)
-          , _in_progress_hidden(true)
-    {}
-
+    Command();
 
     virtual ~Command() = default;
 
@@ -113,7 +104,6 @@ public:
 
     /* FIXME These methods shouldn't be public, but it will do for now
      * (instead, the factory should be friend, etc)*/
-    virtual void init_options() = 0;
     virtual void init_see_alsos() = 0;
     void parse(int _argc, char *_argv[]);
 

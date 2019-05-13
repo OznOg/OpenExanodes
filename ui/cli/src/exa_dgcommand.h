@@ -20,13 +20,12 @@ protected:
     static const std::string ARG_DISKGROUP_CLUSTERNAME;
     static const std::string ARG_DISKGROUP_GROUPNAME;
 
+    exa_dgcommand();
 public:
 
     static void check_name(const std::string &dgname);
 
 protected:
-
-    virtual void init_options();
 
     virtual void parse_non_opt_args(const std::vector<std::string> &non_opt_args);
 

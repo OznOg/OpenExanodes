@@ -19,10 +19,8 @@ using std::string;
 const std::string exa_clreconnect::OPT_ARG_NODE_HOSTNAME(Command::Boldify(
                                                              "HOSTNAME"));
 
-void exa_clreconnect::init_options()
+exa_clreconnect::exa_clreconnect()
 {
-    exa_clcommand::init_options();
-
     add_option('n', "node", "One of the nodes of the cluster.", 1, false, true,
                OPT_ARG_NODE_HOSTNAME);
 }

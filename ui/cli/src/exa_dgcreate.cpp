@@ -45,10 +45,11 @@ const std::string exa_dgcreate::OPT_ARG_LAYOUT_SSTRIPING(Command::Boldify(
 const std::string exa_dgcreate::OPT_ARG_LAYOUT_RAINX(Command::Boldify(
                                                          RAINX_NAME));
 
-void exa_dgcreate::init_options()
+exa_dgcreate::exa_dgcreate()
+        : startgroup(false)
+          , alldisks(false)
+          , nb_spare(-1)
 {
-    exa_dgcommand::init_options();
-
     add_option('i', "disk", "Specify the nodes and disks to use.", 1, false,
                true, OPT_ARG_DISK_HOSTNAMES + EXA_CONF_SEPARATOR +
                OPT_ARG_DISK_PATH);

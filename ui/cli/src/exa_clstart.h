@@ -16,7 +16,7 @@ public:
 
     static constexpr const char *name() { return "exa_clstart"; }
 
-    void init_options();
+    exa_clstart();
     void init_see_alsos();
 
     void run();

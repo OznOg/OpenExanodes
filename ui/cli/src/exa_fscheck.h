@@ -19,11 +19,10 @@ class exa_fscheck : public exa_fscommand
     static const std::string OPT_ARG_NODE_HOSTNAME;
     static const std::string OPT_ARG_PARAMETERS_STRING;
 
-  exa_fscheck ();
+  exa_fscheck();
 
   static constexpr const char *name() { return "exa_fscheck"; }
 
-  void init_options();
   void init_see_alsos();
 
   void run();

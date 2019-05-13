@@ -50,12 +50,7 @@ exa_makeconfig::exa_makeconfig()
     : want_group(false)
     , group_id(DEFAULT_NUMBER_OF_GROUP)
     , number_of_group(DEFAULT_NUMBER_OF_GROUP)
-{}
-
-void exa_makeconfig::init_options()
 {
-    Command::init_options();
-
     add_option('c', "cluster", "Name of the cluster to create.",
                1, false, true, OPT_ARG_CLUSTER_CLUSTERNAME);
 

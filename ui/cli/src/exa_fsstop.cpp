@@ -20,12 +20,7 @@ const std::string exa_fsstop::OPT_ARG_NODE_HOSTNAMES(Command::Boldify(
 exa_fsstop::exa_fsstop()
     : allnodes(false)
     , forcemode(false)
-{}
-
-void exa_fsstop::init_options()
 {
-    exa_fscommand::init_options();
-
     add_option('n', "node", "Specify the nodes on which to stop this file "
                "system. This option is a regular expansion (see exa_expand).",
                1, false, true, OPT_ARG_NODE_HOSTNAMES);

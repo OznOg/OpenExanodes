@@ -36,7 +36,6 @@ public:
             return nullptr;
         auto cmd = it->second();
         if (cmd != nullptr) {
-            cmd->init_options();
             cmd->init_see_alsos();
         }
         return cmd;

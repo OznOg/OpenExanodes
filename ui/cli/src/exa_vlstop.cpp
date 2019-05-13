@@ -21,12 +21,7 @@ exa_vlstop::exa_vlstop()
     : nofscheck(false)
     , force(false)
     , allnodes(true)
-{}
-
-void exa_vlstop::init_options()
 {
-    exa_vlcommand::init_options();
-
 #ifdef WITH_BDEV
     add_option('n', "node", "Specify the nodes on which to stop this volume, "
                "for bdev volumes. This option is a regular expansion (see "

@@ -17,10 +17,9 @@ class exa_cldelete : public exa_clcommand
 
  public:
 
-  exa_cldelete() : _forcemode(false) , _recursive(false) {}
+  exa_cldelete();
 
   static constexpr const char *name() { return "exa_cldelete"; }
-  void init_options();
   void init_see_alsos();
 
   void run();

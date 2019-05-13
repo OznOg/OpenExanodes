@@ -33,10 +33,8 @@ exa_clmonitorstart::exa_clmonitorstart(int argc, char *argv[])
 {}
 
 
-void exa_clmonitorstart::init_options()
+exa_clmonitorstart::exa_clmonitorstart()
 {
-    exa_clcommand::init_options();
-
     add_option('s', "snmpdhost", "Specify the host on which snmpd is running.",
                1, false, true, OPT_ARG_SNMPDHOST_HOST);
     add_option('p', "snmpdport", "Specify the port on which snmpd is listening.",

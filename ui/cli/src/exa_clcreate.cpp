@@ -63,10 +63,8 @@ const std::string exa_clcreate::OPT_ARG_LICENSE_FILE(Command::Boldify("FILE"));
 const std::string exa_clcreate::OPT_ARG_DATANETWORK_HOSTNAME(Command::Boldify(
                                                                  "HOSTNAME"));
 
-void exa_clcreate::init_options()
+exa_clcreate::exa_clcreate()
 {
-    exa_clcommand::init_options();
-
     add_option('c', "config", "Specify the initialization file.",
                1, true, true, OPT_ARG_CONFIG_FILE, "1");
 

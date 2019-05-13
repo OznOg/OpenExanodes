@@ -15,7 +15,7 @@ class exa_dgreset : public exa_dgcommand
 public:
     static constexpr const char *name() { return "exa_dgreset"; }
 
-    void init_options();
+    exa_dgreset();
     void init_see_alsos();
 
     void run();

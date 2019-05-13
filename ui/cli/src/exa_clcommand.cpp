@@ -11,10 +11,8 @@
 
 const std::string exa_clcommand::ARG_CLUSTERNAME(Command::Boldify("CLUSTERNAME"));
 
-void exa_clcommand::init_options()
+exa_clcommand::exa_clcommand()
 {
-    Command::init_options();
-
     add_option('T', "timeout", "Max time for command to execute in seconds"
                                " (0:infinite)", 0, false, true,
                TIMEOUT_ARG_NAME, "0");

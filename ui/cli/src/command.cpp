@@ -152,7 +152,14 @@ void Line::output_info(Exabase &exa, bool error,
 
 
 
-void Command::init_options()
+Command::Command()
+        : _options()
+          , _args()
+          , _param_groups()
+          , _see_also()
+          , _show_hidden(true)
+          , _timeout(0)
+          , _in_progress_hidden(true)
 {
     add_option('h', "help", "Display this help and exit.", 0, false, false);
     add_option('H', "HELP", "Display expert help", 0, true, false);

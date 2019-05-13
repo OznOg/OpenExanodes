@@ -20,7 +20,7 @@ class exa_dgdiskrecover : public exa_dgcommand
 
     static constexpr const char *name() { return "exa_dgdiskrecover"; }
 
-    void init_options();
+    exa_dgdiskrecover();
     void init_see_alsos();
 
     void run();

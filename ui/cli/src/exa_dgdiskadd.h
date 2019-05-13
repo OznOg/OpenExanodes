@@ -21,7 +21,7 @@ class exa_dgdiskadd : public exa_dgcommand
 
     static constexpr const char *name() { return "exa_dgdiskadd"; }
 
-    void init_options();
+    exa_dgdiskadd();
     void init_see_alsos();
 
     void run();

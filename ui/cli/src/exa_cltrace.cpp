@@ -35,13 +35,8 @@ exa_cltrace::exa_cltrace()
     , level_index(-1)
 {
     sort_components();
-}
-
-void exa_cltrace::init_options()
-{
+    
     std::set<int> groups;
-
-    exa_clcommand::init_options();
 
     groups.insert(1);
     groups.insert(2);

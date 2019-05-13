@@ -34,12 +34,7 @@ exa_vlcreate::exa_vlcreate()
     , size_max(false)
     , lun(-1)
     , readahead(-1)
-{}
-
-void exa_vlcreate::init_options()
 {
-    exa_vlcommand::init_options();
-
 #ifdef WITH_BDEV
     add_option('x', "export-method", "Specify the method (bdev or iSCSI) "
                "through which to export this volume.", 2, false, true,

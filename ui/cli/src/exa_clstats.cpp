@@ -64,13 +64,7 @@ exa_clstats::exa_clstats()
     , display_style(STAT_GLOBAL | STAT_VOLUME | STAT_NDEV | STAT_VOL_ERR |
                     STAT_NDEV_ERR)
     , wrapping_in_nodes(EXA_CLI_MAX_NODE_PER_LINE)
-{}
-
-
-void exa_clstats::init_options()
 {
-    exa_clcommand::init_options();
-
     add_option('r', "reset", "Reset the statistics counters. The next call to "
                "exa_clstats will show statistics from that time.", 0, false,
                false);

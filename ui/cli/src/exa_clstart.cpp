@@ -15,9 +15,8 @@
 using std::shared_ptr;
 using std::string;
 
-void exa_clstart::init_options()
+exa_clstart::exa_clstart()
 {
-    exa_clcommand::init_options();
 }
 
 

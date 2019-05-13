@@ -19,10 +19,8 @@ const std::string exa_vlcommand::ARG_VOLUME_GROUPNAME(Command::Boldify(
 const std::string exa_vlcommand::ARG_VOLUME_VOLUMENAME(Command::Boldify(
                                                            "VOLUME"));
 
-void exa_vlcommand::init_options()
+exa_vlcommand::exa_vlcommand()
 {
-    Command::init_options();
-
     add_option('T', "timeout", "Max time for command to execute in seconds "
                "(0:infinite)", 0, false, true, TIMEOUT_ARG_NAME, "0");
     add_option('C', "no-color", "Disable color usage in terminal", 0, false,

@@ -25,7 +25,6 @@ public:
 
     static constexpr const char *name() { return "exa_vlcreate"; }
 
-    void init_options();
     void init_see_alsos();
 
     void run();

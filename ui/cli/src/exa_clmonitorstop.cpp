@@ -19,9 +19,8 @@
 
 using std::string;
 
-void exa_clmonitorstop::init_options()
+exa_clmonitorstop::exa_clmonitorstop()
 {
-    exa_clcommand::init_options();
 }
 
 

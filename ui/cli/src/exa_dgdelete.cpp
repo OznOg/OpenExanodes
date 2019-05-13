@@ -17,12 +17,7 @@ using std::string;
 exa_dgdelete::exa_dgdelete()
     : _forcemode(false)
     , _recursive(false)
-{}
-
-void exa_dgdelete::init_options()
 {
-    exa_dgcommand::init_options();
-
     add_option('r', "recursive", "Recursively delete the volumes"
 #ifdef WITH_FS
                " and file systems"

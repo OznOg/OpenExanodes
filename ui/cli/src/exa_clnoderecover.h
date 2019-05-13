@@ -20,7 +20,7 @@ public:
 
     static constexpr const char *name() { return "exa_clnoderecover"; }
 
-    void init_options();
+    exa_clnoderecover();
     void init_see_alsos();
 
     void run();

@@ -29,8 +29,6 @@ public:
 
 protected:
 
-    virtual void init_options();
-
     virtual void parse_opt_args(const std::map<char, std::string> &opt_args) = 0;
     virtual void parse_non_opt_args(const std::vector<std::string> &non_opt_args);
 

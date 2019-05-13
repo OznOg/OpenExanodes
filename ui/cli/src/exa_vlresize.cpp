@@ -24,12 +24,7 @@ exa_vlresize::exa_vlresize()
     : nofscheck(false)
     , sizeKB_uu64(0)
     , size_max(false)
-{}
-
-void exa_vlresize::init_options()
 {
-    exa_vlcommand::init_options();
-
     add_option('s', "size", "The new size, with a unit symbol like in 10G. The "
                "unit can be one char of K, M, G, T, P, E (For Kibi, Mebi, "
                "Gibi, Tebi, Pebi, Exbi). The decimal point is accepted like in "

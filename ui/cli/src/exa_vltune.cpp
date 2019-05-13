@@ -33,12 +33,7 @@ exa_vltune::exa_vltune()
 #endif
     _vltune_mode(VLTUNE_NONE)
     , verbose(false)
-{}
-
-void exa_vltune::init_options()
 {
-    exa_vlcommand::init_options();
-
     std::set<int> exclude_all;
     exclude_all.insert(1);
     exclude_all.insert(2);
