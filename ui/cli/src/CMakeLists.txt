@@ -40,7 +40,6 @@ set(EXA_CLI_COMMON_SOURCES
     exa_clnoderecover.cpp
     exa_clstart.cpp
     exa_clstats.cpp
-    exa_clstop.cpp
     exa_cltrace.cpp
     exa_cltune.cpp
     exa_dgcreate.cpp

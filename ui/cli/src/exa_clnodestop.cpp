@@ -16,29 +16,25 @@
 
 using std::string;
 
-const std::string exa_clnodestop::OPT_ARG_NODE_HOSTNAMES(Command::Boldify(
+template <bool is_clstop>
+const std::string exa_clXstop<is_clstop>::OPT_ARG_NODE_HOSTNAMES(Command::Boldify(
                                                              "HOSTNAMES"));
 
-exa_clnodestop::exa_clnodestop()
-    : all_nodes(false)
+template <bool is_clstop>
+exa_clXstop<is_clstop>::exa_clXstop()
+    : all_nodes(is_clstop)
     , force(false)
     , recursive(false)
     , node_expand("")
     , ignore_offline(false)
 {}
 
-void exa_clnodestop::init_options()
+template <bool is_clstop>
+void exa_clXstop<is_clstop>::init_options()
 {
     exa_clcommand::init_options();
 
-    /* FIXME At this point, all_nodes can only be true if set by the
-     * constructor. Which is the case *iff* called from class clstop
-     * (which inherits this class).
-     * It is an ugly workaround to avoid having options -n and -a creep
-     * up in clstop, where they do not belong (even more so since they
-     * are mandatory).
-     */
-    if (!all_nodes)
+    if (!is_clstop)
     {
         add_option('n', "node", "Specify the nodes to stop.", 1, false, true,
                    OPT_ARG_NODE_HOSTNAMES);
@@ -63,7 +59,8 @@ void exa_clnodestop::init_options()
 }
 
 
-void exa_clnodestop::init_see_alsos()
+template <>
+void exa_clXstop<false>::init_see_alsos()
 {
     add_see_also("exa_expand");
     add_see_also("exa_clnodeadd");
@@ -71,6 +68,19 @@ void exa_clnodestop::init_see_alsos()
     add_see_also("exa_clnodestart");
     add_see_also("exa_clnoderecover");
 }
+
+template <>
+void exa_clXstop<true>::init_see_alsos()
+{
+    add_see_also("exa_clcreate");
+    add_see_also("exa_cldelete");
+    add_see_also("exa_clstart");
+    add_see_also("exa_clinfo");
+    add_see_also("exa_clstats");
+    add_see_also("exa_cltune");
+    add_see_also("exa_clreconnect");
+}
+
 
 
 struct clnodestop_filter : private boost::noncopyable
@@ -214,7 +224,8 @@ struct clshutdown_filter : private boost::noncopyable
     }
 };
 
-void exa_clnodestop::run()
+template <bool is_clstop>
+void exa_clXstop<is_clstop>::run()
 {
     string err_msg;
     string msg_str;
@@ -224,7 +235,7 @@ void exa_clnodestop::run()
         throw CommandException(EXA_ERR_DEFAULT);
 
     std::set<std::string> nodelist;
-    if (all_nodes)
+    if (is_clstop || all_nodes)
     {
         /* An empty string means "all nodes". */
         nodelist = exa.get_nodenames();
@@ -298,31 +309,42 @@ void exa_clnodestop::run()
 }
 
 
-void exa_clnodestop::parse_opt_args(const std::map<char, std::string> &opt_args)
+template <bool is_clstop>
+void exa_clXstop<is_clstop>::parse_opt_args(const std::map<char, std::string> &opt_args)
 {
     exa_clcommand::parse_opt_args(opt_args);
 
-    if (opt_args.find('n') != opt_args.end())
-        node_expand = opt_args.find('n')->second;
-    if (opt_args.find('a') != opt_args.end())
-        all_nodes = true;
     if (opt_args.find('f') != opt_args.end())
         force = true;
     if (opt_args.find('r') != opt_args.end())
         recursive = true;
+
+    if (is_clstop)
+        return;
+
+    // nodestop specific
+    if (opt_args.find('n') != opt_args.end())
+        node_expand = opt_args.find('n')->second;
+    if (opt_args.find('a') != opt_args.end())
+        all_nodes = true;
     if (opt_args.find('i') != opt_args.end())
         ignore_offline = true;
 }
 
 
-void exa_clnodestop::dump_short_description(std::ostream &out,
+template <bool is_clstop>
+void exa_clXstop<is_clstop>::dump_short_description(std::ostream &out,
                                             bool show_hidden) const
 {
-    out << "Stop Exanodes on some nodes.";
+    if (is_clstop)
+        out << "Stop an Exanodes cluster.";
+    else
+        out << "Stop Exanodes on some nodes.";
 }
 
 
-void exa_clnodestop::dump_full_description(std::ostream &out,
+template <>
+void exa_clXstop<false>::dump_full_description(std::ostream &out,
                                            bool show_hidden) const
 {
     out << "Stop Exanodes on nodes " << OPT_ARG_NODE_HOSTNAMES <<
@@ -332,8 +354,44 @@ void exa_clnodestop::dump_full_description(std::ostream &out,
     " is a regular expansion (see exa_expand)." << std::endl;
 }
 
+template <>
+void exa_clXstop<true>::dump_full_description(std::ostream &out,
+                                       bool show_hidden) const
+{
+    out << "Stop the Exanodes cluster " << ARG_CLUSTERNAME <<
+    ". All the disk groups"
+#ifdef WITH_FS
+        << ", volumes and file systems"
+#else
+        << " and volumes"
+#endif
+        << " are also stopped but they keep their state"
+        <<
+    " property for the next exa_clstart. It means that if one or more disk "
+#ifdef WITH_FS
+        << "groups, volumes or file systems"
+#else
+        << "groups or volumes"
+#endif
+        << " are started, an exa_clstop followed "
+        << "by an exa_clstart will bring them back in the started state." <<
+    std::endl
+        << std::endl;
 
-void exa_clnodestop::dump_examples(std::ostream &out, bool show_hidden) const
+    out <<
+    "The --recursive option can also be used to set the stopped state on all disk groups"
+#ifdef WITH_FS
+        << ", volumes and file systems. "
+#else
+        << " and volumes. "
+#endif
+        << "In this case, the next exa_clstart will start the "
+        << "Exanodes cluster and nothing more." << std::endl;
+}
+
+
+template <>
+void exa_clXstop<false>::dump_examples(std::ostream &out, bool show_hidden) const
 {
     out << "Stop Exanodes on nodes " << Boldify("node2") << " and " << Boldify(
         "node3")
@@ -343,4 +401,26 @@ void exa_clnodestop::dump_examples(std::ostream &out, bool show_hidden) const
     out << std::endl;
 }
 
+template <>
+void exa_clXstop<true>::dump_examples(std::ostream &out, bool show_hidden) const
+{
+    out << "Stop the Exanodes cluster " << Boldify("mycluster") <<
+    ". If they are started disk groups"
+#ifdef WITH_FS
+        << ", volumes or file systems"
+#else
+        << " or volumes"
+#endif
+        << ", they will be bring back to the same state at "
+        << "the next exa_clstart:" << std::endl;
+    out << "  " << "exa_clstop mycluster" << std::endl;
+    out << std::endl;
+}
+
+
+
+// force instanciations
+
+template class exa_clXstop<true>;
+template class exa_clXstop<false>;
 

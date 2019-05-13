@@ -12,13 +12,14 @@
 #include "ui/cli/src/exa_clcommand.h"
 
 
-class exa_clnodestop: public exa_clcommand
+template <bool is_clstop>
+class exa_clXstop : public exa_clcommand
 {
 public:
 
     static const std::string OPT_ARG_NODE_HOSTNAMES;
 
-    exa_clnodestop();
+    exa_clXstop();
 
     static constexpr const char *name() { return "exa_clnodestop"; }
 
@@ -45,7 +46,11 @@ private:
 };
 
 
+template <>
+constexpr const char *exa_clXstop<true>::name() { return "exa_clstop"; }
 
+
+using exa_clnodestop = exa_clXstop<false>;
 
 
 #endif /* __EXA_CLNODESTOP_H__ */
