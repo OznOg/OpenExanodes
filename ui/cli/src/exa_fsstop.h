@@ -21,7 +21,6 @@ class exa_fsstop : public exa_fscommand
 
   static constexpr const char *name() { return "exa_fsstop"; }
 
-  void init_see_alsos();
 
   void run();
 

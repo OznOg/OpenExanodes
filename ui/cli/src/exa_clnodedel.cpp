@@ -22,11 +22,7 @@ exa_clnodedel::exa_clnodedel()
 {
     add_option('n', "node", "Specify the node to remove from the cluster.", 1,
                false, true, OPT_ARG_NODE_HOSTNAME);
-}
 
-
-void exa_clnodedel::init_see_alsos()
-{
     add_see_also("exa_clnodeadd");
     add_see_also("exa_clnodestart");
     add_see_also("exa_clnodestop");

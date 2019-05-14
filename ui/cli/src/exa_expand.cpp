@@ -19,11 +19,6 @@ const std::string exa_expand::ARG_STRING(Command::Boldify("STRING"));
 exa_expand::exa_expand()
 {
     add_arg(ARG_STRING, 10, false, "", true);
-}
-
-
-void exa_expand::init_see_alsos()
-{
     add_see_also("exa_unexpand");
 }
 

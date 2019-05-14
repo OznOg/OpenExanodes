@@ -28,7 +28,6 @@ class exa_clcreate : public exa_clcommand
 
   static constexpr const char *name() { return "exa_clcreate"; }
   exa_clcreate();
-  void init_see_alsos();
 
   void run();
 

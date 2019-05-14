@@ -20,7 +20,6 @@ class exa_vldelete : public exa_vlcommand
 
   static constexpr const char *name() { return "exa_vldelete"; }
 
-  void init_see_alsos();
 
   void run();
 

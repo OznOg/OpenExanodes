@@ -20,11 +20,7 @@ exa_fsdelete::exa_fsdelete()
     add_option('M', "metadata-recovery",
                "Force deletion after a failure during an exa_fscreate.",
                0, false, false);
-}
 
-
-void exa_fsdelete::init_see_alsos()
-{
     add_see_also("exa_fscreate");
     add_see_also("exa_fscheck");
     add_see_also("exa_fsresize");

@@ -12,7 +12,7 @@
 
 using std::string;
 
-void exa_dgstart::init_see_alsos()
+exa_dgstart::exa_dgstart()
 {
     add_see_also({ "exa_dgcreate",
                    "exa_dgdelete",

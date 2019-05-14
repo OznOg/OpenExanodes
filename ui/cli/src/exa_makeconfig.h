@@ -35,8 +35,6 @@ class exa_makeconfig : public Command
 
   static constexpr const char *name() { return "exa_makeconfig"; }
 
-  void init_see_alsos();
-
   void run();
 
 protected:

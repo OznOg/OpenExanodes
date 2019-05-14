@@ -24,11 +24,7 @@ exa_vldelete::exa_vldelete()
     add_option('F', "nofscheck", "Force the deletion even if the volume is "
                "currently part of a file system. WARNING! you won't be able to "
                "use your file system anymore", 0, true, false);
-}
 
-
-void exa_vldelete::init_see_alsos()
-{
     add_see_also("exa_vlcreate");
     add_see_also("exa_vlresize");
     add_see_also("exa_vlstart");

@@ -36,11 +36,7 @@ exa_vlstop::exa_vlstop()
                "start will fail.", 0, true, false);
     add_option('f', "force", "Continue the stop even if something goes wrong. "
                "CAUTION! This option is very dangerous.", 0, true, false);
-}
 
-
-void exa_vlstop::init_see_alsos()
-{
     add_see_also("exa_vlcreate");
     add_see_also("exa_vldelete");
     add_see_also("exa_vlresize");

@@ -25,11 +25,7 @@ exa_clnodestart::exa_clnodestart()
     add_option('n', "node", "Specify the nodes to start.", 1, false, true,
                OPT_ARG_NODE_HOSTNAMES);
     add_option('a', "all", "Start all nodes of the cluster.", 1, false, false);
-}
 
-
-void exa_clnodestart::init_see_alsos()
-{
     add_see_also("exa_expand");
     add_see_also("exa_clnodeadd");
     add_see_also("exa_clnodedel");

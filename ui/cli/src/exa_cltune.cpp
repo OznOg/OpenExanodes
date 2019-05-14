@@ -54,11 +54,7 @@ exa_cltune::exa_cltune()
     add_arg(ARG_PARAMETER_PARAMETER + "=[" + ARG_PARAMETER_VALUE + "]",
             1,
             false);
-}
 
-
-void exa_cltune::init_see_alsos()
-{
     add_see_also("exa_clcreate");
     add_see_also("exa_cldelete");
     add_see_also("exa_clstart");

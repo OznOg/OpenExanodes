@@ -102,9 +102,6 @@ public:
     exa_error_code set_cluster_from_cache(const std::string &clustername,
                                           std::string &error_msg);
 
-    /* FIXME These methods shouldn't be public, but it will do for now
-     * (instead, the factory should be friend, etc)*/
-    virtual void init_see_alsos() = 0;
     void parse(int _argc, char *_argv[]);
 
     void run(int _argc, char *_argv[]) {

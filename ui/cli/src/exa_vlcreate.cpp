@@ -65,11 +65,7 @@ exa_vlcreate::exa_vlcreate()
 
     add_option('L', "lun", "Specify the logical unit number (LUN) for the "
                "iSCSI volume.", 0, false, true, OPT_ARG_LUN);
-}
 
-
-void exa_vlcreate::init_see_alsos()
-{
     add_see_also("exa_vldelete");
     add_see_also("exa_vlresize");
     add_see_also("exa_vlstart");

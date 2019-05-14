@@ -46,11 +46,7 @@ exa_vlstart::exa_vlstart() :
     add_option('a', "all", "Export the volume on all nodes of the cluster. "
                            "(Deprecated option: this is the default)",
                0, false, false);
-}
 
-
-void exa_vlstart::init_see_alsos()
-{
     add_see_also("exa_vlcreate");
     add_see_also("exa_vldelete");
     add_see_also("exa_vlresize");

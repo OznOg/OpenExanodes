@@ -83,11 +83,7 @@ exa_dgcreate::exa_dgcreate()
                "Specify several values by quoting them:\n"
                "-e 'chunk_size=524288 su_size=64'",
                0, true, true, OPT_ARG_EXTRA_DGOPTION);
-}
 
-
-void exa_dgcreate::init_see_alsos()
-{
     add_see_also("exa_dgdelete");
     add_see_also("exa_dgstart");
     add_see_also("exa_dgstop");

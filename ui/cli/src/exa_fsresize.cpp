@@ -25,11 +25,7 @@ exa_fsresize::exa_fsresize()
                "Gibi, Tebi, Pebi, Exbi). The decimal point is accepted like in "
                "1.2T. The special value 'max' means all available space in the "
                "disk group.", 1, false, true, OPT_ARG_SIZE_SIZE);
-}
 
-
-void exa_fsresize::init_see_alsos()
-{
     add_see_also("exa_fscreate");
     add_see_also("exa_fsdelete");
     add_see_also("exa_fscheck");

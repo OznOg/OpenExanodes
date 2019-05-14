@@ -143,7 +143,6 @@ static void test_display_info(const std::string& expected_output,
     int argc = sizeof(argv)/sizeof(char*);
 
     __exa_clinfo cmd;
-    cmd.init_see_alsos();
 
     cmd.parse(argc, argv);
 

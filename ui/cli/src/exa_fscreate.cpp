@@ -49,11 +49,7 @@ exa_fscreate::exa_fscreate()
                "system. Minimum would be 256M. Bigger means better performance "
                "with risks of lock contention.", 0, false, true,
                OPT_ARG_RGSIZE_SIZE);
-}
 
-
-void exa_fscreate::init_see_alsos()
-{
     add_see_also("exa_fscheck");
     add_see_also("exa_fsdelete");
     add_see_also("exa_fsresize");

@@ -37,11 +37,7 @@ exa_fsstart::exa_fsstart()
                "is already started on one or more nodes. To go back in "
                "Read-Write mode, you must first stop the file system on all "
                "your nodes.", 0, false, false);
-}
 
-
-void exa_fsstart::init_see_alsos()
-{
     add_see_also("exa_fscreate");
     add_see_also("exa_fsdelete");
     add_see_also("exa_fsresize");

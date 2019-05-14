@@ -35,11 +35,7 @@ exa_vlresize::exa_vlresize()
                "currently part of a file system. WARNING! you won't be able to "
                "use your file system anymore", 0, true, false);
 #endif
-}
 
-
-void exa_vlresize::init_see_alsos()
-{
     add_see_also("exa_vlcreate");
     add_see_also("exa_vldelete");
     add_see_also("exa_vlstart");

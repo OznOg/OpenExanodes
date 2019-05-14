@@ -29,11 +29,7 @@ exa_dgdiskrecover::exa_dgdiskrecover()
                "UUID of replacement disk. The disk must be unassigned"
                " (not part of any group) and on the same node as the disk"
                " to be replaced.", 2, false, true, OPT_ARG_NEW_DISK_UUID);
-}
 
-
-void exa_dgdiskrecover::init_see_alsos()
-{
     add_see_also("exa_dgcreate");
     add_see_also("exa_dgdelete");
     add_see_also("exa_dgstart");

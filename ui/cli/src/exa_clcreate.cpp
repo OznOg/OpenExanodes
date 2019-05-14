@@ -90,11 +90,7 @@ exa_clcreate::exa_clcreate()
                + OPT_ARG_DATANETWORK_HOSTNAME + " enclosed with quotes.",
                0, false, true, "'" + OPT_ARG_DATANETWORK_HOSTNAME
                + EXA_CONF_SEPARATOR + OPT_ARG_DATANETWORK_HOSTNAME + "...'");
-}
 
-
-void exa_clcreate::init_see_alsos()
-{
     add_see_also("exa_expand");
     add_see_also("exa_cldelete");
     add_see_also("exa_clstart");

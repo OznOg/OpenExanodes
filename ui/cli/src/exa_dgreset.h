@@ -16,7 +16,6 @@ public:
     static constexpr const char *name() { return "exa_dgreset"; }
 
     exa_dgreset();
-    void init_see_alsos();
 
     void run();
 

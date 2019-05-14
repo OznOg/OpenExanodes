@@ -79,11 +79,7 @@ exa_clstats::exa_clstats()
                0, false, false);
     add_option('w', "wrapping", "Line wrapping. N is the max number of node "
                "to display per line.", 0, false, true, OPT_ARG_WRAPPING_N);
-}
 
-
-void exa_clstats::init_see_alsos()
-{
     add_see_also("exa_clcreate");
     add_see_also("exa_cldelete");
     add_see_also("exa_clstart");

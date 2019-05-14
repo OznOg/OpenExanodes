@@ -22,7 +22,6 @@ class exa_vlstop : public exa_vlcommand
 
   static constexpr const char *name() { return "exa_vlstop"; }
 
-  void init_see_alsos();
 
   void run();
 

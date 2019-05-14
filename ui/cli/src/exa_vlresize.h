@@ -22,7 +22,6 @@ class exa_vlresize : public exa_vlcommand
 
   static constexpr const char *name() { return "exa_vlresize"; }
 
-  void init_see_alsos();
 
   void run();
 

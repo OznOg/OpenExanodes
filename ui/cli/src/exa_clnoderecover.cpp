@@ -33,11 +33,7 @@ exa_clnoderecover::exa_clnoderecover()
                2, false, false);
     add_option('l', "leave", "Request an uninitialization of Exanodes.",
                2, false, false);
-}
 
-
-void exa_clnoderecover::init_see_alsos()
-{
     add_see_also("exa_expand");
     add_see_also("exa_clnodeadd");
     add_see_also("exa_clnodedel");

@@ -21,8 +21,6 @@ class exa_unexpand : public Command
 
   static constexpr const char *name() { return "exa_unexpand"; }
 
-  void init_see_alsos();
-
   void run();
 
 protected:

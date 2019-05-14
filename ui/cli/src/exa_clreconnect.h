@@ -23,7 +23,6 @@ class exa_clreconnect : public exa_clcommand
   static constexpr const char *name() { return "exa_clreconnect"; }
 
   exa_clreconnect();
-  void init_see_alsos();
 
   void run();
 

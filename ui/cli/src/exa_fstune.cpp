@@ -30,11 +30,7 @@ exa_fstune::exa_fstune()
 
     add_arg(ARG_PARAMETER_PARAMETER + "=" +
             "[" + ARG_PARAMETER_VALUE + "]", 1, false);
-}
 
-
-void exa_fstune::init_see_alsos()
-{
     add_see_also("exa_fscreate");
     add_see_also("exa_fsdelete");
     add_see_also("exa_fsresize");

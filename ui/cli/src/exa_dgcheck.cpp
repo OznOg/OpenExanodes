@@ -12,11 +12,6 @@
 
 exa_dgcheck::exa_dgcheck()
 {
-}
-
-
-void exa_dgcheck::init_see_alsos()
-{
     add_see_also("exa_dgreset");
 }
 

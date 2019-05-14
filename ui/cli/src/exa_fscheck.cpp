@@ -32,11 +32,7 @@ exa_fscheck::exa_fscheck()
     add_option('p', "parameters", "Optional parameters string to provide to "
                "fsck, should be protected by quotes \"...\".", 0, true, true,
                OPT_ARG_PARAMETERS_STRING);
-}
 
-
-void exa_fscheck::init_see_alsos()
-{
     add_see_also("exa_fscreate");
     add_see_also("exa_fsdelete");
     add_see_also("exa_fsresize");

@@ -60,11 +60,7 @@ exa_clnodeadd::exa_clnodeadd()
     add_option('D', "datanetwork", "Specify the hostname or IP address to use "
                "for the data network.", 0,
                false, true, "'" + OPT_ARG_DATANETWORK_HOSTNAME + "'");
-}
 
-
-void exa_clnodeadd::init_see_alsos()
-{
     add_see_also("exa_clnodedel");
     add_see_also("exa_clnodestart");
     add_see_also("exa_clnodestop");

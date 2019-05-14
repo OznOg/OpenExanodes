@@ -29,11 +29,7 @@ exa_fsstop::exa_fsstop()
     add_option('f', "force", "Continue the stop even if something goes wrong, "
                "eg. if the associated data volume is DOWN. CAUTION! This "
                "option is very dangerous.", 0, true, false);
-}
 
-
-void exa_fsstop::init_see_alsos()
-{
     add_see_also("exa_fscreate");
     add_see_also("exa_fsdelete");
     add_see_also("exa_fsresize");

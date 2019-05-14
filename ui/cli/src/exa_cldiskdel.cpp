@@ -27,11 +27,7 @@ exa_cldiskdel::exa_cldiskdel()
                OPT_ARG_DISK_PATH);
     add_option('u', "uuid", "The uuid of the disk to remove.", 1, false, true,
                OPT_ARG_DISK_UUID);
-}
 
-
-void exa_cldiskdel::init_see_alsos()
-{
     add_see_also("exa_cldiskadd");
 }
 

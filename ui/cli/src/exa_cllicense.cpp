@@ -36,11 +36,7 @@ exa_cllicense::exa_cllicense()
     add_option('s', "set-license",
                "Deploy a new license on all the nodes of the cluster.",
                1, false, true, OPT_ARG_FILENAME);
-}
 
-
-void exa_cllicense::init_see_alsos()
-{
     add_see_also("exa_clcreate");
     add_see_also("exa_cldelete");
 }

@@ -18,7 +18,6 @@ class exa_clmonitorstop: public exa_clcommand
   static constexpr const char *name() { return "exa_clmonitorstop"; }
 
   exa_clmonitorstop();
-  void init_see_alsos();
 
   void run();
 

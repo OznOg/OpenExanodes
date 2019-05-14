@@ -21,7 +21,6 @@ public:
 
     static constexpr const char *name() { return "exa_clnodestart"; }
 
-    void init_see_alsos();
 
     void run();
 

@@ -30,11 +30,7 @@ exa_cldelete::exa_cldelete() : _forcemode(false) , _recursive(false)
     add_option('f', "force", "Force the deletion even if one or more nodes are "
                "not ready to accept the command. A cleaner way is to run "
                "exa_clnodestop on these nodes.", 0, false, false);
-}
 
-
-void exa_cldelete::init_see_alsos()
-{
     add_see_also("exa_clcreate");
     add_see_also("exa_clstart");
     add_see_also("exa_clstop");

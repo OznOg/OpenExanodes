@@ -20,7 +20,6 @@ public:
     static constexpr const char *name() { return "exa_expand"; }
 
     exa_expand();
-    void init_see_alsos();
 
     void run();
 

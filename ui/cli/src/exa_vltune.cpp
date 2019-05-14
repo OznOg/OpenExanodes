@@ -68,11 +68,6 @@ exa_vltune::exa_vltune()
             exclude_all, false);
 }
 
-
-void exa_vltune::init_see_alsos()
-{}
-
-
 void exa_vltune::run()
 {
     string error_msg;

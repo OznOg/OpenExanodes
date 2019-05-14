@@ -21,7 +21,6 @@ class exa_fsresize : public exa_fscommand
 
   static constexpr const char *name() { return "exa_fsresize"; }
 
-  void init_see_alsos();
 
   void run();
 

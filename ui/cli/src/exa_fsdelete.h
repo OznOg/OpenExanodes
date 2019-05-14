@@ -19,7 +19,6 @@ class exa_fsdelete : public exa_fscommand
 
   static constexpr const char *name() { return "exa_fsdelete"; }
 
-  void init_see_alsos();
 
   void run();
 

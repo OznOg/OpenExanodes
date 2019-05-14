@@ -25,11 +25,7 @@ exa_dgstop::exa_dgstop()
                " in the disk group.", 0, false, false);
     add_option('f', "force", "Force the recursive stop when the disk group "
                "is OFFLINE.", 0, false, false);
-}
 
-
-void exa_dgstop::init_see_alsos()
-{
     add_see_also("exa_dgdelete");
     add_see_also("exa_dgstart");
     add_see_also("exa_dgstart");

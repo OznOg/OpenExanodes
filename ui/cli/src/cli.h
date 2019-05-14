@@ -34,11 +34,7 @@ public:
         auto it = _exa_commands.find(name);
         if (it == _exa_commands.end())
             return nullptr;
-        auto cmd = it->second();
-        if (cmd != nullptr) {
-            cmd->init_see_alsos();
-        }
-        return cmd;
+        return it->second();
     }
 
     void usage();

@@ -23,11 +23,7 @@ exa_dgdiskadd::exa_dgdiskadd()
 {
     add_option('i', "disk", "Specify disk to add.", 1, false, true,
                OPT_ARG_DISK_HOSTNAME + EXA_CONF_SEPARATOR + OPT_ARG_DISK_PATH);
-}
 
-
-void exa_dgdiskadd::init_see_alsos()
-{
     add_see_also("exa_dgcreate");
     add_see_also("exa_dgdelete");
     add_see_also("exa_dgstart");

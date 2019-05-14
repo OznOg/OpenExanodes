@@ -20,7 +20,6 @@ class exa_cldelete : public exa_clcommand
   exa_cldelete();
 
   static constexpr const char *name() { return "exa_cldelete"; }
-  void init_see_alsos();
 
   void run();
 

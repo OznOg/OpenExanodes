@@ -24,7 +24,6 @@ public:
 
   static constexpr const char *name() { return "exa_cltrace"; }
 
-  void init_see_alsos();
 
   void run();
 

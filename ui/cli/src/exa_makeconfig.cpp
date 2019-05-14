@@ -87,11 +87,7 @@ exa_makeconfig::exa_makeconfig()
                " - su_size=1024 (in KB)\n"
                " - dirty_zone_size=32768 (in KB)\n"
                " - blended_stripes=0", 0, true, true, OPT_ARG_EXTRA_DGOPTION);
-}
 
-
-void exa_makeconfig::init_see_alsos()
-{
     add_see_also("exa_expand");
     add_see_also("exa_clcreate");
     add_see_also("exa_dgcreate");

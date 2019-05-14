@@ -22,7 +22,6 @@ public:
 
     static constexpr const char *name() { return "exa_clmonitorstart"; }
 
-    void init_see_alsos();
 
     void run();
 

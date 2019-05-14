@@ -51,32 +51,23 @@ exa_clXstop<is_clstop>::exa_clXstop()
 #endif
                " so that the next exa_cl(node)start will start"
                " Exanodes and nothing more.", 0, false, false);
+
+    if (is_clstop) {
+        add_see_also("exa_clcreate");
+        add_see_also("exa_cldelete");
+        add_see_also("exa_clstart");
+        add_see_also("exa_clinfo");
+        add_see_also("exa_clstats");
+        add_see_also("exa_cltune");
+        add_see_also("exa_clreconnect");
+    } else {
+        add_see_also("exa_expand");
+        add_see_also("exa_clnodeadd");
+        add_see_also("exa_clnodedel");
+        add_see_also("exa_clnodestart");
+        add_see_also("exa_clnoderecover");
+    }
 }
-
-
-template <>
-void exa_clXstop<false>::init_see_alsos()
-{
-    add_see_also("exa_expand");
-    add_see_also("exa_clnodeadd");
-    add_see_also("exa_clnodedel");
-    add_see_also("exa_clnodestart");
-    add_see_also("exa_clnoderecover");
-}
-
-template <>
-void exa_clXstop<true>::init_see_alsos()
-{
-    add_see_also("exa_clcreate");
-    add_see_also("exa_cldelete");
-    add_see_also("exa_clstart");
-    add_see_also("exa_clinfo");
-    add_see_also("exa_clstats");
-    add_see_also("exa_cltune");
-    add_see_also("exa_clreconnect");
-}
-
-
 
 struct clnodestop_filter : private boost::noncopyable
 {

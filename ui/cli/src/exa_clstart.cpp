@@ -17,11 +17,6 @@ using std::string;
 
 exa_clstart::exa_clstart()
 {
-}
-
-
-void exa_clstart::init_see_alsos()
-{
     add_see_also("exa_clcreate");
     add_see_also("exa_cldelete");
     add_see_also("exa_clstop");

@@ -40,11 +40,7 @@ exa_clmonitorstart::exa_clmonitorstart()
     add_option('p', "snmpdport", "Specify the port on which snmpd is listening.",
                0, false, true, OPT_ARG_SNMPDPORT_PORT,
                MD_DEFAULT_MASTER_AGENTX_PORT_STR);
-}
 
-
-void exa_clmonitorstart::init_see_alsos()
-{
     add_see_also("exa_clmonitorstop");
     add_see_also("exa_clinfo");
 }

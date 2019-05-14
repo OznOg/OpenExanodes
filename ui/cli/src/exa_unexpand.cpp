@@ -19,11 +19,7 @@ exa_unexpand::exa_unexpand()
     : _request("")
 {
     add_arg(ARG_STRING, 10, false, "", true);
-}
 
-
-void exa_unexpand::init_see_alsos()
-{
     add_see_also("exa_expand");
 }
 

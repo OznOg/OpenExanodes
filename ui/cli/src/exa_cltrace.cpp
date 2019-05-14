@@ -60,11 +60,6 @@ exa_cltrace::exa_cltrace()
                3, false, false);
 }
 
-
-void exa_cltrace::init_see_alsos()
-{}
-
-
 /* --- local data ---------------------------------------------------- */
 
 /* components names */

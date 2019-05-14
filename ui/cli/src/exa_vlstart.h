@@ -21,7 +21,6 @@ class exa_vlstart : public exa_vlcommand
 
   static constexpr const char *name() { return "exa_vlstart"; }
 
-  void init_see_alsos();
 
   void run();
 

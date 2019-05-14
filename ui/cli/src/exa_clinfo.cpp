@@ -186,11 +186,7 @@ exa_clinfo::exa_clinfo()
                "regular display. This option also returns the error code "
                "returned by the administrative daemon as the exit code.",
                0, true, false);
-}
 
-
-void exa_clinfo::init_see_alsos()
-{
     add_see_also("exa_clcreate");
     add_see_also("exa_cldelete");
     add_see_also("exa_clstart");

@@ -23,7 +23,6 @@ class exa_fscheck : public exa_fscommand
 
   static constexpr const char *name() { return "exa_fscheck"; }
 
-  void init_see_alsos();
 
   void run();
 

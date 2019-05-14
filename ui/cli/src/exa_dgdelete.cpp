@@ -27,11 +27,7 @@ exa_dgdelete::exa_dgdelete()
                "erased"), 0, false, false);
 
     add_option('f', "force", "Force delete in case of error.", 0, true, false);
-}
 
-
-void exa_dgdelete::init_see_alsos()
-{
     add_see_also("exa_dgcreate");
     add_see_also("exa_dgstart");
     add_see_also("exa_dgstop");

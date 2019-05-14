@@ -28,7 +28,6 @@ public:
 
     static constexpr const char *name() { return "exa_dgcreate"; }
 
-    void init_see_alsos();
 
     void run();
 
