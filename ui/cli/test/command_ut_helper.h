@@ -20,11 +20,9 @@ test_command_parsing_ok(int argc, char *argv[])
     for (int i = 0; i < argc; i++)
         to_display << " " << const_cast<const char*>(argv[i]);
 
-    T command;
-
     try
     {
-        command.parse(argc, argv);
+        T().parse(argc, argv);
         return;
     }
     catch (CommandException& ex)
@@ -48,11 +46,9 @@ test_command_parsing_fail(int argc, char *argv[])
     for (int i = 0; i < argc; i++)
         to_display << " " << const_cast<const char*>(argv[i]);
 
-    T command;
-
     try
     {
-        command.parse(argc, argv);
+        T().parse(argc, argv);
     }
     catch (CommandException& ex)
     {
