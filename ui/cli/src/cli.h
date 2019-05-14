@@ -18,17 +18,15 @@
 template <class... Commands>
 class Cli
 {
-    template<class T>
-    static std::shared_ptr<Command> factory() {
-        return std::make_shared<T>();
-    }
-
 public:
 
     std::shared_ptr<Command> find_cmd(const std::string& name)
     {
         static const std::map<std::string, std::shared_ptr<Command>(*)()> _exa_commands = {
-            { Commands::name(), factory<Commands> } ...
+            { Commands::name(), [] () -> std::shared_ptr<Command> {
+                                             return std::make_shared<Commands>();
+                                         }
+            } ...
         };
 
         auto it = _exa_commands.find(name);
@@ -38,9 +36,6 @@ public:
     }
 
     void usage();
-
-private:
-
 };
 
 
