@@ -915,22 +915,6 @@ shared_ptr<AdmindMessage> Command::send_command(const AdmindCommand &command,
 }
 
 
-static void to_node_done(const AdmindMessage &message,
-                         shared_ptr<AdmindMessage> *retval)
-{
-    exa_cli_trace("Command::send_admind_to_node: received: %s\n",
-                  message.dump().c_str());
-
-    *retval = shared_ptr<AdmindMessage>(new AdmindMessage(message));
-}
-
-
-static void to_node_error(const std::string &message, const std::string &node)
-{
-    exa_cli_error("%sERROR%s, %s: %s\n", COLOR_ERROR, COLOR_NORM,
-                  node.c_str(), message.c_str());
-}
-
 
 shared_ptr<AdmindMessage> Command::send_admind_to_node(
     const string &node,
@@ -940,7 +924,7 @@ shared_ptr<AdmindMessage> Command::send_admind_to_node(
 {
     AdmindClient client(notifier);
 
-    shared_ptr<AdmindMessage> message;
+    shared_ptr<AdmindMessage> answer;
     string payload;
 
     assert(!line);
@@ -949,26 +933,38 @@ shared_ptr<AdmindMessage> Command::send_admind_to_node(
     exa_cli_trace("Command::send_admind_to_node: sending to %s: %s\n",
                   node.c_str(), command.get_xml_command(true).c_str());
 
+    auto to_node_done = [&answer](const AdmindMessage &message) {
+        exa_cli_trace("Command::send_admind_to_node: received: %s\n",
+                message.dump().c_str());
+
+        answer.reset(new AdmindMessage(message));
+    };
+
+    auto to_node_error = [&node] (const std::string &message) {
+        exa_cli_error("%sERROR%s, %s: %s\n", COLOR_ERROR, COLOR_NORM,
+                      node.c_str(), message.c_str());
+    };
+
     client.send_node(command, node,
-                     std::bind(&Command::handle_inprogress, this, _1),
-                     std::bind(handle_progressive_payload, _1, std::ref(payload)),
-                     std::bind(to_node_done, _1, &message),
-                     std::bind(to_node_error, _1, node),
+                     [this] (const AdmindMessage &message) { this->handle_inprogress(message); },
+                     [&payload] (const AdmindMessage &message) { handle_progressive_payload(message, payload); },
+                     to_node_done,
+                     to_node_error,
                      _timeout);
 
     notifier.run();
 
     line = shared_ptr<Line>();
 
-    if (message && !payload.empty())
-        message->set_payload(payload);
+    if (answer && !payload.empty())
+        answer->set_payload(payload);
 
     /* Do you see the futility of it all, now? */
-    if (message)
-        exa.log(message->get_summary());
-    error_code = message ? message->get_error_code() : EXA_ERR_CONNECT_SOCKET;
+    if (answer)
+        exa.log(answer->get_summary());
+    error_code = answer ? answer->get_error_code() : EXA_ERR_CONNECT_SOCKET;
 
-    return message;
+    return answer;
 }
 
 
