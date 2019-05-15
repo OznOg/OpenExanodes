@@ -268,7 +268,6 @@ private:
     unsigned int _timeout; //!< max time for cli command to finish
     bool _in_progress_hidden;  //!< whether or not to display in progress messages
 
-    SelectNotifier notifier;
     std::shared_ptr<Line>line;
     std::string in_progress_source;
 

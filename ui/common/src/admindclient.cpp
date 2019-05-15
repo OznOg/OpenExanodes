@@ -30,13 +30,6 @@ using std::runtime_error;
 using std::set;
 using std::string;
 
-
-AdmindClient::AdmindClient(Notifier &_notifier):
-  notifier(_notifier)
-{
-}
-
-
 void
 AdmindClient::send_node(const AdmindCommand &command, const string &hostname,
                         MessageFunc inprogress, MessageFunc progressive_payload,

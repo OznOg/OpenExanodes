@@ -812,7 +812,7 @@ shared_ptr<AdmindMessage> Command::send_command(const AdmindCommand &command,
                                                 exa_error_code &error_code,
                                                 string &error_message)
 {
-    AdmindClient client(notifier);
+    AdmindClient client;
 
     shared_ptr<AdmindMessage> message;
     string payload;
@@ -840,7 +840,7 @@ shared_ptr<AdmindMessage> Command::send_command(const AdmindCommand &command,
                            std::bind(leader_error, _1, &error_message),
                            _timeout);
 
-        notifier.run();
+        client.wait_all();
 
         line = shared_ptr<Line>();
 
@@ -922,7 +922,7 @@ shared_ptr<AdmindMessage> Command::send_admind_to_node(
     exa_error_code &
     error_code)
 {
-    AdmindClient client(notifier);
+    AdmindClient client;
 
     shared_ptr<AdmindMessage> answer;
     string payload;
@@ -952,7 +952,7 @@ shared_ptr<AdmindMessage> Command::send_admind_to_node(
                      to_node_error,
                      _timeout);
 
-    notifier.run();
+    client.wait_all();
 
     line = shared_ptr<Line>();
 
@@ -1033,7 +1033,7 @@ unsigned int Command::send_admind_by_node(AdmindCommand &command,
                                           set<string> nodes, by_node_func func,
                                           per_node_modify_func modify_func)
 {
-    AdmindClient client(notifier);
+    AdmindClient client;
 
     set<string>::iterator it;
     unsigned int errors(0);
@@ -1052,7 +1052,7 @@ unsigned int Command::send_admind_by_node(AdmindCommand &command,
     {
         /* take a reference on string inside map; as the string does not yet exist
          * it is automatically created empty (default constructor for string)
-         * CAREFUL: operations are really processed in notifier.run() thus strings
+         * CAREFUL: operations are really processed in client.wait_all() thus strings
          * must remain valid outside of the next for loop */
         std::string &payload = by_node_payload[*it];
 
@@ -1074,7 +1074,7 @@ unsigned int Command::send_admind_by_node(AdmindCommand &command,
                          _timeout);
     }
 
-    notifier.run();
+    client.wait_all();
 
     line = shared_ptr<Line>();
 
