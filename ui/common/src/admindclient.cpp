@@ -42,8 +42,6 @@ AdmindClient::send_node(const AdmindCommand &command, const string &hostname,
                         MessageFunc inprogress, MessageFunc progressive_payload,
                         MessageFunc done, ErrorFunc error, unsigned int timeout)
 {
-    RequestImpl *request (NULL);
-
     try
     {
         /*
@@ -52,20 +50,17 @@ AdmindClient::send_node(const AdmindCommand &command, const string &hostname,
            this should not be a memory leak as long as done_request
            is called, and it always should.
          */
-        request =  new RequestImpl(*this,
-                                   command.get_name(), command.get_xml_command(),
-                                   hostname, connect_node(
-                                       hostname),
-                                   inprogress, progressive_payload, done, error,
-                                   timeout,
-                                   bind(&AdmindClient::done_request, this, _1));
+        new RequestImpl(*this, command.get_name(), command.get_xml_command(),
+                               hostname, connect_node(hostname),
+                               inprogress, progressive_payload, done, error,
+                               timeout,
+                               bind(&AdmindClient::done_request, this, _1));
     }
     catch (exception &ex)
     {
         if (error)
         {
             error(ex.what());
-            delete request;
         }
     }
 
