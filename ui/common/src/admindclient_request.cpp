@@ -68,7 +68,7 @@ void AdmindClient::RequestImpl::state_connecting(string xml_cmd)
 
   int rv(get_socket_error(fd));
   if (rv)
-    return do_error(strerror(rv));
+    return do_error(strerror(-rv));
 
   client.notifier.add_write(fd, std::bind(&RequestImpl::state_sending, this,
 				     xml_cmd));
@@ -231,6 +231,7 @@ void AdmindClient::RequestImpl::cleanup_fd()
     client.notifier.del_read(fd);
     client.notifier.del_write(fd);
     os_closesocket(fd);
+    os_shutdown(fd, SHUT_RDWR);
     fd = -1;
   }
 }
