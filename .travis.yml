@@ -8,17 +8,14 @@ before_install:
           - sudo apt-get update -qq
           - sudo apt-get install -y automake make libtool autoconf rpm cmake libssl-dev libxml2-dev libboost-all-dev libstring-crc32-perl libaio-dev
 
-install:
-- if [ "$CXX" = "g++" ]; then export CXX="g++-4.8" CC="gcc-4.8"; fi
-
 addons:
   apt:
     sources:
     - ubuntu-toolchain-r-test
     packages:
-    - gcc-4.8
-    - g++-4.8
+    - gcc-8
+    - g++-8
     - clang
 
-script: mkdir ../build && cd ../build && cmake ../OpenExanodes/ -DWITH_LIBAIO=TRUE -DWITH_UT_ROOT=FALSE && make -j4 && ctest -V
+script: export CC=gcc-8 && export CXX=g++-8 && mkdir ../build && cd ../build && cmake ../OpenExanodes/ -DWITH_LIBAIO=TRUE -DWITH_UT_ROOT=FALSE && make -j4 && ctest -V
 
