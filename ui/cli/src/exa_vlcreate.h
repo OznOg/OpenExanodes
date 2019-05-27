@@ -9,8 +9,6 @@
 #define       __EXA_VLCREATE_H__
 
 #include "ui/cli/src/exa_vlcommand.h"
-#include "ui/cli/src/cli.h"
-
 
 class exa_vlcreate : public exa_vlcommand
 {
@@ -23,11 +21,10 @@ public:
     static const std::string OPT_ARG_ACCESS_MODE;
     static const std::string OPT_ARG_LUN;
 
-    exa_vlcreate(int argc, char * argv []);
-    ~exa_vlcreate();
+    exa_vlcreate();
 
-    void init_options();
-    void init_see_alsos();
+    static constexpr const char *name() { return "exa_vlcreate"; }
+
 
     void run();
 

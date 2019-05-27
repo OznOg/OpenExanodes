@@ -9,6 +9,7 @@
 
 #include "ui/common/include/admindmessage.h"
 #include "ui/common/include/notifier.h"
+#include "os/include/os_error.h"
 #include "os/include/os_network.h"
 
 #include <cstring>
@@ -82,7 +83,7 @@ void AdmindClient::Seeker::handle_connect(const string &hostname, int fd)
   if (rv)
   {
     os_closesocket(fd);
-    do_warning(hostname, string("could not connect: ") + strerror(rv));
+    do_warning(hostname, string("could not connect: ") + os_strerror(-rv));
   }
   else
     connected.insert(make_pair(hostname, fd));

@@ -27,24 +27,14 @@ const std::string exa_vlcreate::OPT_ARG_ACCESS_MODE(Command::Boldify("MODE"));
 const std::string exa_vlcreate::OPT_ARG_LUN(Command::Boldify("LUN"));
 const std::string exa_vlcreate::OPT_ARG_READAHEAD_SIZE(Command::Boldify("SIZE"));
 
-exa_vlcreate::exa_vlcreate(int argc, char *argv[])
-    : exa_vlcommand(argc, argv)
-    , is_private(false)
+exa_vlcreate::exa_vlcreate()
+    : is_private(false)
     , export_method("")
     , sizeKB_uu64(0)
     , size_max(false)
     , lun(-1)
     , readahead(-1)
-{}
-
-
-exa_vlcreate::~exa_vlcreate()
-{}
-
-void exa_vlcreate::init_options()
 {
-    exa_vlcommand::init_options();
-
 #ifdef WITH_BDEV
     add_option('x', "export-method", "Specify the method (bdev or iSCSI) "
                "through which to export this volume.", 2, false, true,
@@ -75,11 +65,7 @@ void exa_vlcreate::init_options()
 
     add_option('L', "lun", "Specify the logical unit number (LUN) for the "
                "iSCSI volume.", 0, false, true, OPT_ARG_LUN);
-}
 
-
-void exa_vlcreate::init_see_alsos()
-{
     add_see_also("exa_vldelete");
     add_see_also("exa_vlresize");
     add_see_also("exa_vlstart");

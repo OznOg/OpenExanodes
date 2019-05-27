@@ -14,31 +14,17 @@
 
 using std::string;
 
-exa_vldelete::exa_vldelete(int argc, char *argv[])
-    : exa_vlcommand(argc, argv)
-    , nofscheck(false)
+exa_vldelete::exa_vldelete()
+    : nofscheck(false)
     , metadata_recovery(false)
-{}
-
-
-exa_vldelete::~exa_vldelete()
-{}
-
-void exa_vldelete::init_options()
 {
-    exa_vlcommand::init_options();
-
     add_option('M', "metadata-recovery", "Force deletion after a failure "
                "during an exa_vlcreate.", 0, false, false);
 
     add_option('F', "nofscheck", "Force the deletion even if the volume is "
                "currently part of a file system. WARNING! you won't be able to "
                "use your file system anymore", 0, true, false);
-}
 
-
-void exa_vldelete::init_see_alsos()
-{
     add_see_also("exa_vlcreate");
     add_see_also("exa_vlresize");
     add_see_also("exa_vlstart");

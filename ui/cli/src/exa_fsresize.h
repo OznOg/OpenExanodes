@@ -9,8 +9,6 @@
 #define  __EXA_FSRESIZE_H__
 
 #include "ui/cli/src/exa_fscommand.h"
-#include "ui/cli/src/cli.h"
-
 
 class exa_fsresize : public exa_fscommand
 {
@@ -19,12 +17,10 @@ class exa_fsresize : public exa_fscommand
 
     static const std::string OPT_ARG_SIZE_SIZE;
 
+  exa_fsresize();
 
-  exa_fsresize (int argc, char *argv[]);
-  ~exa_fsresize ();
+  static constexpr const char *name() { return "exa_fsresize"; }
 
-  void init_options();
-  void init_see_alsos();
 
   void run();
 

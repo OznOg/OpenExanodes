@@ -30,20 +30,11 @@ using std::runtime_error;
 using std::set;
 using std::string;
 
-
-AdmindClient::AdmindClient(Notifier &_notifier):
-  notifier(_notifier)
-{
-}
-
-
 void
 AdmindClient::send_node(const AdmindCommand &command, const string &hostname,
                         MessageFunc inprogress, MessageFunc progressive_payload,
                         MessageFunc done, ErrorFunc error, unsigned int timeout)
 {
-    RequestImpl *request (NULL);
-
     try
     {
         /*
@@ -52,20 +43,17 @@ AdmindClient::send_node(const AdmindCommand &command, const string &hostname,
            this should not be a memory leak as long as done_request
            is called, and it always should.
          */
-        request =  new RequestImpl(*this,
-                                   command.get_name(), command.get_xml_command(),
-                                   hostname, connect_node(
-                                       hostname),
-                                   inprogress, progressive_payload, done, error,
-                                   timeout,
-                                   bind(&AdmindClient::done_request, this, _1));
+        new RequestImpl(*this, command.get_name(), command.get_xml_command(),
+                               hostname, connect_node(hostname),
+                               inprogress, progressive_payload, done, error,
+                               timeout,
+                               bind(&AdmindClient::done_request, this, _1));
     }
     catch (exception &ex)
     {
         if (error)
         {
             error(ex.what());
-            delete request;
         }
     }
 
@@ -142,6 +130,16 @@ int AdmindClient::connect_node(const string &hostname)
 	  continue;
 	}
 
+#ifndef WIN32
+      // don't really care of the return value of fcntl: if the passing to non
+      // blocking fails, the socket will remain blocked on the connect, but the
+      // global connection state machine will still work, just slower as
+      // synchronous...
+      auto flag = fcntl(fd, F_GETFL);
+      if (flag != -1)
+          fcntl(fd, F_SETFL, O_NONBLOCK | flag);
+#endif  /* WIN32 */
+
       do
 	{
 	  rv = os_connect(fd, ptr->ai_addr, ptr->ai_addrlen);
@@ -172,9 +170,9 @@ int AdmindClient::get_socket_error(int fd)
   int errorval(0);
   int len(sizeof(errorval));
 
-  errorval = os_getsockopt(fd, SOL_SOCKET, SO_ERROR, (char *) &errorval, &len);
+  int getopterr = os_getsockopt(fd, SOL_SOCKET, SO_ERROR, (char *) &errorval, &len);
 
-  return -errorval;
+  return getopterr == 0 ? -errorval : getopterr;
 }
 
 void

@@ -10,9 +10,6 @@
 
 
 #include "ui/cli/src/exa_vlcommand.h"
-#include "ui/cli/src/cli.h"
-
-
 
 class exa_vlstop : public exa_vlcommand
 {
@@ -21,11 +18,10 @@ class exa_vlstop : public exa_vlcommand
 
     static const std::string OPT_ARG_NODE_HOSTNAMES;
 
-  exa_vlstop (int argc, char * argv []);
-  ~exa_vlstop ();
+  exa_vlstop();
 
-  void init_options();
-  void init_see_alsos();
+  static constexpr const char *name() { return "exa_vlstop"; }
+
 
   void run();
 

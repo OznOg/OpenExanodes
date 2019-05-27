@@ -21,17 +21,13 @@ protected:
     static const std::string ARG_VOLUME_GROUPNAME;
     static const std::string ARG_VOLUME_VOLUMENAME;
 
-    exa_vlcommand(int argc, char *argv[]);
-
 public:
-
-    virtual ~exa_vlcommand();
 
     static void check_name(const std::string &vlname);
 
 protected:
 
-    virtual void init_options();
+    exa_vlcommand();
 
     virtual void parse_opt_args(const std::map<char, std::string> &opt_args) = 0;
     virtual void parse_non_opt_args(const std::vector<std::string> &non_opt_args);

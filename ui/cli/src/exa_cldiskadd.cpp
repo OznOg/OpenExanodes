@@ -19,23 +19,11 @@ const std::string exa_cldiskadd::OPT_ARG_DISK_HOSTNAME(Command::Boldify(
                                                            "HOSTNAME"));
 const std::string exa_cldiskadd::OPT_ARG_DISK_PATH(Command::Boldify("PATH"));
 
-exa_cldiskadd::exa_cldiskadd(int argc, char *argv[])
-    : exa_clcommand(argc, argv)
-    , _disk("")
-{}
-
-
-void exa_cldiskadd::init_options()
+exa_cldiskadd::exa_cldiskadd()
 {
-    exa_clcommand::init_options();
-
     add_option('i', "disk", "Specify disk to add.", 1, false, true,
                OPT_ARG_DISK_HOSTNAME + EXA_CONF_SEPARATOR + OPT_ARG_DISK_PATH);
-}
 
-
-void exa_cldiskadd::init_see_alsos()
-{
     add_see_also("exa_cldiskdel");
 }
 

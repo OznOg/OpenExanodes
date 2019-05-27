@@ -9,8 +9,6 @@
 #define __EXA_CLSTATS_H__
 
 #include "ui/cli/src/exa_clcommand.h"
-#include "ui/cli/src/cli.h"
-
 
 class exa_clstats : public exa_clcommand
 {
@@ -18,10 +16,10 @@ public:
 
     static const std::string OPT_ARG_WRAPPING_N;
 
-    exa_clstats(int argc, char *argv[]);
+    exa_clstats();
 
-  void init_options();
-  void init_see_alsos();
+  static constexpr const char *name() { return "exa_clstats"; }
+
 
     void run();
 

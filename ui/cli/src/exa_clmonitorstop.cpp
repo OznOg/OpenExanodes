@@ -19,14 +19,8 @@
 
 using std::string;
 
-exa_clmonitorstop::exa_clmonitorstop(int argc, char *argv[])
-    : exa_clcommand(argc, argv)
-{}
-
-
-void exa_clmonitorstop::init_options()
+exa_clmonitorstop::exa_clmonitorstop()
 {
-    exa_clcommand::init_options();
 }
 
 
@@ -34,11 +28,7 @@ void exa_clmonitorstop::parse_opt_args(const std::map<char,
                                                       std::string> &opt_args)
 {
     exa_clcommand::parse_opt_args(opt_args);
-}
 
-
-void exa_clmonitorstop::init_see_alsos()
-{
     add_see_also("exa_clmonitorstart");
     add_see_also("exa_clinfo");
     add_see_also("exa_cltune");

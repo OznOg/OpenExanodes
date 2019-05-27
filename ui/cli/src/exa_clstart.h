@@ -9,16 +9,14 @@
 #define       __EXA_CLSTART_H__
 
 #include "ui/cli/src/exa_clcommand.h"
-#include "ui/cli/src/cli.h"
+
 class exa_clstart : public exa_clcommand
 {
 public:
 
-    exa_clstart(int argc, char *argv[]);
-    ~exa_clstart();
+    static constexpr const char *name() { return "exa_clstart"; }
 
-    void init_options();
-    void init_see_alsos();
+    exa_clstart();
 
     void run();
 

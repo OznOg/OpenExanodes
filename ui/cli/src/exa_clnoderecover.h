@@ -10,7 +10,6 @@
 
 
 #include "ui/cli/src/exa_clcommand.h"
-#include "ui/cli/src/cli.h"
 
 
 class exa_clnoderecover: public exa_clcommand
@@ -19,10 +18,9 @@ public:
 
     static const std::string OPT_ARG_NODE_HOSTNAMES;
 
-    exa_clnoderecover(int argc, char *argv[]);
+    static constexpr const char *name() { return "exa_clnoderecover"; }
 
-    void init_options();
-    void init_see_alsos();
+    exa_clnoderecover();
 
     void run();
 

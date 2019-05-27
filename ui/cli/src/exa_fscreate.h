@@ -9,8 +9,6 @@
 #define  __EXA_FSCREATE_H__
 
 #include "ui/cli/src/exa_fscommand.h"
-#include "ui/cli/src/cli.h"
-
 
 class exa_fscreate : public exa_fscommand
 {
@@ -22,10 +20,10 @@ public:
     static const std::string OPT_ARG_NBJOURNALS_NB;
     static const std::string OPT_ARG_RGSIZE_SIZE;
 
-    exa_fscreate(int argc, char *argv[]);
+    exa_fscreate();
 
-    void init_options();
-    void init_see_alsos();
+    static constexpr const char *name() { return "exa_fscreate"; }
+
 
     void run();
 

@@ -21,17 +21,13 @@ protected:
     static const std::string ARG_FILESYSTEM_GROUPNAME;
     static const std::string ARG_FILESYSTEM_FSNAME;
 
-    exa_fscommand(int argc, char *argv[]);
+    exa_fscommand();
 
 public:
-
-    virtual ~exa_fscommand();
 
     static void check_name(const std::string &fsname);
 
 protected:
-
-    virtual void init_options();
 
     virtual void parse_opt_args(const std::map<char, std::string> &opt_args) = 0;
     virtual void parse_non_opt_args(const std::vector<std::string> &non_opt_args);

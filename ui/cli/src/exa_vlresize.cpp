@@ -11,7 +11,6 @@
 #include <boost/lexical_cast.hpp>
 
 #include "common/include/exa_constants.h"
-#include "ui/cli/src/cli.h"
 #include "ui/common/include/admindcommand.h"
 #include "ui/common/include/cli_log.h"
 
@@ -21,22 +20,11 @@ using std::string;
 
 const std::string exa_vlresize::OPT_ARG_SIZE_SIZE(Command::Boldify("SIZE"));
 
-exa_vlresize::exa_vlresize(int argc, char *argv[])
-    : exa_vlcommand(argc, argv)
-    , nofscheck(false)
+exa_vlresize::exa_vlresize()
+    : nofscheck(false)
     , sizeKB_uu64(0)
     , size_max(false)
-
-{}
-
-
-exa_vlresize::~exa_vlresize()
-{}
-
-void exa_vlresize::init_options()
 {
-    exa_vlcommand::init_options();
-
     add_option('s', "size", "The new size, with a unit symbol like in 10G. The "
                "unit can be one char of K, M, G, T, P, E (For Kibi, Mebi, "
                "Gibi, Tebi, Pebi, Exbi). The decimal point is accepted like in "
@@ -47,11 +35,7 @@ void exa_vlresize::init_options()
                "currently part of a file system. WARNING! you won't be able to "
                "use your file system anymore", 0, true, false);
 #endif
-}
 
-
-void exa_vlresize::init_see_alsos()
-{
     add_see_also("exa_vlcreate");
     add_see_also("exa_vldelete");
     add_see_also("exa_vlstart");

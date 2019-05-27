@@ -26,12 +26,8 @@ class exa_clcreate : public exa_clcommand
     static const std::string OPT_ARG_DATANETWORK_HOSTNAME;
     static const std::string OPT_ARG_SPOFGROUP;
 
-
-  exa_clcreate (int argc, char *argv[]);
-  ~exa_clcreate ();
-
-  void init_options();
-  void init_see_alsos();
+  static constexpr const char *name() { return "exa_clcreate"; }
+  exa_clcreate();
 
   void run();
 

@@ -17,23 +17,13 @@ using std::string;
 const std::string exa_vlstart::OPT_ARG_NODE_HOSTNAMES(Command::Boldify(
                                                           "HOSTNAMES"));
 
-exa_vlstart::exa_vlstart(int argc, char *argv[])
-    : exa_vlcommand(argc, argv)
+exa_vlstart::exa_vlstart() :
 #ifdef WITH_FS
-    , nofscheck(false)
+     nofscheck(false),
 #endif
-    , allnodes(true)
+     allnodes(true)
     , readonly(false)
-{}
-
-
-exa_vlstart::~exa_vlstart()
-{}
-
-void exa_vlstart::init_options()
 {
-    exa_vlcommand::init_options();
-
 #ifdef WITH_BDEV
     add_option('r', "read-only",
                "Do not allow writes on this volume for specified nodes.",
@@ -56,11 +46,7 @@ void exa_vlstart::init_options()
     add_option('a', "all", "Export the volume on all nodes of the cluster. "
                            "(Deprecated option: this is the default)",
                0, false, false);
-}
 
-
-void exa_vlstart::init_see_alsos()
-{
     add_see_also("exa_vlcreate");
     add_see_also("exa_vldelete");
     add_see_also("exa_vlresize");

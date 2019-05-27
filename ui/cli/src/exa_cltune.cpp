@@ -35,17 +35,10 @@ const std::string exa_cltune::ARG_PARAMETER_PARAMETER(Command::Boldify(
                                                           "PARAMETER"));
 const std::string exa_cltune::ARG_PARAMETER_VALUE(Command::Boldify("VALUE"));
 
-exa_cltune::exa_cltune(int argc, char *argv[])
-    : exa_clcommand(argc, argv)
-    , display_params(false)
+exa_cltune::exa_cltune()
+    : display_params(false)
     , verbose(false)
-{}
-
-
-void exa_cltune::init_options()
 {
-    exa_clcommand::init_options();
-
     add_option('V', "verbose", "When listing parameters, show their "
                "description.", 0, false, false);
 
@@ -61,11 +54,7 @@ void exa_cltune::init_options()
     add_arg(ARG_PARAMETER_PARAMETER + "=[" + ARG_PARAMETER_VALUE + "]",
             1,
             false);
-}
 
-
-void exa_cltune::init_see_alsos()
-{
     add_see_also("exa_clcreate");
     add_see_also("exa_cldelete");
     add_see_also("exa_clstart");

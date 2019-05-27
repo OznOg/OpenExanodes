@@ -44,19 +44,12 @@ typedef struct
     std::set<string> set;       /**< set of disks */
 }diskset_t;
 
-exa_clnodeadd::exa_clnodeadd(int argc, char *argv[])
-    : exa_clcommand(argc, argv)
-    , _xml_cfg(NULL)
+exa_clnodeadd::exa_clnodeadd()
+    : _xml_cfg(NULL)
     , _node_name("")
     , _disks("")
     , _datanetwork("")
-{}
-
-
-void exa_clnodeadd::init_options()
 {
-    exa_clcommand::init_options();
-
     add_option('c', "config", "Specify the initialization file.", 1, true, true,
                OPT_ARG_CONFIG_FILE);
     add_option('n', "node", "Specify the hostname of the node to add.", 1,
@@ -67,11 +60,7 @@ void exa_clnodeadd::init_options()
     add_option('D', "datanetwork", "Specify the hostname or IP address to use "
                "for the data network.", 0,
                false, true, "'" + OPT_ARG_DATANETWORK_HOSTNAME + "'");
-}
 
-
-void exa_clnodeadd::init_see_alsos()
-{
     add_see_also("exa_clnodedel");
     add_see_also("exa_clnodestart");
     add_see_also("exa_clnodestop");

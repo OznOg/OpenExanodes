@@ -9,9 +9,6 @@
 #define  __EXA_FSSTOP_H__
 
 #include "ui/cli/src/exa_fscommand.h"
-#include "ui/cli/src/cli.h"
-
-
 
 class exa_fsstop : public exa_fscommand
 {
@@ -20,11 +17,10 @@ class exa_fsstop : public exa_fscommand
 
     static const std::string OPT_ARG_NODE_HOSTNAMES;
 
-  exa_fsstop (int argc, char * argv []);
-  ~exa_fsstop ();
+  exa_fsstop();
 
-  void init_options();
-  void init_see_alsos();
+  static constexpr const char *name() { return "exa_fsstop"; }
+
 
   void run();
 

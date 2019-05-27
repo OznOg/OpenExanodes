@@ -26,7 +26,6 @@ if (WITH_FS)
 endif (WITH_FS)
 
 set(EXA_CLI_COMMON_SOURCES
-    main.cpp
     exa_clcreate.cpp
     exa_cldelete.cpp
     exa_cldiskadd.cpp
@@ -41,7 +40,6 @@ set(EXA_CLI_COMMON_SOURCES
     exa_clnoderecover.cpp
     exa_clstart.cpp
     exa_clstats.cpp
-    exa_clstop.cpp
     exa_cltrace.cpp
     exa_cltune.cpp
     exa_dgcreate.cpp
@@ -64,7 +62,6 @@ set(EXA_CLI_COMMON_SOURCES
 
 set(EXA_CLI_COMMAND_LIB_SOURCES
     cli_log_impl.cpp
-    cli.cpp
     command.cpp
     command_arg.cpp
     command_option.cpp
@@ -85,7 +82,8 @@ add_dependencies(exa_cli_command_lib git.h)
 add_library(exa_cli_lib
     ${EXA_CLI_COMMON_SOURCES})
 
-add_executable(exa_cli all_commands.cpp)
+add_executable(exa_cli main.cpp)
+    
 
 target_link_libraries(exa_cli
     exa_cli_lib
@@ -96,6 +94,7 @@ target_link_libraries(exa_cli
     exa_os
     ${LIBXML2_LIBRARIES})
 
+target_compile_definitions(exa_cli PRIVATE WITH_COMMANDS)
 install(TARGETS exa_cli DESTINATION ${BIN_DIR})
 
 if (WITH_TOOLS)
@@ -110,12 +109,15 @@ target_link_libraries(exa_clitools
     exa_config
     exa_os
     ${LIBXML2_LIBRARIES})
+
+target_compile_definitions(exa_clitools PRIVATE WITH_TOOLS)
+
 install(TARGETS exa_clitools DESTINATION ${BIN_DIR})
 endif (WITH_TOOLS)
 
 if (NOT WIN32)
     add_executable(exa_pod
-        all_commands.cpp
+        main.cpp
         exa_dgreset.cpp
         exa_dgcheck.cpp
         info_pod.cpp)
@@ -128,12 +130,12 @@ if (NOT WIN32)
         exa_config
         exa_os
         ${LIBXML2_LIBRARIES})
+target_compile_definitions(exa_pod PRIVATE WITH_TOOLS WITH_COMMANDS)
 endif (NOT WIN32)
 
 if (WITH_DOCS)
 
     add_executable(exa_referenceguide
-        all_commands.cpp
         info_referenceguide.cpp)
 
     target_link_libraries(exa_referenceguide

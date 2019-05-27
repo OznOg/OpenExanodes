@@ -15,21 +15,7 @@
 using std::shared_ptr;
 using std::string;
 
-exa_clstart::exa_clstart(int argc, char *argv[])
-    : exa_clcommand(argc, argv)
-{}
-
-
-exa_clstart::~exa_clstart()
-{ }
-
-void exa_clstart::init_options()
-{
-    exa_clcommand::init_options();
-}
-
-
-void exa_clstart::init_see_alsos()
+exa_clstart::exa_clstart()
 {
     add_see_also("exa_clcreate");
     add_see_also("exa_cldelete");

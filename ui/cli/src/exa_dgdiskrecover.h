@@ -10,8 +10,6 @@
 
 
 #include "ui/cli/src/exa_dgcommand.h"
-#include "ui/cli/src/cli.h"
-
 
 class exa_dgdiskrecover : public exa_dgcommand
 {
@@ -20,11 +18,9 @@ class exa_dgdiskrecover : public exa_dgcommand
     static const std::string OPT_ARG_OLD_DISK_UUID;
     static const std::string OPT_ARG_NEW_DISK_UUID;
 
-    exa_dgdiskrecover (int argc, char *argv[]);
-    ~exa_dgdiskrecover ();
+    static constexpr const char *name() { return "exa_dgdiskrecover"; }
 
-    void init_options();
-    void init_see_alsos();
+    exa_dgdiskrecover();
 
     void run();
 

@@ -20,18 +20,8 @@ const std::string exa_dgdiskrecover::OPT_ARG_OLD_DISK_UUID(Command::Boldify(
 const std::string exa_dgdiskrecover::OPT_ARG_NEW_DISK_UUID(Command::Boldify(
                                                                "UUID2"));
 
-exa_dgdiskrecover::exa_dgdiskrecover(int argc, char *argv[])
-    : exa_dgcommand(argc, argv)
-{}
-
-
-exa_dgdiskrecover::~exa_dgdiskrecover()
-{}
-
-void exa_dgdiskrecover::init_options()
+exa_dgdiskrecover::exa_dgdiskrecover()
 {
-    exa_dgcommand::init_options();
-
     add_option('O', "old", "UUID of disk to be replaced.", 1, false, true,
                OPT_ARG_OLD_DISK_UUID);
 
@@ -39,11 +29,7 @@ void exa_dgdiskrecover::init_options()
                "UUID of replacement disk. The disk must be unassigned"
                " (not part of any group) and on the same node as the disk"
                " to be replaced.", 2, false, true, OPT_ARG_NEW_DISK_UUID);
-}
 
-
-void exa_dgdiskrecover::init_see_alsos()
-{
     add_see_also("exa_dgcreate");
     add_see_also("exa_dgdelete");
     add_see_also("exa_dgstart");

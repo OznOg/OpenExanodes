@@ -13,19 +13,10 @@
 
 using std::string;
 
-exa_dgstop::exa_dgstop(int argc, char *argv[])
-    : exa_dgcommand(argc, argv)
-    , _recursive(false)
+exa_dgstop::exa_dgstop()
+    : _recursive(false)
     , _force(false)
-{}
-
-
-exa_dgstop::~exa_dgstop()
-{}
-
-void exa_dgstop::init_options()
 {
-    exa_dgcommand::init_options();
 
     add_option('r', "recursive", "Recursively stop the volumes"
 #ifdef WITH_FS
@@ -34,11 +25,7 @@ void exa_dgstop::init_options()
                " in the disk group.", 0, false, false);
     add_option('f', "force", "Force the recursive stop when the disk group "
                "is OFFLINE.", 0, false, false);
-}
 
-
-void exa_dgstop::init_see_alsos()
-{
     add_see_also("exa_dgdelete");
     add_see_also("exa_dgstart");
     add_see_also("exa_dgstart");

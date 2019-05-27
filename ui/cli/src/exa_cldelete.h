@@ -9,7 +9,6 @@
 #define       __EXA_CLDELETE_H__
 
 #include "ui/cli/src/exa_clcommand.h"
-#include "ui/cli/src/cli.h"
 
 
 
@@ -18,11 +17,9 @@ class exa_cldelete : public exa_clcommand
 
  public:
 
-  exa_cldelete (int argc, char *argv[]);
-  ~exa_cldelete ();
+  exa_cldelete();
 
-  void init_options();
-  void init_see_alsos();
+  static constexpr const char *name() { return "exa_cldelete"; }
 
   void run();
 

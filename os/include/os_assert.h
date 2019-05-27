@@ -136,7 +136,7 @@
 #include <assert.h>
 
 #define OS_STATIC_ASSERT(predicate, ...) \
-  static_assert((predicate), "" __VA_ARGS__)
+  do { static_assert((predicate), "" __VA_ARGS__); } while(0)
 
 #define COMPILE_TIME_ASSERT(predicate) /* Deprecated; to be removed */ \
   OS_STATIC_ASSERT(predicate)

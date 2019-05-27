@@ -8,6 +8,7 @@
 #ifndef __ADMINDCLIENT_H__
 #define __ADMINDCLIENT_H__
 
+#include "ui/common/include/notifier.h"
 #include <boost/noncopyable.hpp>
 #include <functional>
 #include <set>
@@ -20,15 +21,12 @@ class Notifier;
 class AdmindClient: private boost::noncopyable
 {
 public:
-  AdmindClient(Notifier &_notifier);
-
   typedef std::function<void(const AdmindMessage& message)> MessageFunc;
   typedef std::function<void(const std::string &info)> ErrorFunc;
   typedef std::function<void(const std::string &hostname,
 			       const std::string &info, int warn)
     > WarningFunc;
 
-  class Request;
 
   /*
    * Takes the "command" and tries to connect to the node specified by
@@ -89,8 +87,9 @@ public:
 		   unsigned int timeout = 0);
 
 
-
+  void wait_all() { notifier.run(); }
 private:
+  class Request;
   class RequestImpl;
   class Seeker;
 
@@ -99,9 +98,7 @@ private:
 
   void done_request(Request *request);
 
-  Notifier &notifier;
-
-
+  SelectNotifier notifier;
 };
 
 

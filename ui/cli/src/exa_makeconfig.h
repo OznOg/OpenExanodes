@@ -10,8 +10,6 @@
 
 
 #include "ui/cli/src/command.h"
-#include "ui/cli/src/cli.h"
-
 
 class exa_makeconfig : public Command
 {
@@ -33,11 +31,9 @@ class exa_makeconfig : public Command
 
     static const std::string OPT_ARG_EXTRA_DGOPTION;
 
-  exa_makeconfig (int argc, char * argv []);
-  ~exa_makeconfig ();
+  exa_makeconfig();
 
-  void init_options();
-  void init_see_alsos();
+  static constexpr const char *name() { return "exa_makeconfig"; }
 
   void run();
 

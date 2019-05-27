@@ -9,9 +9,6 @@
 #define __EXA_VLTUNE_H__
 
 #include "ui/cli/src/exa_vlcommand.h"
-#include "ui/cli/src/cli.h"
-
-
 
 class exa_vltune : public exa_vlcommand
 {
@@ -34,11 +31,9 @@ public:
     static const std::string ARG_PARAMETER_PARAMETER;
     static const std::string ARG_PARAMETER_VALUE;
 
-    exa_vltune(int argc, char *argv[]);
-    ~exa_vltune();
+    exa_vltune();
 
-    void init_options(void);
-    void init_see_alsos(void);
+    static constexpr const char *name() { return "exa_vltune"; }
 
     void run(void);
 
@@ -67,4 +62,3 @@ private:
 
 
 #endif /* __EXA_CLTUNE_H__ */
-

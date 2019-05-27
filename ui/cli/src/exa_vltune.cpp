@@ -26,23 +26,14 @@ const std::string exa_vltune::ARG_PARAMETER_PARAMETER(Command::Boldify(
                                                           "PARAMETER"));
 const std::string exa_vltune::ARG_PARAMETER_VALUE(Command::Boldify("VALUE"));
 
-exa_vltune::exa_vltune(int argc, char *argv[])
-    : exa_vlcommand(argc, argv)
+exa_vltune::exa_vltune()
+    : 
 #ifdef WITH_FS
-    , nofscheck(false)
+    nofscheck(false),
 #endif
-    , _vltune_mode(VLTUNE_NONE)
+    _vltune_mode(VLTUNE_NONE)
     , verbose(false)
-{}
-
-
-exa_vltune::~exa_vltune()
-{}
-
-void exa_vltune::init_options()
 {
-    exa_vlcommand::init_options();
-
     std::set<int> exclude_all;
     exclude_all.insert(1);
     exclude_all.insert(2);
@@ -76,11 +67,6 @@ void exa_vltune::init_options()
     add_arg(ARG_PARAMETER_PARAMETER + "=" + "[" + ARG_PARAMETER_VALUE + "]",
             exclude_all, false);
 }
-
-
-void exa_vltune::init_see_alsos()
-{}
-
 
 void exa_vltune::run()
 {

@@ -9,7 +9,6 @@
 #define __EXA_CLNODESTART_H__
 
 #include "ui/cli/src/exa_clcommand.h"
-#include "ui/cli/src/cli.h"
 
 
 class exa_clnodestart: public exa_clcommand
@@ -18,11 +17,10 @@ public:
 
     static const std::string OPT_ARG_NODE_HOSTNAMES;
 
-    exa_clnodestart(int argc, char *argv[]);
-    ~exa_clnodestart();
+    exa_clnodestart();
 
-    void init_options();
-    void init_see_alsos();
+    static constexpr const char *name() { return "exa_clnodestart"; }
+
 
     void run();
 

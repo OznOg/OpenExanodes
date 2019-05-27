@@ -14,27 +14,13 @@
 
 using std::string;
 
-exa_fsdelete::exa_fsdelete(int argc, char *argv[])
-    : exa_fscommand(argc, argv)
-    , metadata_recovery(false)
-
-{}
-
-exa_fsdelete::~exa_fsdelete()
-{}
-
-void exa_fsdelete::init_options()
+exa_fsdelete::exa_fsdelete()
+    : metadata_recovery(false)
 {
-    exa_fscommand::init_options();
-
     add_option('M', "metadata-recovery",
                "Force deletion after a failure during an exa_fscreate.",
                0, false, false);
-}
 
-
-void exa_fsdelete::init_see_alsos()
-{
     add_see_also("exa_fscreate");
     add_see_also("exa_fscheck");
     add_see_also("exa_fsresize");

@@ -9,19 +9,16 @@
 #define  __EXA_FSDELETE_H__
 
 #include "ui/cli/src/exa_fscommand.h"
-#include "ui/cli/src/cli.h"
-
 
 class exa_fsdelete : public exa_fscommand
 {
 
  public:
 
-  exa_fsdelete (int argc, char *argv[]);
-  ~exa_fsdelete ();
+  exa_fsdelete();
 
-  void init_options();
-  void init_see_alsos();
+  static constexpr const char *name() { return "exa_fsdelete"; }
+
 
   void run();
 

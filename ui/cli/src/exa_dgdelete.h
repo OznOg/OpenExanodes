@@ -10,19 +10,16 @@
 
 
 #include "ui/cli/src/exa_dgcommand.h"
-#include "ui/cli/src/cli.h"
-
 
 class exa_dgdelete : public exa_dgcommand
 {
 
  public:
 
-  exa_dgdelete (int argc, char *argv[]);
-  ~exa_dgdelete ();
+  exa_dgdelete();
 
-  void init_options();
-  void init_see_alsos();
+  static constexpr const char *name() { return "exa_dgdelete"; }
+
 
   void run();
 

@@ -22,29 +22,15 @@ const std::string exa_fstune::ARG_PARAMETER_PARAMETER(Command::Boldify(
                                                           "PARAMETER"));
 const std::string exa_fstune::ARG_PARAMETER_VALUE(Command::Boldify("VALUE"));
 
-exa_fstune::exa_fstune(int argc, char *argv[])
-    : exa_fscommand(argc, argv)
-    , _display_params(false)
-{}
-
-
-exa_fstune::~exa_fstune()
-{}
-
-void exa_fstune::init_options()
+exa_fstune::exa_fstune()
+    : _display_params(false)
 {
-    exa_fscommand::init_options();
-
     add_option('l', "list", "Display all parameters and their current values.",
                1, false, false);
 
     add_arg(ARG_PARAMETER_PARAMETER + "=" +
             "[" + ARG_PARAMETER_VALUE + "]", 1, false);
-}
 
-
-void exa_fstune::init_see_alsos()
-{
     add_see_also("exa_fscreate");
     add_see_also("exa_fsdelete");
     add_see_also("exa_fsresize");

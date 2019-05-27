@@ -9,17 +9,13 @@
 #define __EXA_DGRESET_H__
 
 #include "ui/cli/src/exa_dgcommand.h"
-#include "ui/cli/src/cli.h"
-
 
 class exa_dgreset : public exa_dgcommand
 {
 public:
-    exa_dgreset(int argc, char *argv[]);
-    ~exa_dgreset();
+    static constexpr const char *name() { return "exa_dgreset"; }
 
-    void init_options();
-    void init_see_alsos();
+    exa_dgreset();
 
     void run();
 
@@ -33,4 +29,3 @@ protected:
 
 
 #endif // __EXA_DGRESET_H__
-

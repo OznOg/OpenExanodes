@@ -46,21 +46,11 @@ const std::string exa_makeconfig::OPT_ARG_LAYOUT_RAINX(Command::Boldify(
 const std::string exa_makeconfig::OPT_ARG_EXTRA_DGOPTION(Command::Boldify(
                                                              "DGOPTION"));
 
-exa_makeconfig::exa_makeconfig(int argc, char *argv[])
-    : Command(argc, argv)
-    , want_group(false)
+exa_makeconfig::exa_makeconfig()
+    : want_group(false)
     , group_id(DEFAULT_NUMBER_OF_GROUP)
     , number_of_group(DEFAULT_NUMBER_OF_GROUP)
-{}
-
-
-exa_makeconfig::~exa_makeconfig()
-{}
-
-void exa_makeconfig::init_options()
 {
-    Command::init_options();
-
     add_option('c', "cluster", "Name of the cluster to create.",
                1, false, true, OPT_ARG_CLUSTER_CLUSTERNAME);
 
@@ -97,11 +87,7 @@ void exa_makeconfig::init_options()
                " - su_size=1024 (in KB)\n"
                " - dirty_zone_size=32768 (in KB)\n"
                " - blended_stripes=0", 0, true, true, OPT_ARG_EXTRA_DGOPTION);
-}
 
-
-void exa_makeconfig::init_see_alsos()
-{
     add_see_also("exa_expand");
     add_see_also("exa_clcreate");
     add_see_also("exa_dgcreate");

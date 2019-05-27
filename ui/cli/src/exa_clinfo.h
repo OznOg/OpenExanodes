@@ -9,7 +9,6 @@
 #define __EXA_CLINFO_H__
 
 #include "ui/cli/src/exa_clcommand.h"
-#include "ui/cli/src/cli.h"
 
 #include "common/include/exa_config.h"
 #include "common/include/exa_assert.h"
@@ -24,11 +23,10 @@ public:
     static const std::string OPT_ARG_ONLY_ITEM;
     static const std::string OPT_ARG_WRAPPING_N;
 
-    exa_clinfo(int argc, char *argv[]);
-    ~exa_clinfo();
+    exa_clinfo();
 
-    void init_options();
-    void init_see_alsos();
+    static constexpr const char *name() { return "exa_clinfo"; }
+
 
     void run();
 

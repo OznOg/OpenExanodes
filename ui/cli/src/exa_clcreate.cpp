@@ -7,7 +7,6 @@
  */
 
 #include "ui/cli/src/exa_clcreate.h"
-#include "ui/cli/src/cli.h"
 #include "ui/cli/src/license.h"
 
 #include <sys/stat.h>
@@ -64,19 +63,8 @@ const std::string exa_clcreate::OPT_ARG_LICENSE_FILE(Command::Boldify("FILE"));
 const std::string exa_clcreate::OPT_ARG_DATANETWORK_HOSTNAME(Command::Boldify(
                                                                  "HOSTNAME"));
 
-exa_clcreate::exa_clcreate(int argc, char *argv[])
-    : exa_clcommand(argc, argv)
-    , _datanetwork("")
-{}
-
-
-exa_clcreate::~exa_clcreate()
-{}
-
-void exa_clcreate::init_options()
+exa_clcreate::exa_clcreate()
 {
-    exa_clcommand::init_options();
-
     add_option('c', "config", "Specify the initialization file.",
                1, true, true, OPT_ARG_CONFIG_FILE, "1");
 
@@ -102,11 +90,7 @@ void exa_clcreate::init_options()
                + OPT_ARG_DATANETWORK_HOSTNAME + " enclosed with quotes.",
                0, false, true, "'" + OPT_ARG_DATANETWORK_HOSTNAME
                + EXA_CONF_SEPARATOR + OPT_ARG_DATANETWORK_HOSTNAME + "...'");
-}
 
-
-void exa_clcreate::init_see_alsos()
-{
     add_see_also("exa_expand");
     add_see_also("exa_cldelete");
     add_see_also("exa_clstart");

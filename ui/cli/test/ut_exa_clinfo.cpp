@@ -85,10 +85,6 @@ static void assert_equal_output(const string& _expected,
 class __exa_clinfo : public exa_clinfo
 {
 public:
-    __exa_clinfo(int argc, char* argv[])
-        : exa_clinfo(argc, argv)
-    {};
-
     using exa_clinfo::exa_display_volumes_status;
 #ifdef WITH_FS
     using exa_clinfo::exa_display_fs_status;
@@ -146,7 +142,9 @@ static void test_display_info(const std::string& expected_output,
     };
     int argc = sizeof(argv)/sizeof(char*);
 
-    __exa_clinfo cmd(argc, argv);
+    __exa_clinfo cmd;
+
+    cmd.parse(argc, argv);
 
     // Clear __stdout to keep only output of exa_display_volumes_status
     __stdout.str("");
@@ -269,7 +267,7 @@ ut_test(display_volume_status_fs)
     const string expected(
 "VOLUMES:\n"
 " dg_test:fs_test             1.0G  SHARED\n"
-" bdev | /dev/exa/dg_test/fs_test\n"
+" bdev | /dev/exa/dg_test/fs_test  (type 'sfs')\n"
 "                IN USE       sam60\n"
 "\n"
 );
@@ -287,6 +285,7 @@ ut_test(display_fs_status)
 "FILE SYSTEMS                 SIZE  USED  AVAIL TYPE     OPTIONS MOUNTPOINT\n"
 " dg_test:fs_test             (NO INFO)         sfs              /mnt/fs_test\n"
 "                MOUNTED      sam60\n"
+"                WILL START   sam66 sam67\n"
 "\n"
 );
     test_display_info(expected, xml_clinfo_with_fs,

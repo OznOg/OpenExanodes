@@ -64,12 +64,9 @@ class Command
 {
 public:
 
-    typedef std::shared_ptr<Command>(*factory_t)(int argc, char *argv[]);
+    Command();
 
-    Command(int argc, char *argv[]);
-
-    virtual ~Command();
-
+    virtual ~Command() = default;
 
     typedef std::function < void (const std::string & node,
                                     exa_error_code error_code,
@@ -105,22 +102,31 @@ public:
     exa_error_code set_cluster_from_cache(const std::string &clustername,
                                           std::string &error_msg);
 
-    /* FIXME These methods shouldn't be public, but it will do for now
-     * (instead, the factory should be friend, etc)*/
-    virtual void init_options() = 0;
-    virtual void init_see_alsos() = 0;
+    void parse(int _argc, char *_argv[]);
 
-    void parse ();
-
-    virtual void run() = 0;
+    void run(int _argc, char *_argv[]) {
+        parse(_argc, _argv);
+        run();
+    }
 
     void show_version() const;
 
+    virtual std::string get_short_description(bool show_hidden) const { return ""; }
+
+    virtual void dump_short_description (std::ostream& out, bool show_hidden = false) const {
+        out << get_short_description(show_hidden);
+    }
+
+    virtual std::string get_full_description(bool show_hidden) const { return ""; }
+
+    virtual void dump_full_description (std::ostream& out, bool show_hidden = false) const {
+        out << get_full_description(show_hidden) << std::endl;
+    }
 protected:
 
     static const std::string TIMEOUT_ARG_NAME;
 
-    std::string get_name () const { return _argv[0]; }
+    std::string get_name () const { return _command_name; }
 
     /**
      * Add an option to the command.
@@ -191,8 +197,9 @@ protected:
 		  bool multiple = false);
 
     void add_see_also (const std::string& see_also);
+    void add_see_also(const std::vector<std::string> &see_also);
 
-    virtual void parse_opt_args (const std::map<char, std::string>& opt_args) = 0;
+    virtual void parse_opt_args (const std::map<char, std::string>& opt_args);
     virtual void parse_non_opt_args (const std::vector<std::string>& non_opt_args) = 0;
 
     void dump_usage (std::ostream& out, bool show_hidden = false) const;
@@ -201,10 +208,8 @@ protected:
 		       const std::string& section,
 		       bool show_hidden = false) const;
 
-    virtual void dump_short_description (std::ostream& out, bool show_hidden = false) const = 0;
 
     virtual void dump_synopsis (std::ostream& out, bool show_hidden = false) const;
-    virtual void dump_full_description (std::ostream& out, bool show_hidden = false) const = 0;
     virtual void dump_examples (std::ostream& out, bool show_hidden = false) const = 0;
     virtual void dump_see_also (std::ostream& out, bool show_hidden = false) const;
     virtual void dump_output_section (std::ostream& out, bool show_hidden = false) const;
@@ -229,6 +234,8 @@ protected:
 
 private:
 
+    virtual void run() = 0;
+
     void add_to_param_groups(const std::shared_ptr<CommandParam>& param);
     void generate_valid_param_combinations();
     void check_provided_params(const std::map<char, std::string> &opt_args,
@@ -250,8 +257,7 @@ protected:
 
 private:
 
-    int _argc;
-    char **_argv;
+    std::string _command_name;
     CommandOptions _options;  //!< valid command options definition
     CommandArgs _args;  //!< valid command arguments definition
     std::map<int,CommandParams> _param_groups; //!< groups of exclusive parameters
@@ -262,7 +268,6 @@ private:
     unsigned int _timeout; //!< max time for cli command to finish
     bool _in_progress_hidden;  //!< whether or not to display in progress messages
 
-    SelectNotifier notifier;
     std::shared_ptr<Line>line;
     std::string in_progress_source;
 
@@ -272,15 +277,5 @@ private:
 
 EXA_BASIC_EXCEPTION_DECL(CommandException, exa::Exception);
 
-
-template<class T>std::shared_ptr<Command>
-command_factory(int argc, char *argv[])
-{
-    std::shared_ptr<Command> inst(new T(argc, argv));
-    inst->init_options();
-    inst->init_see_alsos();
-    inst->parse ();
-    return inst;
-}
 
 #endif /* __COMMAND_H__ */

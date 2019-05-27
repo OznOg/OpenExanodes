@@ -17,21 +17,11 @@ using std::string;
 const std::string exa_vlstop::OPT_ARG_NODE_HOSTNAMES(Command::Boldify(
                                                          "HOSTNAMES"));
 
-exa_vlstop::exa_vlstop(int argc, char *argv[])
-    : exa_vlcommand(argc, argv)
-    , nofscheck(false)
+exa_vlstop::exa_vlstop()
+    : nofscheck(false)
     , force(false)
     , allnodes(true)
-{}
-
-
-exa_vlstop::~exa_vlstop()
-{}
-
-void exa_vlstop::init_options()
 {
-    exa_vlcommand::init_options();
-
 #ifdef WITH_BDEV
     add_option('n', "node", "Specify the nodes on which to stop this volume, "
                "for bdev volumes. This option is a regular expansion (see "
@@ -46,11 +36,7 @@ void exa_vlstop::init_options()
                "start will fail.", 0, true, false);
     add_option('f', "force", "Continue the stop even if something goes wrong. "
                "CAUTION! This option is very dangerous.", 0, true, false);
-}
 
-
-void exa_vlstop::init_see_alsos()
-{
     add_see_also("exa_vlcreate");
     add_see_also("exa_vldelete");
     add_see_also("exa_vlresize");

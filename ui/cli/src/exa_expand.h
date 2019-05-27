@@ -9,7 +9,6 @@
 #define  __EXA_EXPAND_H__
 
 #include "ui/cli/src/command.h"
-#include "ui/cli/src/cli.h"
 
 class exa_expand : public Command
 {
@@ -18,11 +17,9 @@ public:
 
     static const std::string ARG_STRING;
 
-    exa_expand(int argc, char *argv[]);
-    ~exa_expand();
+    static constexpr const char *name() { return "exa_expand"; }
 
-    void init_options();
-    void init_see_alsos();
+    exa_expand();
 
     void run();
 

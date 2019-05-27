@@ -12,26 +12,12 @@
 
 using std::string;
 
-exa_dgstart::exa_dgstart(int argc, char *argv[])
-    : exa_dgcommand(argc, argv)
-{}
-
-
-exa_dgstart::~exa_dgstart()
-{}
-
-void exa_dgstart::init_options()
+exa_dgstart::exa_dgstart()
 {
-    exa_dgcommand::init_options();
-}
-
-
-void exa_dgstart::init_see_alsos()
-{
-    add_see_also("exa_dgcreate");
-    add_see_also("exa_dgdelete");
-    add_see_also("exa_dgstop");
-    add_see_also("exa_dgdiskrecover");
+    add_see_also({ "exa_dgcreate",
+                   "exa_dgdelete",
+                   "exa_dgstop",
+                   "exa_dgdiskrecover" });
 }
 
 
@@ -64,24 +50,16 @@ void exa_dgstart::run()
 }
 
 
-void exa_dgstart::parse_opt_args(const std::map<char, std::string> &opt_args)
+std::string exa_dgstart::get_short_description(bool) const
 {
-    exa_dgcommand::parse_opt_args(opt_args);
+    return "Start an Exanodes disk group.";
 }
 
 
-void exa_dgstart::dump_short_description(std::ostream &out,
-                                         bool show_hidden) const
+std::string exa_dgstart::get_full_description(bool show_hidden) const
 {
-    out << "Start an Exanodes disk group.";
-}
-
-
-void exa_dgstart::dump_full_description(std::ostream &out,
-                                        bool show_hidden) const
-{
-    out << "Start the disk group " << ARG_DISKGROUP_GROUPNAME
-        << " of the cluster " << ARG_DISKGROUP_CLUSTERNAME << std::endl;
+    return "Start the disk group " + ARG_DISKGROUP_GROUPNAME
+           + " of the cluster " + ARG_DISKGROUP_CLUSTERNAME;
 }
 
 

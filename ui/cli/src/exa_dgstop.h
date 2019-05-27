@@ -9,19 +9,16 @@
 #define  __EXA_DGSTOP_H__
 
 #include "ui/cli/src/exa_dgcommand.h"
-#include "ui/cli/src/cli.h"
-
 
 class exa_dgstop : public exa_dgcommand
 {
 
  public:
 
-  exa_dgstop (int argc, char *argv[]);
-  ~exa_dgstop ();
+  exa_dgstop();
 
-  void init_options();
-  void init_see_alsos();
+  static constexpr const char *name() { return "exa_dgstop"; } 
+
 
   void run();
 

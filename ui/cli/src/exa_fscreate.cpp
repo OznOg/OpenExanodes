@@ -24,18 +24,11 @@ const std::string exa_fscreate::OPT_ARG_TYPE_FSTYPE(Command::Boldify("FSTYPE"));
 const std::string exa_fscreate::OPT_ARG_NBJOURNALS_NB(Command::Boldify("NB"));
 const std::string exa_fscreate::OPT_ARG_RGSIZE_SIZE(Command::Boldify("SIZE"));
 
-exa_fscreate::exa_fscreate(int argc, char *argv[])
-    : exa_fscommand(argc, argv)
-    , sizeKB_uu64(0)
+exa_fscreate::exa_fscreate()
+    : sizeKB_uu64(0)
     , rg_sizeM(0)
     , nb_logs(-1)
-{}
-
-
-void exa_fscreate::init_options()
 {
-    exa_fscommand::init_options();
-
     add_option('m', "mountpoint", "Mountpoint directory to be used on your "
                "nodes.", 1, false, true, OPT_ARG_MOUNTPOINT_PATH);
     add_option('t', "type", "File system type. Supported file systems are:\n"
@@ -56,11 +49,7 @@ void exa_fscreate::init_options()
                "system. Minimum would be 256M. Bigger means better performance "
                "with risks of lock contention.", 0, false, true,
                OPT_ARG_RGSIZE_SIZE);
-}
 
-
-void exa_fscreate::init_see_alsos()
-{
     add_see_also("exa_fscheck");
     add_see_also("exa_fsdelete");
     add_see_also("exa_fsresize");

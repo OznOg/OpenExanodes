@@ -25,26 +25,15 @@ using std::shared_ptr;
 const std::string exa_clnoderecover::OPT_ARG_NODE_HOSTNAMES(Command::Boldify(
                                                                 "HOSTNAMES"));
 
-exa_clnoderecover::exa_clnoderecover(int argc, char *argv[])
-    : exa_clcommand(argc, argv)
-{}
-
-
-void exa_clnoderecover::init_options()
+exa_clnoderecover::exa_clnoderecover()
 {
-    exa_clcommand::init_options();
-
     add_option('n', "node", "Specify the node(s) to recover.", 1, false, true,
                OPT_ARG_NODE_HOSTNAMES);
     add_option('j', "join", "Request a recovery of Exanodes configuration.",
                2, false, false);
     add_option('l', "leave", "Request an uninitialization of Exanodes.",
                2, false, false);
-}
 
-
-void exa_clnoderecover::init_see_alsos()
-{
     add_see_also("exa_expand");
     add_see_also("exa_clnodeadd");
     add_see_also("exa_clnodedel");

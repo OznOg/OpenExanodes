@@ -45,21 +45,11 @@ const std::string exa_dgcreate::OPT_ARG_LAYOUT_SSTRIPING(Command::Boldify(
 const std::string exa_dgcreate::OPT_ARG_LAYOUT_RAINX(Command::Boldify(
                                                          RAINX_NAME));
 
-exa_dgcreate::exa_dgcreate(int argc, char *argv[])
-    : exa_dgcommand(argc, argv)
-    , startgroup(false)
-    , alldisks(false)
-    , nb_spare(-1)
-{}
-
-
-exa_dgcreate::~exa_dgcreate()
-{}
-
-void exa_dgcreate::init_options()
+exa_dgcreate::exa_dgcreate()
+        : startgroup(false)
+          , alldisks(false)
+          , nb_spare(-1)
 {
-    exa_dgcommand::init_options();
-
     add_option('i', "disk", "Specify the nodes and disks to use.", 1, false,
                true, OPT_ARG_DISK_HOSTNAMES + EXA_CONF_SEPARATOR +
                OPT_ARG_DISK_PATH);
@@ -93,11 +83,7 @@ void exa_dgcreate::init_options()
                "Specify several values by quoting them:\n"
                "-e 'chunk_size=524288 su_size=64'",
                0, true, true, OPT_ARG_EXTRA_DGOPTION);
-}
 
-
-void exa_dgcreate::init_see_alsos()
-{
     add_see_also("exa_dgdelete");
     add_see_also("exa_dgstart");
     add_see_also("exa_dgstop");

@@ -10,7 +10,6 @@
 #define  __EXA_CLMONITORSTART_H__
 
 #include "ui/cli/src/exa_clcommand.h"
-#include "ui/cli/src/cli.h"
 
 class exa_clmonitorstart : public exa_clcommand
 {
@@ -19,10 +18,10 @@ public:
     static const std::string OPT_ARG_SNMPDHOST_HOST;
     static const std::string OPT_ARG_SNMPDPORT_PORT;
 
-    exa_clmonitorstart(int argc, char *argv[]);
+    exa_clmonitorstart();
 
-    void init_options();
-    void init_see_alsos();
+    static constexpr const char *name() { return "exa_clmonitorstart"; }
+
 
     void run();
 

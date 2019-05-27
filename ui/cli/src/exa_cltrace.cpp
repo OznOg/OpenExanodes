@@ -29,24 +29,14 @@ const std::string exa_cltrace::OPT_ARG_NODE_HOSTNAMES(Command::Boldify(
 
 static void sort_components();
 
-exa_cltrace::exa_cltrace(int argc, char *argv[])
-    : exa_clcommand(argc, argv)
-    , allnodes(false)
+exa_cltrace::exa_cltrace()
+    : allnodes(false)
     , component_index(-1)
     , level_index(-1)
 {
     sort_components();
-}
-
-
-exa_cltrace::~exa_cltrace()
-{}
-
-void exa_cltrace::init_options()
-{
+    
     std::set<int> groups;
-
-    exa_clcommand::init_options();
 
     groups.insert(1);
     groups.insert(2);
@@ -69,11 +59,6 @@ void exa_cltrace::init_options()
     add_option('a', "all", "Apply to all nodes of the cluster.",
                3, false, false);
 }
-
-
-void exa_cltrace::init_see_alsos()
-{}
-
 
 /* --- local data ---------------------------------------------------- */
 

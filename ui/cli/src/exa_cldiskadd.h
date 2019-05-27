@@ -9,7 +9,6 @@
 #define  __EXA_CLDISKADD_H__
 
 #include "ui/cli/src/exa_clcommand.h"
-#include "ui/cli/src/cli.h"
 
 
 class exa_cldiskadd: public exa_clcommand
@@ -19,10 +18,9 @@ public:
     static const std::string OPT_ARG_DISK_HOSTNAME;
     static const std::string OPT_ARG_DISK_PATH;
 
-    exa_cldiskadd(int argc, char *argv[]);
+    static constexpr const char *name() { return "exa_cldiskadd"; }
 
-    void init_options();
-    void init_see_alsos();
+    exa_cldiskadd();
     void run();
 
  protected:

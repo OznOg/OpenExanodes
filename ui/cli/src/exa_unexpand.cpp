@@ -8,7 +8,6 @@
 
 #include "ui/cli/src/exa_unexpand.h"
 
-#include "ui/cli/src/cli.h"
 #include "ui/common/include/common_utils.h"
 #include "ui/common/include/exa_expand.h"
 
@@ -16,24 +15,11 @@ using std::string;
 
 const std::string exa_unexpand::ARG_STRING(Command::Boldify("STRING"));
 
-exa_unexpand::exa_unexpand(int argc, char *argv[])
-    : Command(argc, argv)
-    , _request("")
-{}
-
-
-exa_unexpand::~exa_unexpand()
-{}
-
-void exa_unexpand::init_options()
+exa_unexpand::exa_unexpand()
+    : _request("")
 {
-    Command::init_options();
     add_arg(ARG_STRING, 10, false, "", true);
-}
 
-
-void exa_unexpand::init_see_alsos()
-{
     add_see_also("exa_expand");
 }
 

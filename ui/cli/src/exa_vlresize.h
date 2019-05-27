@@ -18,11 +18,10 @@ class exa_vlresize : public exa_vlcommand
 
     static const std::string OPT_ARG_SIZE_SIZE;
 
-  exa_vlresize (int argc, char * argv []);
-  ~exa_vlresize ();
+  exa_vlresize ();
 
-  void init_options();
-  void init_see_alsos();
+  static constexpr const char *name() { return "exa_vlresize"; }
+
 
   void run();
 

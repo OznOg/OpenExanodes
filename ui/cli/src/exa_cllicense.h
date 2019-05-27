@@ -10,7 +10,6 @@
 #define __EXA_CLLICENSE_H__
 
 #include "ui/cli/src/exa_clcommand.h"
-#include "ui/cli/src/cli.h"
 
 class exa_cllicense : public exa_clcommand
 {
@@ -18,11 +17,9 @@ public:
     static const std::string OPT_ARG_FILENAME;
     static const std::string OPT_ARG_HOSTNAME;
 
-    exa_cllicense(int argc, char *argv[]);
-    ~exa_cllicense();
+    static constexpr const char *name() { return "exa_cllicense"; }
 
-    void init_options();
-    void init_see_alsos();
+    exa_cllicense();
 
     void run();
 

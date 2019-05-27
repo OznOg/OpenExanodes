@@ -16,30 +16,16 @@ using std::string;
 
 const std::string exa_fsresize::OPT_ARG_SIZE_SIZE(Command::Boldify("SIZE"));
 
-exa_fsresize::exa_fsresize(int argc, char *argv[])
-    : exa_fscommand(argc, argv)
-    , sizeKB_uu64(0)
+exa_fsresize::exa_fsresize()
+    : sizeKB_uu64(0)
     , size_max(false)
-{}
-
-
-exa_fsresize::~exa_fsresize()
-{}
-
-void exa_fsresize::init_options()
 {
-    exa_fscommand::init_options();
-
     add_option('s', "size", "The new size, with a unit symbol like in 10G. "
                "The unit can be one char of K, M, G, T, P, E (For Kibi, Mebi, "
                "Gibi, Tebi, Pebi, Exbi). The decimal point is accepted like in "
                "1.2T. The special value 'max' means all available space in the "
                "disk group.", 1, false, true, OPT_ARG_SIZE_SIZE);
-}
 
-
-void exa_fsresize::init_see_alsos()
-{
     add_see_also("exa_fscreate");
     add_see_also("exa_fsdelete");
     add_see_also("exa_fscheck");

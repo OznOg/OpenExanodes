@@ -18,21 +18,11 @@ const std::string exa_fsstart::OPT_ARG_NODE_HOSTNAMES(Command::Boldify(
                                                           "HOSTNAMES"));
 const std::string exa_fsstart::OPT_ARG_MOUNTPOINT_PATH(Command::Boldify("PATH"));
 
-exa_fsstart::exa_fsstart(int argc, char *argv[])
-    : exa_fscommand(argc, argv)
-    , allnodes(false)
+exa_fsstart::exa_fsstart()
+    : allnodes(false)
     , mount_point("")
     , read_only(false)
-{}
-
-
-exa_fsstart::~exa_fsstart()
-{}
-
-void exa_fsstart::init_options()
 {
-    exa_fscommand::init_options();
-
     add_option('n', "node", "Specify the nodes on which to start this file "
                "system. This option is a regular expansion (see exa_expand).",
                1, false, true, OPT_ARG_NODE_HOSTNAMES);
@@ -47,11 +37,7 @@ void exa_fsstart::init_options()
                "is already started on one or more nodes. To go back in "
                "Read-Write mode, you must first stop the file system on all "
                "your nodes.", 0, false, false);
-}
 
-
-void exa_fsstart::init_see_alsos()
-{
     add_see_also("exa_fscreate");
     add_see_also("exa_fsdelete");
     add_see_also("exa_fsresize");

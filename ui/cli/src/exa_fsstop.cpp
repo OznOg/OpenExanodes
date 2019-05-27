@@ -17,20 +17,10 @@ using std::string;
 const std::string exa_fsstop::OPT_ARG_NODE_HOSTNAMES(Command::Boldify(
                                                          "HOSTNAMES"));
 
-exa_fsstop::exa_fsstop(int argc, char *argv[])
-    : exa_fscommand(argc, argv)
-    , allnodes(false)
+exa_fsstop::exa_fsstop()
+    : allnodes(false)
     , forcemode(false)
-{}
-
-
-exa_fsstop::~exa_fsstop()
-{}
-
-void exa_fsstop::init_options()
 {
-    exa_fscommand::init_options();
-
     add_option('n', "node", "Specify the nodes on which to stop this file "
                "system. This option is a regular expansion (see exa_expand).",
                1, false, true, OPT_ARG_NODE_HOSTNAMES);
@@ -39,11 +29,7 @@ void exa_fsstop::init_options()
     add_option('f', "force", "Continue the stop even if something goes wrong, "
                "eg. if the associated data volume is DOWN. CAUTION! This "
                "option is very dangerous.", 0, true, false);
-}
 
-
-void exa_fsstop::init_see_alsos()
-{
     add_see_also("exa_fscreate");
     add_see_also("exa_fsdelete");
     add_see_also("exa_fsresize");

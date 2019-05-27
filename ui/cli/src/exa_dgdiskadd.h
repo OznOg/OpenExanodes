@@ -10,8 +10,6 @@
 
 
 #include "ui/cli/src/exa_dgcommand.h"
-#include "ui/cli/src/cli.h"
-
 
 class exa_dgdiskadd : public exa_dgcommand
 {
@@ -21,11 +19,9 @@ class exa_dgdiskadd : public exa_dgcommand
     static const std::string OPT_ARG_DISK_PATH;
     static const std::string OPT_ARG_DISK_HOSTNAME;
 
-    exa_dgdiskadd (int argc, char *argv[]);
-    ~exa_dgdiskadd ();
+    static constexpr const char *name() { return "exa_dgdiskadd"; }
 
-    void init_options();
-    void init_see_alsos();
+    exa_dgdiskadd();
 
     void run();
 

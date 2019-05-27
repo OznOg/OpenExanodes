@@ -10,7 +10,6 @@
 
 
 #include "ui/cli/src/exa_clcommand.h"
-#include "ui/cli/src/cli.h"
 #include "common/include/exa_config.h"
 
 
@@ -23,11 +22,11 @@ public:
     static const std::string OPT_ARG_NODE_HOSTNAME;
     static const std::string OPT_ARG_DATANETWORK_HOSTNAME;
 
-  exa_clnodeadd(int argc, char *argv[]);
+  exa_clnodeadd();
   ~exa_clnodeadd();
 
-  void init_options();
-  void init_see_alsos();
+  static constexpr const char *name() { return "exa_clnodeadd"; }
+
 
   void run();
 

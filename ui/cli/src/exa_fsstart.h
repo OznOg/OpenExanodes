@@ -10,8 +10,6 @@
 
 
 #include "ui/cli/src/exa_fscommand.h"
-#include "ui/cli/src/cli.h"
-
 
 
 class exa_fsstart : public exa_fscommand
@@ -22,11 +20,10 @@ class exa_fsstart : public exa_fscommand
     static const std::string OPT_ARG_NODE_HOSTNAMES;
     static const std::string OPT_ARG_MOUNTPOINT_PATH;
 
-  exa_fsstart (int argc, char * argv []);
-  ~exa_fsstart ();
+  exa_fsstart();
 
-  void init_options();
-  void init_see_alsos();
+  static constexpr const char *name() { return "exa_fsstart"; }
+
 
   void run();
 

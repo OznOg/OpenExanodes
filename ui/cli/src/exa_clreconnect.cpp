@@ -19,26 +19,11 @@ using std::string;
 const std::string exa_clreconnect::OPT_ARG_NODE_HOSTNAME(Command::Boldify(
                                                              "HOSTNAME"));
 
-exa_clreconnect::exa_clreconnect(int argc, char *argv[])
-    : exa_clcommand(argc, argv)
-    , _reconnect_node("")
-{}
-
-
-exa_clreconnect::~exa_clreconnect()
-{}
-
-void exa_clreconnect::init_options()
+exa_clreconnect::exa_clreconnect()
 {
-    exa_clcommand::init_options();
-
     add_option('n', "node", "One of the nodes of the cluster.", 1, false, true,
                OPT_ARG_NODE_HOSTNAME);
-}
 
-
-void exa_clreconnect::init_see_alsos()
-{
     add_see_also("exa_clnodeadd");
     add_see_also("exa_clnodedel");
     add_see_also("exa_clnodestart");

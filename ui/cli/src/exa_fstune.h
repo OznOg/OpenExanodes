@@ -9,9 +9,6 @@
 #define  __EXA_FSTUNE_H__
 
 #include "ui/cli/src/exa_fscommand.h"
-#include "ui/cli/src/cli.h"
-
-
 
 class exa_fstune : public exa_fscommand
 {
@@ -21,11 +18,10 @@ public:
     static const std::string ARG_PARAMETER_PARAMETER;
     static const std::string ARG_PARAMETER_VALUE;
 
-    exa_fstune(int argc, char * argv []);
-    ~exa_fstune();
+    exa_fstune();
 
-    void init_options();
-    void init_see_alsos();
+    static constexpr const char *name() { return "exa_fstune"; }
+
 
     void run();
 

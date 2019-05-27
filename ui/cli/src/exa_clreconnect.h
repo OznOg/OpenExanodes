@@ -10,7 +10,6 @@
 
 
 #include "ui/cli/src/exa_clcommand.h"
-#include "ui/cli/src/cli.h"
 
 
 
@@ -21,11 +20,9 @@ class exa_clreconnect : public exa_clcommand
 
     static const std::string OPT_ARG_NODE_HOSTNAME;
 
-  exa_clreconnect (int argc, char *argv[]);
-  ~exa_clreconnect ();
+  static constexpr const char *name() { return "exa_clreconnect"; }
 
-  void init_options();
-  void init_see_alsos();
+  exa_clreconnect();
 
   void run();
 
@@ -45,4 +42,3 @@ class exa_clreconnect : public exa_clcommand
 
 
 #endif  // __EXA_CLRECONNECT_H__
-

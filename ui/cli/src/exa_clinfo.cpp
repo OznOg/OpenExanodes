@@ -138,9 +138,8 @@ struct exa_cmp_xmlnode_fs_lt
     }
 };
 
-exa_clinfo::exa_clinfo(int argc, char *argv[])
-    : exa_clcommand(argc, argv)
-    , volumes_info(true)
+exa_clinfo::exa_clinfo()
+    : volumes_info(true)
     , groups_info(true)
     , disks_info(true)
 #ifdef WITH_FS
@@ -154,16 +153,7 @@ exa_clinfo::exa_clinfo(int argc, char *argv[])
     , force_kilo(false)
     , display_group_config(false)
     , iscsi_details(false)
-{}
-
-
-exa_clinfo::~exa_clinfo()
-{}
-
-void exa_clinfo::init_options()
 {
-    exa_clcommand::init_options();
-
     add_option('g', "group", "Display only groups information.",
                0, false, false);
     add_option('G', "group-config", "Display internal configuration of groups",
@@ -196,11 +186,7 @@ void exa_clinfo::init_options()
                "regular display. This option also returns the error code "
                "returned by the administrative daemon as the exit code.",
                0, true, false);
-}
 
-
-void exa_clinfo::init_see_alsos()
-{
     add_see_also("exa_clcreate");
     add_see_also("exa_cldelete");
     add_see_also("exa_clstart");

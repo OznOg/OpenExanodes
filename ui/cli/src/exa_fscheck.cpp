@@ -18,21 +18,11 @@ const std::string exa_fscheck::OPT_ARG_NODE_HOSTNAME(Command::Boldify(
 const std::string exa_fscheck::OPT_ARG_PARAMETERS_STRING(Command::Boldify(
                                                              "STRING"));
 
-exa_fscheck::exa_fscheck(int argc, char *argv[])
-    : exa_fscommand(argc, argv)
-    , _node("")
+exa_fscheck::exa_fscheck()
+    : _node("")
     , _repair(false)
     , _parameters("")
-{}
-
-
-exa_fscheck::~exa_fscheck()
-{}
-
-void exa_fscheck::init_options()
 {
-    exa_fscommand::init_options();
-
     add_option('n', "node", "Node to check the filesystem on. If not specified "
                "a node will be chosen automatically.", 0, false, true,
                OPT_ARG_NODE_HOSTNAME);
@@ -42,11 +32,7 @@ void exa_fscheck::init_options()
     add_option('p', "parameters", "Optional parameters string to provide to "
                "fsck, should be protected by quotes \"...\".", 0, true, true,
                OPT_ARG_PARAMETERS_STRING);
-}
 
-
-void exa_fscheck::init_see_alsos()
-{
     add_see_also("exa_fscreate");
     add_see_also("exa_fsdelete");
     add_see_also("exa_fsresize");

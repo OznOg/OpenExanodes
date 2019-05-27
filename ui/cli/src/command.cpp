@@ -151,33 +151,21 @@ void Line::output_info(Exabase &exa, bool error,
 }
 
 
-Command::Command(int argc, char *argv[])
-    : _argc(argc)
-    , _argv(argv)
-    , _options()
-    , _args()
-    , _param_groups()
-    , _see_also()
-    , _show_hidden(true)
-    , _timeout(0)
-    , _in_progress_hidden(true)
-{}
 
-
-Command::~Command()
-{ }
-
-void Command::init_options()
+Command::Command()
+        : _options()
+          , _args()
+          , _param_groups()
+          , _see_also()
+          , _show_hidden(true)
+          , _timeout(0)
+          , _in_progress_hidden(true)
 {
     add_option('h', "help", "Display this help and exit.", 0, false, false);
     add_option('H', "HELP", "Display expert help", 0, true, false);
     add_option('v', "version", "Display version information and exit.",
                0, false, false);
 }
-
-
-void Command::init_see_alsos()
-{}
 
 
 void Command::add_option(const char short_opt,
@@ -259,6 +247,11 @@ void Command::add_arg(const std::string &arg_name,
 }
 
 
+void Command::add_see_also(const std::vector<std::string> &see_also)
+{
+    _see_also.insert(see_also.begin(), see_also.end());
+}
+
 void Command::add_see_also(const std::string &see_also)
 {
     _see_also.insert(see_also);
@@ -284,8 +277,15 @@ void Command::add_to_param_groups(const std::shared_ptr<CommandParam> &param)
 }
 
 
-void Command::parse()
+void Command::parse(int _argc, char *_argv[])
 {
+    /* FIXME _command_name is a hack to access the command name from here.
+     * it should probably be given by the command itself, but:
+     *   - it was done thru argv[0] in the legacy code
+     *   - I plan to deeply rework hierarchy, thus I don't really want to go
+     *   thru the 47 commands to add a function that will be removed after
+     */
+    _command_name = _argv[0];
     static struct option null_long_opt = { NULL, 0, NULL, 0};
 
     /* prepare parameters for getopt_long calls */
@@ -812,7 +812,7 @@ shared_ptr<AdmindMessage> Command::send_command(const AdmindCommand &command,
                                                 exa_error_code &error_code,
                                                 string &error_message)
 {
-    AdmindClient client(notifier);
+    AdmindClient client;
 
     shared_ptr<AdmindMessage> message;
     string payload;
@@ -840,7 +840,7 @@ shared_ptr<AdmindMessage> Command::send_command(const AdmindCommand &command,
                            std::bind(leader_error, _1, &error_message),
                            _timeout);
 
-        notifier.run();
+        client.wait_all();
 
         line = shared_ptr<Line>();
 
@@ -915,22 +915,6 @@ shared_ptr<AdmindMessage> Command::send_command(const AdmindCommand &command,
 }
 
 
-static void to_node_done(const AdmindMessage &message,
-                         shared_ptr<AdmindMessage> *retval)
-{
-    exa_cli_trace("Command::send_admind_to_node: received: %s\n",
-                  message.dump().c_str());
-
-    *retval = shared_ptr<AdmindMessage>(new AdmindMessage(message));
-}
-
-
-static void to_node_error(const std::string &message, const std::string &node)
-{
-    exa_cli_error("%sERROR%s, %s: %s\n", COLOR_ERROR, COLOR_NORM,
-                  node.c_str(), message.c_str());
-}
-
 
 shared_ptr<AdmindMessage> Command::send_admind_to_node(
     const string &node,
@@ -938,9 +922,9 @@ shared_ptr<AdmindMessage> Command::send_admind_to_node(
     exa_error_code &
     error_code)
 {
-    AdmindClient client(notifier);
+    AdmindClient client;
 
-    shared_ptr<AdmindMessage> message;
+    shared_ptr<AdmindMessage> answer;
     string payload;
 
     assert(!line);
@@ -949,26 +933,38 @@ shared_ptr<AdmindMessage> Command::send_admind_to_node(
     exa_cli_trace("Command::send_admind_to_node: sending to %s: %s\n",
                   node.c_str(), command.get_xml_command(true).c_str());
 
+    auto to_node_done = [&answer](const AdmindMessage &message) {
+        exa_cli_trace("Command::send_admind_to_node: received: %s\n",
+                message.dump().c_str());
+
+        answer.reset(new AdmindMessage(message));
+    };
+
+    auto to_node_error = [&node] (const std::string &message) {
+        exa_cli_error("%sERROR%s, %s: %s\n", COLOR_ERROR, COLOR_NORM,
+                      node.c_str(), message.c_str());
+    };
+
     client.send_node(command, node,
-                     std::bind(&Command::handle_inprogress, this, _1),
-                     std::bind(handle_progressive_payload, _1, std::ref(payload)),
-                     std::bind(to_node_done, _1, &message),
-                     std::bind(to_node_error, _1, node),
+                     [this] (const AdmindMessage &message) { this->handle_inprogress(message); },
+                     [&payload] (const AdmindMessage &message) { handle_progressive_payload(message, payload); },
+                     to_node_done,
+                     to_node_error,
                      _timeout);
 
-    notifier.run();
+    client.wait_all();
 
     line = shared_ptr<Line>();
 
-    if (message && !payload.empty())
-        message->set_payload(payload);
+    if (answer && !payload.empty())
+        answer->set_payload(payload);
 
     /* Do you see the futility of it all, now? */
-    if (message)
-        exa.log(message->get_summary());
-    error_code = message ? message->get_error_code() : EXA_ERR_CONNECT_SOCKET;
+    if (answer)
+        exa.log(answer->get_summary());
+    error_code = answer ? answer->get_error_code() : EXA_ERR_CONNECT_SOCKET;
 
-    return message;
+    return answer;
 }
 
 
@@ -1037,7 +1033,7 @@ unsigned int Command::send_admind_by_node(AdmindCommand &command,
                                           set<string> nodes, by_node_func func,
                                           per_node_modify_func modify_func)
 {
-    AdmindClient client(notifier);
+    AdmindClient client;
 
     set<string>::iterator it;
     unsigned int errors(0);
@@ -1056,7 +1052,7 @@ unsigned int Command::send_admind_by_node(AdmindCommand &command,
     {
         /* take a reference on string inside map; as the string does not yet exist
          * it is automatically created empty (default constructor for string)
-         * CAREFUL: operations are really processed in notifier.run() thus strings
+         * CAREFUL: operations are really processed in client.wait_all() thus strings
          * must remain valid outside of the next for loop */
         std::string &payload = by_node_payload[*it];
 
@@ -1078,7 +1074,7 @@ unsigned int Command::send_admind_by_node(AdmindCommand &command,
                          _timeout);
     }
 
-    notifier.run();
+    client.wait_all();
 
     line = shared_ptr<Line>();
 

@@ -19,21 +19,11 @@ const std::string exa_fscommand::ARG_FILESYSTEM_GROUPNAME(Command::Boldify(
 const std::string exa_fscommand::ARG_FILESYSTEM_FSNAME(Command::Boldify(
                                                            "FSNAME"));
 
-exa_fscommand::exa_fscommand(int argc, char *argv[])
-    : Command(argc, argv)
-    , _cluster_name("")
+exa_fscommand::exa_fscommand()
+    : _cluster_name("")
     , _group_name("")
     , _fs_name("")
-{}
-
-
-exa_fscommand::~exa_fscommand()
-{}
-
-void exa_fscommand::init_options()
 {
-    Command::init_options();
-
     add_option('T', "timeout", "Max time for command to execute in seconds "
                "(0:infinite)", 0, false, true, TIMEOUT_ARG_NAME, "0");
     add_option('C', "no-color", "Disable color usage in terminal", 0, false,

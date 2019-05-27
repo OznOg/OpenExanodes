@@ -11,8 +11,6 @@
 
 
 #include "ui/cli/src/exa_clcommand.h"
-#include "ui/cli/src/cli.h"
-
 
 class exa_cltune : public exa_clcommand
 {
@@ -23,10 +21,10 @@ public:
     static const std::string ARG_PARAMETER_PARAMETER;
     static const std::string ARG_PARAMETER_VALUE;
 
-  exa_cltune(int argc, char *argv[]);
+  exa_cltune();
 
-  void init_options();
-  void init_see_alsos();
+  static constexpr const char *name() { return "exa_cltune"; }
+
 
   void run();
 

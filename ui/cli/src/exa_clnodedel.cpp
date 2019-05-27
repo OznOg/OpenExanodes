@@ -18,22 +18,11 @@ using std::string;
 const std::string exa_clnodedel::OPT_ARG_NODE_HOSTNAME(Command::Boldify(
                                                            "HOSTNAME"));
 
-exa_clnodedel::exa_clnodedel(int argc, char *argv[])
-    : exa_clcommand(argc, argv)
-{}
-
-
-void exa_clnodedel::init_options()
+exa_clnodedel::exa_clnodedel()
 {
-    exa_clcommand::init_options();
-
     add_option('n', "node", "Specify the node to remove from the cluster.", 1,
                false, true, OPT_ARG_NODE_HOSTNAME);
-}
 
-
-void exa_clnodedel::init_see_alsos()
-{
     add_see_also("exa_clnodeadd");
     add_see_also("exa_clnodestart");
     add_see_also("exa_clnodestop");

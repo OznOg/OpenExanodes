@@ -17,20 +17,8 @@
 
 using std::string;
 
-exa_cldelete::exa_cldelete(int argc, char *argv[])
-    : exa_clcommand(argc, argv)
-    , _forcemode(false)
-    , _recursive(false)
-{}
-
-
-exa_cldelete::~exa_cldelete()
-{}
-
-void exa_cldelete::init_options()
+exa_cldelete::exa_cldelete() : _forcemode(false) , _recursive(false)
 {
-    exa_clcommand::init_options();
-
     /* short_opt, long_opt, description, mandatory, arg_expected, default_value */
     add_option('r', "recursive",
 #ifdef WITH_FS
@@ -42,11 +30,7 @@ void exa_cldelete::init_options()
     add_option('f', "force", "Force the deletion even if one or more nodes are "
                "not ready to accept the command. A cleaner way is to run "
                "exa_clnodestop on these nodes.", 0, false, false);
-}
 
-
-void exa_cldelete::init_see_alsos()
-{
     add_see_also("exa_clcreate");
     add_see_also("exa_clstart");
     add_see_also("exa_clstop");

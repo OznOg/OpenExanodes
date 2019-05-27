@@ -9,9 +9,6 @@
 #define  __EXA_VLSTART_H__
 
 #include "ui/cli/src/exa_vlcommand.h"
-#include "ui/cli/src/cli.h"
-
-
 
 class exa_vlstart : public exa_vlcommand
 {
@@ -20,11 +17,10 @@ class exa_vlstart : public exa_vlcommand
 
     static const std::string OPT_ARG_NODE_HOSTNAMES;
 
-  exa_vlstart (int argc, char * argv []);
-  ~exa_vlstart ();
+  exa_vlstart ();
 
-  void init_options();
-  void init_see_alsos();
+  static constexpr const char *name() { return "exa_vlstart"; }
+
 
   void run();
 

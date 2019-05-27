@@ -10,7 +10,6 @@
 
 
 #include "ui/cli/src/exa_clcommand.h"
-#include "ui/cli/src/cli.h"
 
 
 class exa_cldiskdel : public exa_clcommand
@@ -21,10 +20,9 @@ public:
     static const std::string OPT_ARG_DISK_PATH;
     static const std::string OPT_ARG_DISK_UUID;
 
-    exa_cldiskdel(int argc, char *argv[]);
+    static constexpr const char *name() { return "exa_cldiskdel"; }
 
-    void init_options();
-    void init_see_alsos();
+    exa_cldiskdel();
 
     void run();
 

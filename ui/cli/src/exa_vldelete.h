@@ -10,19 +10,16 @@
 
 
 #include "ui/cli/src/exa_vlcommand.h"
-#include "ui/cli/src/cli.h"
-
 
 class exa_vldelete : public exa_vlcommand
 {
 
  public:
 
-  exa_vldelete (int argc, char * argv []);
-  ~exa_vldelete ();
+  exa_vldelete ();
 
-  void init_options();
-  void init_see_alsos();
+  static constexpr const char *name() { return "exa_vldelete"; }
+
 
   void run();
 

@@ -9,8 +9,6 @@
 #define __EXA_DGCREATE_H__
 
 #include "ui/cli/src/exa_dgcommand.h"
-#include "ui/cli/src/cli.h"
-
 
 class exa_dgcreate : public exa_dgcommand
 {
@@ -26,11 +24,10 @@ public:
     static const std::string OPT_ARG_LAYOUT_SSTRIPING;
     static const std::string OPT_ARG_LAYOUT_RAINX;
 
-    exa_dgcreate(int argc, char *argv[]);
-    ~exa_dgcreate();
+    exa_dgcreate();
 
-    void init_options();
-    void init_see_alsos();
+    static constexpr const char *name() { return "exa_dgcreate"; }
+
 
     void run();
 

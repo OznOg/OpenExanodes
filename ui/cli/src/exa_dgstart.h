@@ -9,32 +9,22 @@
 #define  __EXA_DGSTART_H__
 
 #include "ui/cli/src/exa_dgcommand.h"
-#include "ui/cli/src/cli.h"
 
-
-class exa_dgstart : public exa_dgcommand
+class exa_dgstart final : public exa_dgcommand
 {
 
  public:
+  exa_dgstart();
 
-  exa_dgstart (int argc, char *argv[]);
-  ~exa_dgstart ();
+  static constexpr const char *name() { return "exa_dgstart"; } 
 
-  void init_options();
-  void init_see_alsos();
-
-  void run();
+  void run() override;
 
 protected:
 
-    void dump_short_description (std::ostream& out, bool show_hidden = false) const;
-    void dump_full_description(std::ostream& out, bool show_hidden = false) const;
-    void dump_examples(std::ostream& out, bool show_hidden = false) const;
-
-    void parse_opt_args (const std::map<char, std::string>& opt_args);
-
- private:
-
+    std::string get_short_description(bool show_hidden) const override;
+    std::string get_full_description(bool show_hidden) const override;
+    void dump_examples(std::ostream& out, bool show_hidden = false) const override;
 };
 
 
