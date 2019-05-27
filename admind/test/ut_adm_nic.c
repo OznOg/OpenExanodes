@@ -57,12 +57,12 @@ ut_test(create_and_delete_valid_hostname)
     struct adm_nic *nic = NULL;
     int err;
 
-    err = adm_nic_new("seanodes.com", &nic);
+    err = adm_nic_new("isima.fr", &nic);
     UT_ASSERT(err == 0);
     UT_ASSERT(nic != NULL);
 
-    UT_ASSERT_EQUAL_STR("92.243.27.89", adm_nic_ip_str(nic));
-    UT_ASSERT_EQUAL_STR("seanodes.com", adm_nic_get_hostname(nic));
+    UT_ASSERT_EQUAL_STR("193.55.95.39", adm_nic_ip_str(nic));
+    UT_ASSERT_EQUAL_STR("isima.fr", adm_nic_get_hostname(nic));
 
     adm_nic_free(nic);
 }

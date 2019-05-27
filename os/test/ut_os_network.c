@@ -609,8 +609,8 @@ ut_test(os_host_canonical_name)
     char canonical[256];
 
     os_net_init();
-    UT_ASSERT(!os_host_canonical_name("seanodes.com", canonical, sizeof(canonical)));
-    UT_ASSERT(!strcmp("seanodes.com", canonical));
+    UT_ASSERT(!os_host_canonical_name("isima.fr", canonical, sizeof(canonical)));
+    UT_ASSERT(!strcmp("isima.fr", canonical));
     os_net_cleanup();
 }
 
@@ -623,14 +623,14 @@ ut_test(os_host_addr)
 
     os_net_init();
 
-    ret = os_host_addr("seanodes.com", &addr);
+    ret = os_host_addr("isima.fr", &addr);
     UT_ASSERT(ret == 0);
-    UT_ASSERT_EQUAL(htonl(0x5CF31B59), addr.s_addr);
+    UT_ASSERT_EQUAL(0x275F37C1, addr.s_addr);
 
-    ret = os_host_addr("92.243.27.89", &addr);
+    ret = os_host_addr("193.55.95.39", &addr);
     UT_ASSERT(ret == 0);
     
-    UT_ASSERT_EQUAL(htonl(0x5CF31B59), addr.s_addr);
+    UT_ASSERT_EQUAL(0x275F37C1, addr.s_addr);
 
     ret = os_host_addr("sjkfhqsdfhmorqze", &addr);
 #ifdef WIN32
