@@ -156,8 +156,10 @@ int lum_thread_create(void)
  */
 int lum_thread_stop(void)
 {
-    stop = true;
-    os_thread_join(lum_main_thread);
+    if (!stop) {
+        stop = true;
+        os_thread_join(lum_main_thread);
+    }
     return EXA_SUCCESS;
 }
 
