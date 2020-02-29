@@ -65,7 +65,7 @@
 #define BIO_NEXT_MEM(bio, page, offset, size) \
     do \
     { \
-        EXA_ASSERT_VERBOSE(bio->bi_io_vec != NULL, "bi_sector=%lu bi-size=%u bi_op=%lu bi_flags=%u bi_vcnt=%d", \
+        EXA_ASSERT_VERBOSE(bio->bi_io_vec != NULL, "bi_sector=%llu bi-size=%u bi_op=%lu bi_flags=%u bi_vcnt=%d", \
                            BIO_OFFSET(bio), bio->bi_iter.bi_size, (unsigned long )bio_op(bio), bio->bi_flags, bio->bi_vcnt);\
         page = bio->bi_io_vec[__idx].bv_page; \
         offset = bio->bi_io_vec[__idx].bv_offset; \
@@ -572,8 +572,8 @@ static void bd_submit_bio_with_info(struct bio *bio, int rw)
         info = BD_INFO_BARRIER;
 
     cpu = part_stat_lock();
-    part_stat_inc(cpu, &bd_minor->bd_gen_disk->part0, ios[rw]);
-    part_stat_add(cpu, &bd_minor->bd_gen_disk->part0, sectors[rw],
+    part_stat_inc(&bd_minor->bd_gen_disk->part0, ios[rw]);
+    part_stat_add(&bd_minor->bd_gen_disk->part0, sectors[rw],
             bio_sectors(bio));
     part_stat_unlock();
 
@@ -776,8 +776,10 @@ int bd_minor_add_new(struct bd_session *session, int minor,
     blk_queue_max_sectors(queue, session->bd_buffer_size / 512);
     blk_queue_make_request(queue, bd_make_request);
 
-    spin_lock_init(&bd_minor->bd_lock);
-    queue->queue_lock = &bd_minor->bd_lock;
+//kernels 4.19 
+//    spin_lock_init(&bd_minor->bd_lock);
+//    queue->queue_lock = &bd_minor->bd_lock;
+    spin_lock_init(&queue->queue_lock);
     queue->queuedata = bd_minor;
 #if LINUX_VERSION_CODE < KERNEL_VERSION(4, 11, 0)
     queue->backing_dev_info.ra_pages = EXA_BD_READAHEAD >> (PAGE_SHIFT - 9);

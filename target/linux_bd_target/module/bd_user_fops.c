@@ -41,13 +41,16 @@
  * thread in bd_kernel_queue file.
  */
 
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(4,14,0))
-static int bd_mops_vmfault(struct vm_area_struct *vma, struct vm_fault *vmf)
-{
-#else
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 1, 0)
+static vm_fault_t bd_mops_vmfault(struct vm_fault *vmf) {
+  struct vm_area_struct *vma = vmf->vma;
+#elif (LINUX_VERSION_CODE >= KERNEL_VERSION(4,14,0))
 static int bd_mops_vmfault(struct vm_fault *vmf)
 {
   struct vm_area_struct *vma = vmf->vma;
+#else
+static int bd_mops_vmfault(struct vm_area_struct *vma, struct vm_fault *vmf)
+{
 #endif
   struct bd_session *session = vma->vm_file->private_data;
   if (session == NULL)
