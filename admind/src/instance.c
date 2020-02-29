@@ -647,7 +647,7 @@ bool inst_is_node_down_cmd(exa_nodeid_t nid)
 /***********************************************************************
  * CALLED ONLY FROM clnodeadd
  */
-int inst_node_add(struct adm_node *node)
+int inst_node_add(const struct adm_node *node)
 {
   const struct adm_service *service;
 
@@ -670,7 +670,7 @@ int inst_node_add(struct adm_node *node)
 /***********************************************************************
  * CALLED ONLY FROM clnodedel
  */
-void inst_node_del(struct adm_node *node)
+void inst_node_del(const struct adm_node *node)
 {
   const struct adm_service *service;
 

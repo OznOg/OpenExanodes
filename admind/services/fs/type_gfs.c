@@ -383,7 +383,7 @@ static exa_error_code gfs_create_config_file_local(uint64_t new_generation_numbe
       exa_nodeset_iter_init(&gulm_masters, &iter_gulm_master);
       while (exa_nodeset_iter(&iter_gulm_master, &current_gulm_master))
 	{
-	  struct adm_node* node_gulm_master;
+	  const struct adm_node* node_gulm_master;
 	  node_gulm_master=adm_cluster_get_node_by_id(current_gulm_master);
 	  number_write=fprintf(file_param,
 			       "<lockserver name=\"%s\"/>\n",
@@ -652,7 +652,7 @@ void gfs_create_config_local_with_ack(int thr_nb, void *msg)
  *
  * \return error code.
  */
-static int gfs_node_add(int thr_nb, struct adm_node *node)
+static int gfs_node_add(int thr_nb, const struct adm_node *node)
 {
   return EXA_SUCCESS;
 }
@@ -665,7 +665,7 @@ static int gfs_node_add(int thr_nb, struct adm_node *node)
  *
  * \param[in] node        Structure of the additional node. Not NULL.
  */
-static void gfs_node_add_commit(int thr_nb, struct adm_node *node)
+static void gfs_node_add_commit(int thr_nb, const struct adm_node *node)
 {
   int ret;
   uint64_t old_generation_number = generation_number;
@@ -995,7 +995,7 @@ int gfs_manage_node_stop(const exa_nodeset_t *nodes_to_stop, exa_nodeset_t* node
  * \param[in] nodes_up    List of remaining nodes up. Used to choose
  *                        new masters' list.
  */
-void gfs_nodedel(int thr_nb, struct adm_node *node, exa_nodeset_t* nodes_up)
+void gfs_nodedel(int thr_nb, const struct adm_node *node, exa_nodeset_t* nodes_up)
 {
   /* erase it from the shared segment, otherwise the same node name could appear
      2 times with different nodeid's on some nodes, and 1 time on others. */
@@ -1125,7 +1125,7 @@ void update_cman_local(int thr_nb, void *msg)
     exa_nodeset_iter_init(&info_cman->nodes_down_in_progress, &iter_nodes);
     while (exa_nodeset_iter(&iter_nodes, &current_node))
       {
-	struct adm_node* node_to_kill;
+	const struct adm_node* node_to_kill;
 	node_to_kill = adm_cluster_get_node_by_id(current_node);
 	error_val = fsd_cman_update(adm_wt_get_localmb(), node_to_kill->hostname);
 	/* XXX : What to do when it fails ? Continue, abort ? */
@@ -1402,7 +1402,7 @@ static bool gfs_gettune(int thr_nb, fs_data_t* fs,
  *
  * return EXA_SUCCESS if allowed, error code otherwise
  */
-int gfs_check_nodedel(int thr_nb, struct adm_node *node)
+int gfs_check_nodedel(int thr_nb, const struct adm_node *node)
 {
   if (loaded && gfs_using_gulm())
     {

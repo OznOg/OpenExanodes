@@ -178,7 +178,7 @@ int service_vrt_prepare_group(struct adm_group *group)
     /* Get rdevs list */
     adm_group_for_each_disk(group, disk)
     {
-        struct adm_node *node = adm_cluster_get_node_by_id(disk->node_id);
+        const struct adm_node *node = adm_cluster_get_node_by_id(disk->node_id);
 
         EXA_ASSERT(node != NULL);
 	EXA_ASSERT(!disk->up_in_vrt);
@@ -1210,7 +1210,7 @@ static int vrt_stop(int thr_nb, const stop_data_t *stop_data)
 }
 
 static void
-vrt_nodedel(int thr_nb, struct adm_node *node)
+vrt_nodedel(int thr_nb, const struct adm_node *node)
 {
     struct adm_group *group;
     struct adm_volume *volume;
@@ -1221,7 +1221,7 @@ vrt_nodedel(int thr_nb, struct adm_node *node)
 }
 
 
-static int vrt_check_nodedel(int thr_nb, struct adm_node *node)
+static int vrt_check_nodedel(int thr_nb, const struct adm_node *node)
 {
   struct adm_group *group;
   struct adm_volume *volume;

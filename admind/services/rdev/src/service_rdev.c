@@ -265,7 +265,7 @@ int rdev_remove_broken_disks_file(void)
 /**
  * Stop a disk.
  */
-static void rdev_stop_disk(struct adm_disk *disk, struct adm_node *node)
+static void rdev_stop_disk(struct adm_disk *disk, const struct adm_node *node)
 {
   /* Take the lock to prevent the check thread to test the device while
    * we are stopping it here. see bug #3876
@@ -502,7 +502,7 @@ static int rdev_start_disk(const char *path)
   /* Check whether the disk is in the right node. */
   if (disk->node_id != adm_myself()->id)
   {
-    struct adm_node *node = adm_cluster_get_node_by_id(disk->node_id);
+    const struct adm_node *node = adm_cluster_get_node_by_id(disk->node_id);
     exalog_error("Disk " UUID_FMT " was moved from node %s",
 		 UUID_VAL(&uuid), node->name);
     return -ADMIND_ERR_MOVED_DISK;
@@ -746,7 +746,7 @@ rdev_recover(int thr_nb)
 
 
 static void
-rdev_diskdel(int thr_nb, struct adm_node *node, struct adm_disk *disk)
+rdev_diskdel(int thr_nb, const struct adm_node *node, struct adm_disk *disk)
 {
   rdev_stop_disk(disk, node);
   if (broken_disk_table_contains(broken_disks, &disk->uuid))
@@ -839,7 +839,6 @@ static void rdev_check_down_local(int thr_nb, void *msg)
   } info[NBMAX_DISKS_PER_NODE];
   size_t info_size;
   struct adm_disk *disk;
-  struct adm_node *node;
   int ret_down;
   int i = -1;
 
@@ -894,6 +893,8 @@ static void rdev_check_down_local(int thr_nb, void *msg)
 
   while (admwrk_get_bcast(&handle, &nodeid, &info, sizeof(info), &ret_down))
   {
+    const struct adm_node *node;
+
     /* The check should not be interrupted when a node crash. It should just
        continue without this node and return SUCCESS. */
     if (ret_down != EXA_SUCCESS)
@@ -977,7 +978,7 @@ static int rdev_check_down(int thr_nb)
  * - request a recovery RESOURCE.
  */
 static int
-rdev_diskadd(int thr_nb, struct adm_node *node, struct adm_disk *disk,
+rdev_diskadd(int thr_nb, const struct adm_node *node, struct adm_disk *disk,
 	     const char *path)
 {
   int ret;

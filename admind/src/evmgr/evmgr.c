@@ -429,7 +429,7 @@ static void
 handle_instance_event(const instance_event_t *inst_event)
 {
   const struct adm_service *service = NULL;
-  struct adm_node *node;
+  const struct adm_node *node;
 
   if (inst_event->id == EXAMSG_RDEV_ID)
     service = &adm_service_rdev;

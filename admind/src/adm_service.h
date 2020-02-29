@@ -67,18 +67,18 @@ struct adm_service
   int (* check_up)(int thr_nb);
 
   /* The following methods should be called on all nodes. */
-  int (* diskadd)(int thr_nb, struct adm_node *node, struct adm_disk *disk,
+  int (* diskadd)(int thr_nb, const struct adm_node *node, struct adm_disk *disk,
 		  const char *path);
   /* The diskdel method cannot assume that the adm_disk is still part
    * of the containing adm_node. */
-  void (* diskdel)(int thr_nb, struct adm_node *node, struct adm_disk *disk);
-  int (* nodeadd)(int thr_nb, struct adm_node *node);
-  void (* nodeadd_commit)(int thr_nb, struct adm_node *node);
+  void (* diskdel)(int thr_nb, const struct adm_node *node, struct adm_disk *disk);
+  int (* nodeadd)(int thr_nb, const struct adm_node *node);
+  void (* nodeadd_commit)(int thr_nb, const struct adm_node *node);
   /* Before deleting, ask the service if its's allowed */
-  int (* check_nodedel)(int thr_nb, struct adm_node *node);
+  int (* check_nodedel)(int thr_nb, const struct adm_node *node);
   /* The nodedel method cannot assume that the adm_node is still part
    * of the containing adm_cluster. */
-  void (* nodedel)(int thr_nb, struct adm_node *node);
+  void (* nodedel)(int thr_nb, const struct adm_node *node);
 
   struct {
     rpc_command_t id;

@@ -47,7 +47,7 @@ cluster_cldiskadd(int thr_nb, void *data, cl_error_desc_t *err_desc)
   const struct cldiskadd_params *params = data;
   exa_nodeset_t nodes_up;
   struct msg_diskadd msg;
-  struct adm_node *node = NULL;
+  const struct adm_node *node = NULL;
   struct adm_disk *disk;
   int ret;
 
@@ -119,7 +119,7 @@ local_diskadd(int thr_nb, void *msg)
 {
   struct msg_diskadd *request = msg;
   char step[EXA_MAXSIZE_LINE + 1] = "";
-  struct adm_node *node, *disk_node;
+  const struct adm_node *node;
   struct adm_disk *disk;
   int rv;
   int i;
@@ -131,6 +131,7 @@ local_diskadd(int thr_nb, void *msg)
   EXA_ASSERT(disk != NULL);
 
   disk->uuid = request->uuid;
+  disk->node_id = node->id;
 
   if (node == adm_myself())
     rv = adm_disk_local_new(disk);
@@ -164,11 +165,7 @@ local_diskadd(int thr_nb, void *msg)
     goto end;
   }
 
-  rv = adm_cluster_insert_disk();
-  /* FIXME: Some error checking would be nice. */
-  EXA_ASSERT(rv == EXA_SUCCESS);
-
-  rv = adm_node_insert_disk(node, disk);
+  rv = adm_cluster_insert_disk(disk);
   /* FIXME: Some error checking would be nice. */
   EXA_ASSERT(rv == EXA_SUCCESS);
 
@@ -189,9 +186,6 @@ local_diskadd(int thr_nb, void *msg)
   if (adm_is_leader())
     evmgr_request_recovery(adm_wt_get_localmb());
 
-  disk_node = adm_cluster_get_node_by_id(disk->node_id);
-  EXA_ASSERT(disk_node != NULL);
-
   i = 0;
   while (!disk->imported)
   {
@@ -200,13 +194,13 @@ local_diskadd(int thr_nb, void *msg)
     if (i++ >= 15)
     {
       exalog_warning("Timeout when waiting for disk %s:%s to be UP",
-		     disk_node->name, disk->path);
+		     node->name, disk->path);
       rv = -ADMIND_WARN_DISK_RECOVER;
       break;
     }
   }
 
-  exalog_debug("added disk %s:%s ", disk_node->name, disk->path);
+  exalog_debug("added disk %s:%s ", node->name, disk->path);
 
 end:
   admwrk_ack(thr_nb, rv);

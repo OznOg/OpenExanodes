@@ -35,7 +35,7 @@ static void
 cluster_clnodedel(int thr_nb, void *data, cl_error_desc_t *err_desc)
 {
   const char *nodename = data;
-  struct adm_node *node;
+  const struct adm_node *node;
   struct adm_disk *disk;
   struct msg_nodedel msg;
   const struct adm_service *service;
@@ -102,7 +102,8 @@ static void
 local_delnode(int thr_nb, void *msg)
 {
   struct msg_nodedel *request = msg;
-  struct adm_node *node;
+  const struct adm_node *node;
+  struct adm_node *pending_node;
   const struct adm_service *service;
   int rv;
 
@@ -110,24 +111,24 @@ local_delnode(int thr_nb, void *msg)
 
   /* FIXME: Here, things could go *boom* in the info or recovery
    * thread. */
-  adm_cluster_remove_node(node);
+  pending_node = adm_cluster_remove_node(node);
   /* End of the *boom* area. */
 
   adm_service_for_each_reverse(service)
     if (service->nodedel != NULL)
-      service->nodedel(thr_nb, node);
+      service->nodedel(thr_nb, pending_node);
 
-  inst_node_del(node);
+  inst_node_del(pending_node);
 
-  rv = examsgDelNode(adm_wt_get_localmb(), node->id);
+  rv = examsgDelNode(adm_wt_get_localmb(), pending_node->id);
   EXA_ASSERT(rv == EXA_SUCCESS);
 
   rv = conf_save_synchronous();
   EXA_ASSERT(rv == EXA_SUCCESS);
 
-  exalog_debug("removal of node %s done", node->name);
+  exalog_debug("removal of node %s done", pending_node->name);
 
-  adm_node_delete(node);
+  adm_node_delete(pending_node);
 
   admwrk_ack(thr_nb, EXA_SUCCESS);
 }

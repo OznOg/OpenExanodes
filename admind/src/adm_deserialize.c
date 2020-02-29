@@ -937,6 +937,8 @@ adm_deserialize_disk(void *data, const xmlChar **attrs)
     if (state->failed)
         goto error;
 
+    disk->node_id = state->current.node->id;
+
     if (state->current.node == adm_myself())
     {
 	ret = adm_disk_local_new(disk);
@@ -947,17 +949,13 @@ adm_deserialize_disk(void *data, const xmlChar **attrs)
 	}
     }
 
-    ret = adm_cluster_insert_disk();
+    ret = adm_cluster_insert_disk(disk);
     if (ret == -ADMIND_ERR_TOO_MANY_DISKS)
     {
 	os_snprintf(state->error_msg, EXA_MAXSIZE_LINE + 1,
 		    "Too many disks in the cluster (max %u)", NBMAX_DISKS);
 	goto error;
-    }
-    EXA_ASSERT(ret == EXA_SUCCESS);
-
-    ret = adm_node_insert_disk(state->current.node, disk);
-    if (ret == -EEXIST)
+    } else if (ret == -EEXIST)
     {
 	os_snprintf(state->error_msg, EXA_MAXSIZE_LINE + 1,
 		    "Duplicate nodes /Exanodes/cluster/node/disk[@uuid=\"%s\"]",
@@ -1451,7 +1449,7 @@ adm_deserialize_tunable(void *data, const xmlChar **attrs)
 static void adm_deserialize_spof_node(void *data, const xmlChar **attrs)
 {
     adm_deserialize_state_t *state = (adm_deserialize_state_t *)data;
-    struct adm_node *node;
+    const struct adm_node *node;
     const char *name = NULL;
 
     for (; attrs && attrs[0]; attrs += 2)
@@ -1491,7 +1489,7 @@ static void adm_deserialize_spof_node(void *data, const xmlChar **attrs)
     }
 
     /* Assign the current SPOF id to the node found */
-    adm_node_set_spof_id(node, state->cur_spof_id);
+    adm_node_set_spof_id((struct adm_node *)node, state->cur_spof_id);
 }
 
 static void

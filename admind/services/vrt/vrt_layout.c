@@ -273,7 +273,7 @@ static int check_rainX_rules(exa_uuid_t disk_uuids[], int num_disks,
                               cl_error_desc_t *err_desc)
 {
     struct adm_disk *disk;
-    struct adm_node *node;
+    const struct adm_node *node;
     int i;
 
     /* A compact table containing every spof ID involved in the cluster */

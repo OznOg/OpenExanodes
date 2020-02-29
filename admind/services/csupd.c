@@ -70,8 +70,8 @@ examsg_init(void)
     "-p", (char *)adm_cluster_get_param_text("multicast_port"),
     "-c", cluster_id_str,
     "-i", node_id_str,
-    "-n", adm_myself()->name,
-    "-N", adm_myself()->hostname,
+    "-n", (char *)adm_myself()->name,
+    "-N", (char *)adm_myself()->hostname,
     "-I", inca_str,
     NULL
   };

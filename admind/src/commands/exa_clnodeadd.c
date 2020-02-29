@@ -335,13 +335,7 @@ local_addnode_disk(int thr_nb, void *msg)
 
   strlcpy(disk->path, request->path, sizeof(disk->path));
   disk->uuid = request->uuid;
-
-  /* We do not fill in local, because we *cannot* be the local node
-   * (it is not yet integrated in the cluster)! */
-
-  rv = adm_cluster_insert_disk();
-  /* FIXME: Some error handling would be nice. */
-  EXA_ASSERT(rv == EXA_SUCCESS);
+  disk->node_id = new_node->id;
 
   rv = adm_node_insert_disk(new_node, disk);
   /* FIXME: Some error handling would be nice. */

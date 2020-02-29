@@ -50,7 +50,7 @@ static void cluster_dgdiskadd(int thr_nb, void *data, cl_error_desc_t *err_desc)
 {
     const struct dgdiskadd_params *params = data;
     char normalized_path[EXA_MAXSIZE_DEVPATH + 1];
-    struct adm_node *node;
+    const struct adm_node *node;
     struct adm_group *group;
     struct adm_disk *new_disk;
     int err;
@@ -146,7 +146,7 @@ static void local_dgdiskadd(int thr_nb, void *msg)
     struct dgdiskadd_info *info = msg;
     struct adm_group *group;
     struct adm_disk *new_disk;
-    struct adm_node *node;
+    const struct adm_node *node;
     uint64_t old_sb_version, new_sb_version;
     int err;
 

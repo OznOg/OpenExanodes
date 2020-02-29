@@ -85,14 +85,24 @@ adm_cluster_insert_node(struct adm_node *node)
 }
 
 
-void
-adm_cluster_remove_node(struct adm_node *node)
+struct adm_node *
+adm_cluster_remove_node(const struct adm_node *node)
 {
+  struct adm_disk *disk;
+  struct adm_node *former;
   EXA_ASSERT(node != NULL);
   EXA_ASSERT(adm_cluster.nodes[node->id] == node);
 
+  former = adm_cluster.nodes[node->id];
   adm_cluster.nodes[node->id] = NULL;
   adm_cluster.nodes_number--;
+
+  while ((disk = node->disks) != NULL)
+  {
+    adm_node_remove_disk(former, disk);
+  }
+
+  return former;
 }
 
 
@@ -103,16 +113,21 @@ adm_cluster_nb_nodes(void)
 }
 
 
-struct adm_node *
-adm_cluster_get_node_by_id(exa_nodeid_t id)
+static struct adm_node *_adm_cluster_get_node_by_id(exa_nodeid_t id)
 {
   EXA_ASSERT(id < EXA_MAX_NODES_NUMBER);
 
   return adm_cluster.nodes[id];
 }
 
+const struct adm_node *
+adm_cluster_get_node_by_id(exa_nodeid_t id)
+{
+  return _adm_cluster_get_node_by_id(id);
+}
 
-struct adm_node *
+
+const struct adm_node *
 adm_cluster_get_node_by_name(const char *name)
 {
   exa_nodeid_t id;
@@ -230,21 +245,33 @@ adm_cluster_cleanup(void)
 
 
 int
-adm_cluster_insert_disk(void)
+adm_cluster_insert_disk(struct adm_disk *disk)
 {
+  struct adm_node *node;
   if (adm_cluster.disks_number == NBMAX_DISKS)
     return -ADMIND_ERR_TOO_MANY_DISKS;
 
   adm_cluster.disks_number++;
 
-  return EXA_SUCCESS;
+  node = _adm_cluster_get_node_by_id(disk->node_id);
+  return adm_node_insert_disk(node, disk);
 }
 
 
-void
-adm_cluster_remove_disk(void)
+struct adm_disk *adm_cluster_remove_disk(const exa_uuid_t *disk_uuid)
 {
+  struct adm_node *node;
+  struct adm_disk *disk = adm_cluster_get_disk_by_uuid(disk_uuid);
+  if (disk == NULL)
+      return NULL;
+
+  node = _adm_cluster_get_node_by_id(disk->node_id);
+  EXA_ASSERT(node != NULL);
+
+  adm_node_remove_disk(node, disk);
   adm_cluster.disks_number--;
+
+  return disk;
 }
 
 
@@ -258,7 +285,7 @@ adm_cluster_nb_disks(void)
 struct adm_disk *
 adm_cluster_get_disk_by_path(const char *node_name, const char *disk_path)
 {
-  struct adm_node *node;
+  const struct adm_node *node;
 
   node = adm_cluster_get_node_by_name(node_name);
   if (!node)
@@ -271,7 +298,7 @@ adm_cluster_get_disk_by_path(const char *node_name, const char *disk_path)
 struct adm_disk *
 adm_cluster_get_disk_by_uuid(const exa_uuid_t *uuid)
 {
-  struct adm_node *node;
+  const struct adm_node *node;
 
   adm_cluster_for_each_node(node)
   {
@@ -484,14 +511,14 @@ adm_cluster_log_tuned_params()
 }
 
 
-struct adm_node *
+const struct adm_node *
 adm_myself(void)
 {
   return myself;
 }
 
 
-struct adm_node *
+const struct adm_node *
 adm_leader(void)
 {
   if (!adm_leader_set)

@@ -125,7 +125,7 @@ int cluster_clinfo_group_disks(int thr_nb, xmlNodePtr group_node, struct adm_gro
   xmlNodePtr physical_node;
   xmlNodePtr disk_node;
   struct adm_disk *disk;
-  struct adm_node *node;
+  const struct adm_node *node;
   int ret;
 
   /* Create the physical node in the XML doc */

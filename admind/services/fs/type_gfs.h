@@ -26,6 +26,6 @@ int gfs_global_recover(int thr_nb,
 		       exa_nodeset_t* nodes_down_in_progress,
 		       exa_nodeset_t* committed_up);
 int gfs_manage_node_stop(const exa_nodeset_t *nodes_to_stop, exa_nodeset_t* nodes_up);
-void gfs_nodedel(int thr_nb, struct adm_node *node, exa_nodeset_t* nodes_up);
+void gfs_nodedel(int thr_nb, const struct adm_node *node, exa_nodeset_t* nodes_up);
 
 #endif

@@ -707,7 +707,7 @@ set_work_mship(ExamsgHandle mh, const exa_nodeset_t *new_csupd_mship)
 static void
 set_leader(exa_nodeid_t new_leader, const evmgr_mship_info_t *info)
 {
-  struct adm_node *leader_node;
+  const struct adm_node *leader_node;
 
   leader_node = adm_cluster_get_node_by_id(new_leader);
   exalog_info("The leader is now %u:%s", leader_node->id, leader_node->name);

@@ -40,7 +40,7 @@ static int
 nodes_are_stopped(const exa_nodeset_t *nodeset)
 {
   exa_nodeid_t nodeid;
-  struct adm_node *node;
+  const struct adm_node *node;
 
   exa_nodeset_foreach(nodeset, nodeid)
   {

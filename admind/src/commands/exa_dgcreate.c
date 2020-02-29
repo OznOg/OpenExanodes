@@ -232,7 +232,7 @@ get_info_from_params(const struct dgcreate_params *params,
 	    const char *node_name;
 	    char path[EXA_MAXSIZE_DEVPATH + 1];
 	    struct adm_disk *disk;
-	    struct adm_node *node;
+	    const struct adm_node *node;
 
 	    node_name = xml_get_prop(xmldisk, "node");
 	    node = adm_cluster_get_node_by_name(node_name);
@@ -426,7 +426,7 @@ static int local_exa_dgcreate_config_add(int thr_nb, struct dgcreate_info *info,
     for(i = 0; i < info->nb_disks; i++)
     {
 	struct adm_disk *disk;
-        struct adm_node *disk_node;
+        const struct adm_node *disk_node;
 
 	disk = adm_cluster_get_disk_by_uuid(&info->disks[i]);
 	if (!disk)

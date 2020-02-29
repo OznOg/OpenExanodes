@@ -42,7 +42,7 @@ adm_nodeset_contains_me(const exa_nodeset_t *set)
 const char *
 adm_nodeid_to_name(exa_nodeid_t id)
 {
-  struct adm_node *node;
+  const struct adm_node *node;
 
   node = adm_cluster_get_node_by_id(id);
   EXA_ASSERT(node);
@@ -59,7 +59,7 @@ adm_nodeid_to_name(exa_nodeid_t id)
 exa_nodeid_t
 adm_nodeid_from_name(const char *name)
 {
-  struct adm_node *node;
+  const struct adm_node *node;
 
   adm_cluster_lock();
 
@@ -85,7 +85,7 @@ adm_nodeid_from_name(const char *name)
  */
 void adm_nodeset_set_all(exa_nodeset_t *set)
 {
-  struct adm_node *node;
+  const struct adm_node *node;
 
   exa_nodeset_reset(set);
   adm_cluster_for_each_node(node)
@@ -112,7 +112,7 @@ adm_nodeset_from_names(exa_nodeset_t *set, const char *nodelist)
 
   while((node_name = os_strtok(buf == bufp ? buf : NULL, " ", &bufp)))
   {
-    struct adm_node *node;
+    const struct adm_node *node;
 
     /* And so empty tokens are ignored */
     if (node_name[0] == '\0')

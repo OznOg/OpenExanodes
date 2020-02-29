@@ -697,7 +697,7 @@ static void local_lum_stop(int thr_nb, void *msg)
 }
 
 /* Note: this is called on all nodes */
-static void lum_nodedel(int thr_nb, struct adm_node *node)
+static void lum_nodedel(int thr_nb, const struct adm_node *node)
 {
     local_lum_set_peers();
 }

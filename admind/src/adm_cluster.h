@@ -87,14 +87,14 @@ void adm_cluster_unlock(void);
 bool adm_is_leader(void);
 
 int adm_cluster_insert_node(struct adm_node *node);
-void adm_cluster_remove_node(struct adm_node *node);
+struct adm_node *adm_cluster_remove_node(const struct adm_node *node);
 unsigned int adm_cluster_nb_nodes(void);
-struct adm_node *adm_cluster_get_node_by_id(exa_nodeid_t id);
-struct adm_node *adm_cluster_get_node_by_name(const char *name);
+const struct adm_node *adm_cluster_get_node_by_id(exa_nodeid_t id);
+const struct adm_node *adm_cluster_get_node_by_name(const char *name);
 struct adm_node *adm_cluster_first_node_at(exa_nodeid_t id);
 
-int adm_cluster_insert_disk(void);
-void adm_cluster_remove_disk(void);
+int adm_cluster_insert_disk(struct adm_disk *disk);
+struct adm_disk *adm_cluster_remove_disk(const exa_uuid_t *disk_uuid);
 unsigned int adm_cluster_nb_disks(void);
 struct adm_disk *adm_cluster_get_disk_by_path(const char *node_name,
 					      const char *disk_path);
@@ -114,8 +114,8 @@ int adm_cluster_get_param_boolean(const char *name);
 void adm_cluster_get_param_nodeset(exa_nodeset_t *nodeset, const char *name);
 void adm_cluster_log_tuned_params(void);
 
-struct adm_node *adm_myself(void);
-struct adm_node *adm_leader(void);
+const struct adm_node *adm_myself(void);
+const struct adm_node *adm_leader(void);
 
 int adm_cluster_save_goal(adm_cluster_goal_t goal);
 int adm_cluster_load_goal(adm_cluster_goal_t *goal);

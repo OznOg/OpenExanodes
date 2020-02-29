@@ -79,10 +79,10 @@ typedef struct fs_definition
   exa_error_code (*node_stop)(int thr_nb, fs_data_t* fs);
 
   /** When node is added, check it is allowed. */
-  exa_error_code (*node_add)(int thr_nb, struct adm_node *node);
+  exa_error_code (*node_add)(int thr_nb, const struct adm_node *node);
 
   /** When node is added. (update /etc/cluster/cluster.conf, for example) */
-  void (*node_add_commit)(int thr_nb, struct adm_node *node);
+  void (*node_add_commit)(int thr_nb, const struct adm_node *node);
 
   /** Umount the filesystem on the specified nodes */
   exa_error_code  (*stop_fs)(int thr_nb, const exa_nodeset_t* node_set,

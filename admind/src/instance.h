@@ -26,8 +26,8 @@ void inst_static_init(void);
 
 void inst_set_all_instances_down(void); /* at clstop */
 
-int inst_node_add(struct adm_node *node);
-void inst_node_del(struct adm_node *node);
+int inst_node_add(const struct adm_node *node);
+void inst_node_del(const struct adm_node *node);
 
 /* events from evmgr */
 void inst_evt_up(const struct adm_node *node);

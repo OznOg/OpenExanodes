@@ -42,7 +42,7 @@ cluster_cldiskdel(int thr_nb, void *data, cl_error_desc_t *err_desc)
 {
   const struct cldiskdel_params *params = data;
   struct adm_disk *disk;
-  struct adm_node *disk_node;
+  const struct adm_node *disk_node;
   struct msg_diskdel msg;
   exa_nodeset_t nodes_up;
 
@@ -151,19 +151,19 @@ cluster_cldiskdel(int thr_nb, void *data, cl_error_desc_t *err_desc)
 static void
 local_diskdel(int thr_nb, void *msg)
 {
+  const struct adm_node *node;
   struct msg_diskdel *request = msg;
-  struct adm_disk *disk;
-  struct adm_node *node;
   const struct adm_service *service;
 
-  disk = adm_cluster_get_disk_by_uuid(&request->uuid);
-  EXA_ASSERT(disk != NULL);
+  struct adm_disk *disk = adm_cluster_remove_disk(&request->uuid);
+
+  if (disk == NULL) {
+      exalog_error("Cannot remove unknown disk "UUID_FMT, UUID_VAL(&request->uuid));
+      admwrk_ack(thr_nb, -ADMIND_ERR_UNKNOWN_DISK);
+      return;
+  }
 
   node = adm_cluster_get_node_by_id(disk->node_id);
-  EXA_ASSERT(node != NULL);
-
-  adm_node_remove_disk(node, disk);
-  adm_cluster_remove_disk();
 
   adm_service_for_each_reverse(service)
     if (service->diskdel != NULL)

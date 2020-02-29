@@ -210,7 +210,7 @@ static void update_examsgd_node_list(void)
 
     for (nodeid = 0; nodeid < EXA_MAX_NODES_NUMBER; nodeid++)
     {
-        struct adm_node *node = adm_cluster_get_node_by_id(nodeid);
+        const struct adm_node *node = adm_cluster_get_node_by_id(nodeid);
         bool node_known_by_examsgd = exa_nodeset_contains(&examsg_nodeset, nodeid);
 
         if (node != NULL && !node_known_by_examsgd)

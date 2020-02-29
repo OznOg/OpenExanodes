@@ -73,8 +73,6 @@ adm_node_delete(struct adm_node *node)
 
   while ((disk = node->disks) != NULL)
   {
-    adm_node_remove_disk(node, disk);
-    adm_cluster_remove_disk();
     adm_disk_delete(disk);
   }
 
@@ -92,7 +90,7 @@ adm_node_insert_disk(struct adm_node *node, struct adm_disk *new)
 
   EXA_ASSERT(node != NULL);
   EXA_ASSERT(new != NULL);
-  EXA_ASSERT(new->node_id == EXA_NODEID_NONE);
+  EXA_ASSERT(new->node_id != EXA_NODEID_NONE);
   EXA_ASSERT(new->next_in_node == NULL);
 
   if (node->nb_disks == NBMAX_DISKS_PER_NODE)
@@ -112,8 +110,6 @@ adm_node_insert_disk(struct adm_node *node, struct adm_disk *new)
 
   if (curr && uuid_compare(&new->uuid, &curr->uuid) == 0)
     return -EEXIST;
-
-  new->node_id = node->id;
 
   if (curr != NULL)
     new->next_in_node = curr;
@@ -166,14 +162,14 @@ adm_node_remove_disk(struct adm_node *node, struct adm_disk *old)
 
 
 unsigned int
-adm_node_nb_disks(struct adm_node *node)
+adm_node_nb_disks(const struct adm_node *node)
 {
   return node->nb_disks;
 }
 
 
 struct adm_disk *
-adm_node_get_disk_by_path(struct adm_node *node, const char *path)
+adm_node_get_disk_by_path(const struct adm_node *node, const char *path)
 {
   struct adm_disk *disk;
 
@@ -191,7 +187,7 @@ adm_node_get_disk_by_path(struct adm_node *node, const char *path)
 
 
 struct adm_disk *
-adm_node_get_disk_by_uuid(struct adm_node *node, const exa_uuid_t *uuid)
+adm_node_get_disk_by_uuid(const struct adm_node *node, const exa_uuid_t *uuid)
 {
   struct adm_disk *disk;
 
@@ -231,7 +227,7 @@ static void adm_node_remove_nic(struct adm_node *node)
   node->nic = NULL;
 }
 
-struct adm_nic *adm_node_get_nic(struct adm_node *node)
+struct adm_nic *adm_node_get_nic(const struct adm_node *node)
 {
     if (node == NULL)
 	return NULL;

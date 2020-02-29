@@ -625,7 +625,7 @@ nbd_recover_clientd_device_import(int thr_nb,
 
   while (admwrk_get_bcast(&handle, &nodeid, info, sizeof(*info) * NBMAX_DISKS_PER_NODE, &ret_down))
   {
-    struct adm_node *node;
+    const struct adm_node *node;
     struct adm_disk *disk;
     int i = -1;
 
@@ -889,7 +889,7 @@ nbd_diskstop(int thr_nb, struct adm_node *node, struct adm_disk *disk,
 }
 
 
-static void nbd_diskdel(int thr_nb, struct adm_node *node,
+static void nbd_diskdel(int thr_nb, const struct adm_node *node,
 			struct adm_disk *disk)
 {
   int ret;
@@ -1021,7 +1021,7 @@ nbd_shutdown(int thr_nb)
 }
 
 
-static void nbd_nodedel(int thr_nb, struct adm_node *node)
+static void nbd_nodedel(int thr_nb, const struct adm_node *node)
 {
   struct adm_disk *disk;
   int ret;

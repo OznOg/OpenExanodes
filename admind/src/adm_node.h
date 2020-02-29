@@ -45,15 +45,15 @@ int adm_node_insert_disk(struct adm_node *node, struct adm_disk *disk);
 void adm_node_remove_disk(struct adm_node *node, struct adm_disk *disk);
 void adm_node_lock_disk_removal();
 void adm_node_unlock_disk_removal();
-unsigned int adm_node_nb_disks(struct adm_node *node);
-struct adm_disk *adm_node_get_disk_by_path(struct adm_node *node, const char *path);
-struct adm_disk *adm_node_get_disk_by_uuid(struct adm_node *node, const exa_uuid_t *uuid);
+unsigned int adm_node_nb_disks(const struct adm_node *node);
+struct adm_disk *adm_node_get_disk_by_path(const struct adm_node *node, const char *path);
+struct adm_disk *adm_node_get_disk_by_uuid(const struct adm_node *node, const exa_uuid_t *uuid);
 
 int adm_node_insert_nic(struct adm_node *node, struct adm_nic *nic);
 
-struct adm_nic *adm_node_get_nic_by_name(struct adm_node *node, const char *name);
-struct adm_nic *adm_node_first_nic_at(struct adm_node *node, int index);
-struct adm_nic *adm_node_get_nic(struct adm_node *node);
+struct adm_nic *adm_node_get_nic_by_name(const struct adm_node *node, const char *name);
+struct adm_nic *adm_node_first_nic_at(const struct adm_node *node, int index);
+struct adm_nic *adm_node_get_nic(const struct adm_node *node);
 
 void adm_node_set_spof_id(struct adm_node *node, spof_id_t spof_id);
 spof_id_t adm_node_get_spof_id(const struct adm_node *node);

@@ -36,7 +36,7 @@ static int fs_init(int thr_nb)
   char fsd_path[OS_PATH_MAX];
   char *const argv[] = {
       fsd_path,
-      "-h", adm_myself()->hostname,
+      "-h", (char *)adm_myself()->hostname,
       "-a", admind_pid_str,
       NULL
   };
@@ -247,7 +247,7 @@ fs_shutdown(int thr_nb)
  * \return error code. Should always be EXA_SUCCESS, otherwise the caller may break.
  */
 static int
-fs_nodeadd(int thr_nb, struct adm_node *node)
+fs_nodeadd(int thr_nb, const struct adm_node *node)
 {
   int ret = EXA_SUCCESS;
   /* For each FS, if one is started with the given type, call nodeadd */
@@ -279,7 +279,7 @@ fs_nodeadd(int thr_nb, struct adm_node *node)
  * \param [in] node : Node that will be added.
  */
 static void
-fs_nodeadd_commit(int thr_nb, struct adm_node *node)
+fs_nodeadd_commit(int thr_nb, const struct adm_node *node)
 {
   /* For each FS, if one is started with the given type, call nodeadd */
   const fs_definition_t *iter_type = NULL;
@@ -369,7 +369,7 @@ static int fs_stop(int thr_nb, const stop_data_t *stop_data)
  *
  * \param [in] node   : Node to delete.
  */
-static void fs_nodedel(int thr_nb, struct adm_node *node)
+static void fs_nodedel(int thr_nb, const struct adm_node *node)
 {
   exa_nodeset_t nodes_up;
   inst_get_nodes_up(&adm_service_fs, &nodes_up);
@@ -470,7 +470,7 @@ extern void update_cman_local(int thr_nb, void *msg);
 extern void gfs_add_logs_local(int thr_nb, void *msg);
 extern void gfs_update_tuning(int thr_nb, void *msg);
 
-extern int gfs_check_nodedel(int thr_nb, struct adm_node *node);
+extern int gfs_check_nodedel(int thr_nb, const struct adm_node *node);
 
 const struct adm_service adm_service_fs =
 {
