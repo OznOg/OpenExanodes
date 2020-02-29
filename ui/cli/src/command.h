@@ -14,6 +14,7 @@
 #include "ui/common/include/exabase.h"
 #include "ui/common/include/notifier.h"
 #include <functional>
+#include <ostream>
 
 
 
