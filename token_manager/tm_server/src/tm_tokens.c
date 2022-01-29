@@ -94,7 +94,7 @@ static token_t *__find_token(const exa_uuid_t *uuid)
 }
 
 int tm_tokens_set_holder(const exa_uuid_t *uuid, exa_nodeid_t node_id,
-                         const os_net_addr_str_t node_addr)
+                         const char *node_addr)
 {
     token_t *t;
 

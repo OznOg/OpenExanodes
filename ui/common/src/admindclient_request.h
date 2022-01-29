@@ -11,6 +11,7 @@
 #include "ui/common/include/admindclient.h"
 #include "ui/common/include/notifier.h"
 #include <functional>
+#include <string>
 
 
 class AdmindClient::Request : private boost::noncopyable

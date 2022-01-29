@@ -539,13 +539,15 @@ ut_test(new_returns_not_NULL)
     adm_license_t *license;
     exa_uuid_t uuid;
     struct tm expires;
+    exa_version_t version;
 
     uuid_generate(&uuid);
 
    /* we put some crust in expires as it isn't verified (yet)*/
    memset(&expires, 0xEE, sizeof(expires));
 
-   license = adm_license_new("plop", &uuid, expires, "exa", 2, "full");
+   exa_version_from_str(&version, "1.0.0");
+   license = adm_license_new("plop", &uuid, expires, &version, 2, "full");
    UT_ASSERT(license != NULL);
    adm_license_delete(license);
 }

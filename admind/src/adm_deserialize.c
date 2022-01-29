@@ -550,7 +550,7 @@ adm_deserialize_exanodes(void *data, const xmlChar **attrs)
 {
     adm_deserialize_state_t *state = (adm_deserialize_state_t *)data;
     const char *release = NULL;
-    exa_version_t running_major, config_major;
+    exa_version_t version, release_version, running_major, config_major;
     uint32_t format_version = 0; /* We'll use 0 as default format if it's not
                                   * specified, as we broke compatibility during
                                   * the sprint in which we introduced this
@@ -613,7 +613,8 @@ adm_deserialize_exanodes(void *data, const xmlChar **attrs)
 	goto error;
     }
 
-    if (!exa_version_get_major(EXA_VERSION, running_major))
+    exa_version_from_str(&version, EXA_VERSION);
+    if (!exa_version_get_major(&version, &running_major))
     {
 	os_snprintf(state->error_msg, EXA_MAXSIZE_LINE + 1,
 		    "Can not get major for running version %s",
@@ -621,7 +622,8 @@ adm_deserialize_exanodes(void *data, const xmlChar **attrs)
 	goto error;
     }
 
-    if (!exa_version_get_major(release, config_major))
+    exa_version_from_str(&release_version, release);
+    if (!exa_version_get_major(&release_version, &config_major))
     {
 	os_snprintf(state->error_msg, EXA_MAXSIZE_LINE + 1,
 		    "Can not get major for configuration file version %s",
@@ -629,7 +631,7 @@ adm_deserialize_exanodes(void *data, const xmlChar **attrs)
 	goto error;
     }
 
-    if (!exa_version_is_equal(config_major, running_major))
+    if (!exa_version_is_equal(&config_major, &running_major))
     {
 	os_snprintf(state->error_msg, EXA_MAXSIZE_LINE + 1,
 		    "The configuration file describes a cluster for Exanodes "

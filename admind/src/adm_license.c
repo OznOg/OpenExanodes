@@ -168,10 +168,11 @@ bool adm_license_size_ok(const adm_license_t *license, uint64_t size,
 bool adm_license_matches_self(const adm_license_t *license,
                               cl_error_desc_t *error_desc)
 {
-    exa_version_t major_version_running;
+    exa_version_t version, major_version_running;
     EXA_ASSERT(license);
 
-    EXA_ASSERT_VERBOSE(exa_version_get_major(EXA_VERSION, major_version_running),
+    exa_version_from_str(&version, EXA_VERSION);
+    EXA_ASSERT_VERBOSE(exa_version_get_major(&version, &major_version_running),
                        "failed getting major version of '%s'", EXA_VERSION);
 
     /* XXX Should use symbolic constant instead of 'exanodes' */
@@ -183,11 +184,11 @@ bool adm_license_matches_self(const adm_license_t *license,
         return false;
     }
 
-    if (!exa_version_is_equal(license->major_version, major_version_running))
+    if (!exa_version_is_equal(&license->major_version, &major_version_running))
     {
         set_error(error_desc, -ADMIND_ERR_LICENSE,
                   "License is for version '%s', expected '%s'",
-                  license->major_version, major_version_running);
+                  license->major_version.v, major_version_running.v);
         return false;
     }
 
@@ -246,8 +247,8 @@ static bool adm_license_set_license_from_nodeptr(xmlNodePtr node,
 
     str = xml_get_prop(node, "version");
     if (str == NULL
-        || exa_version_from_str(license->major_version, str) != EXA_SUCCESS
-        || !exa_version_is_major(license->major_version))
+        || exa_version_from_str(&license->major_version, str) != EXA_SUCCESS
+        || !exa_version_is_major(&license->major_version))
         return false;
 
     str = xml_get_prop(node, "nodes");
@@ -513,7 +514,7 @@ void adm_license_uninstall(adm_license_t *license)
 }
 
 adm_license_t *adm_license_new(const char *licensee, const exa_uuid_t *uuid,
-                               struct tm expiry, const exa_version_t major_version,
+                               struct tm expiry, const exa_version_t *major_version,
                                uint32_t max_nodes, bool is_eval)
 {
     adm_license_t *license;
@@ -530,7 +531,7 @@ adm_license_t *adm_license_new(const char *licensee, const exa_uuid_t *uuid,
     strlcpy(license->licensee, licensee, sizeof(license->licensee));
     uuid_copy(&license->uuid, uuid);
     license->expiry = expiry;
-    exa_version_copy(license->major_version, major_version);
+    exa_version_copy(&license->major_version, major_version);
     license->max_nodes = max_nodes;
     license->is_eval = is_eval;
 

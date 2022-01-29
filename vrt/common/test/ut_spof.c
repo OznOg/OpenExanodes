@@ -286,7 +286,7 @@ UT_SECTION(spof_lookup)
 
 ut_test(lookup_empty_array_returns_null)
 {
-    spof_t spofs[5];
+    spof_t spofs[5] = { 0 };
 
     UT_ASSERT(spof_lookup(spofs, 0, (spof_id_t)3) == NULL);
 }

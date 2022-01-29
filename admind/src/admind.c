@@ -107,7 +107,7 @@ signal_handler(int sig)
       exalog_debug("got unexpected signal %d", sig);
 #else
       /* XXX Should use strsignal() */
-      exalog_debug("got unexpected signal %s", sys_siglist[sig]);
+      exalog_debug("got unexpected signal %s", strsignal(sig));
 #endif
     }
 }

@@ -12,7 +12,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-bool os_net_ip_is_valid(const os_net_addr_str_t ip)
+bool os_net_ip_is_valid(const char *ip)
 {
     const char *c;
     int i = 0;

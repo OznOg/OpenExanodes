@@ -38,7 +38,7 @@ void tm_tokens_cleanup(void);
  *         -TM_ERR_ANOTHER_HOLDER if another node holds the token
  */
 int tm_tokens_set_holder(const exa_uuid_t *uuid, exa_nodeid_t node_id,
-                         const os_net_addr_str_t node_addr);
+                         const char *node_addr);
 
 /**
  * Get the holder of a token.

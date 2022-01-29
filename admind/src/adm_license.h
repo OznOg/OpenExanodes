@@ -156,7 +156,7 @@ void adm_license_uninstall(adm_license_t *license);
  * @return license if successfully allocated, NULL otherwise
  */
 adm_license_t *adm_license_new(const char *licensee, const exa_uuid_t *uuid,
-                               struct tm expiry, const exa_version_t major_version,
+                               struct tm expiry, const exa_version_t *major_version,
                                uint32_t max_nodes, bool is_eval);
 
 /**

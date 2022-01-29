@@ -14,7 +14,7 @@
 
 #define EXA_VERSION_LEN  15
 
-typedef char exa_version_t[EXA_VERSION_LEN + 1];
+typedef struct { char v[EXA_VERSION_LEN + 1]; } exa_version_t;
 
 /* FIXME TODO Add exa_version_valid() and exa_version_cmp() [to be used
               instead of os_strverscmp() wherever possible]. */
@@ -26,7 +26,7 @@ typedef char exa_version_t[EXA_VERSION_LEN + 1];
  *
  * @return true if major, false otherwise
  */
-bool exa_version_is_major(const exa_version_t str);
+bool exa_version_is_major(const exa_version_t *str);
 
 /**
  * Extract the major version from a version string.
@@ -36,7 +36,7 @@ bool exa_version_is_major(const exa_version_t str);
  *
  * @return true if successful, false otherwise
  */
-bool exa_version_get_major(const exa_version_t version, exa_version_t major);
+bool exa_version_get_major(const exa_version_t *version, exa_version_t *major);
 
 /**
  * Copy an exa_version
@@ -45,7 +45,7 @@ bool exa_version_get_major(const exa_version_t version, exa_version_t major);
  * @param[in]   version_src     Version to copy
  *
  */
-void exa_version_copy(exa_version_t version_dest, const exa_version_t version_src);
+void exa_version_copy(exa_version_t *version_dest, const exa_version_t *version_src);
 
 /**
  * Compare two versions
@@ -55,7 +55,7 @@ void exa_version_copy(exa_version_t version_dest, const exa_version_t version_sr
  *
  * @return true if both versions are equal, false otherwise
  */
-bool exa_version_is_equal(const exa_version_t vers1, const exa_version_t vers2);
+bool exa_version_is_equal(const exa_version_t *vers1, const exa_version_t *vers2);
 
 /**
  * Convert a strings to an exa version
@@ -65,6 +65,6 @@ bool exa_version_is_equal(const exa_version_t vers1, const exa_version_t vers2);
  *
  * @return 0 if successful, negative error code otherwise
  */
-int exa_version_from_str(exa_version_t version, const char *src);
+int exa_version_from_str(exa_version_t *version, const char *src);
 
 #endif /* __EXA_VERSION_H__ */

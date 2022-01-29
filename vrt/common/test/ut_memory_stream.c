@@ -159,7 +159,7 @@ ut_test(writing_with_null_buffer_returns_EINVAL)
 
 ut_test(writing_to_readonly_stream_returns_EOPNOTSUPP)
 {
-    char buf[5];
+    char buf[5] = { 0 };
 
     UT_ASSERT_EQUAL(-EOPNOTSUPP, stream_write(r_stream, buf, sizeof(buf)));
 }
