@@ -84,7 +84,8 @@ static int check_name(names_to_check_t* names)
 ut_setup()
 {
     char dir_name[] = "/tmp/Exanodes_XXXXXX";
-    mkdtemp(dir_name);
+    char *res = mkdtemp(dir_name);
+    UT_ASSERT(res != NULL);
     setenv("EXANODES_CACHE_DIR", dir_name, 0);
     adm_cluster_init();
 }

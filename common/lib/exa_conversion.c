@@ -261,7 +261,7 @@ int exa_get_size_kb(const char *orig_size_string, uint64_t *result)
     }
 
     /* Check there will be no overflow */
-    if (size_request <= UINT64_MAX)
+    if ((uint64_t)size_request <= UINT64_MAX)
     {
         sizeKB = (uint64_t)size_request;
     }

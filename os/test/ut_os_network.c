@@ -702,7 +702,7 @@ ut_test(os_iface_flags)
     addr.s_addr = htonl(INADDR_LOOPBACK);
     UT_ASSERT(os_find_iface_with_addr(sockfd, &addr, &iface) == 0);
 
-    UT_ASSERT(os_iface_flags(&iface) && IFF_LOOPBACK);
+    UT_ASSERT(os_iface_flags(&iface) & IFF_LOOPBACK);
 
     os_closesocket(sockfd);
 }

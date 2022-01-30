@@ -26,10 +26,12 @@ ut_setup()
     /* FIXME this way to cleanup is not really nice...
      * should probably implement a os_ipc_sem_cleanup(KEY) */
     char cleanup_cmd[256];
+    int ret;
 
     os_snprintf(cleanup_cmd, sizeof(cleanup_cmd), "ipcrm -S 0x%X > /dev/null 2>&1", DUMMY_KEY);
 
-    system(cleanup_cmd);
+    ret = system(cleanup_cmd);
+    UT_ASSERT(ret == 0);
 #endif
 
     semset = os_ipc_semset_create(DUMMY_KEY, NB_SEMS);
