@@ -315,7 +315,6 @@ char *adm_license_uncypher_data(char *cypher, size_t size, cl_error_desc_t *erro
     char *str;
     char *buffer;
     long buf_size;
-    STACK_OF(X509) *chain = NULL;
     BIO *bio, *pb = NULL;
     PKCS7 *pkcs7;
 
@@ -334,6 +333,14 @@ char *adm_license_uncypher_data(char *cypher, size_t size, cl_error_desc_t *erro
         return NULL;
     }
 
+#if 0
+{
+    STACK_OF(X509) *chain = NULL;
+    /* FIXME The certificat stuff is broken because sha1 is deprecated for a
+     * long time now, but anyway, the opensource does not need such pain in the
+     * a...
+     * Here I just completelly ignore the certificat checks, so that any valid
+     * license will be ok despite de tsignature */
     if (PKCS7_verify(pkcs7, chain, store, pb, NULL, 0) != 1)
     {
 	set_error(error_desc, -ADMIND_ERR_LICENSE,
@@ -344,6 +351,8 @@ char *adm_license_uncypher_data(char *cypher, size_t size, cl_error_desc_t *erro
         BIO_free(pb);
         return NULL;
     }
+}
+#endif
 
     buf_size = BIO_get_mem_data(pb, &buffer);
 

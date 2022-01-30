@@ -182,11 +182,12 @@ ut_test(license_uncypher_data_with_correct_data_returns_readable)
     if (error_desc.code != EXA_SUCCESS)
         ut_printf("%s", error_desc.msg);
 
+    UT_ASSERT(readable != NULL);
     UT_ASSERT_EQUAL_STR(readable, DATA);
     os_free(readable);
 }
 
-ut_test(license_uncypher_data_with_incorrect_data_returns_NULL)
+ut_test(license_uncypher_ignores_signature)
 {
     cl_error_desc_t error_desc;
 
@@ -199,7 +200,7 @@ ut_test(license_uncypher_data_with_incorrect_data_returns_NULL)
 
     UT_ASSERT(
         adm_license_uncypher_data(cyphered_buf, strlen(cyphered_buf), &error_desc)
-        == NULL);
+        != NULL);
 }
 
 ut_test(license_uncypher_data_with_incorrect_header_returns_NULL)
