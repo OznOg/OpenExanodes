@@ -13,7 +13,7 @@ ut_test(os_process_id_returns_value_in_correct_range)
 {
     os_pid_t pid = os_process_id();
 
-    /* This is twice pid_max default value on Linux */
-    UT_ASSERT(pid > 0 && pid < 65536);
+    /* pid_t is said to be a signed integer, thus take the maximum positive integer from pid_t */
+    UT_ASSERT(pid > 0 && pid < (pid_t)((1 << ((sizeof(pid_t) - 1) * 8)) -1));
 }
 
