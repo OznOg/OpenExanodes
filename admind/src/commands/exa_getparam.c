@@ -94,7 +94,7 @@ build_response(xmlNodePtr exanodes_node)
 
                 os_snprintf(str2, EXA_MAXSIZE_LINE, "%s ",
                          current_parameter->choices[i-1]);
-                strncat(str, str2, EXA_MAXSIZE_LINE - strlen(str));
+                os_snprintf(str + strlen(str), EXA_MAXSIZE_LINE - strlen(str), "%s", str2);
             }
 
 	    if (xml_set_prop(exanodes_param, EXA_PARAM_CHOICES, str) != EXA_SUCCESS)
