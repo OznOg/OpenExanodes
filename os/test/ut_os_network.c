@@ -625,14 +625,14 @@ ut_test(os_host_addr)
 
     ret = os_host_addr("isima.fr", &addr);
     UT_ASSERT(ret == 0);
-    UT_ASSERT_EQUAL(0x275F37C1, addr.s_addr);
+    UT_ASSERT_EQUAL(0x2A5F37C1, addr.s_addr);
 
-    ret = os_host_addr("193.55.95.39", &addr);
+    ret = os_host_addr("193.55.95.42", &addr);
     UT_ASSERT(ret == 0);
     
-    UT_ASSERT_EQUAL(0x275F37C1, addr.s_addr);
+    UT_ASSERT_EQUAL(0x2A5F37C1, addr.s_addr);
 
-    ret = os_host_addr("sjkfhqsdfhmorqze", &addr);
+    ret = os_host_addr("sjkfhqsdfhmorqze.com", &addr);
 #ifdef WIN32
     UT_ASSERT(ret == -os_error_from_win(WSAHOST_NOT_FOUND));
 #else

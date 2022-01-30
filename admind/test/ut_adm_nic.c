@@ -61,7 +61,7 @@ ut_test(create_and_delete_valid_hostname)
     UT_ASSERT(err == 0);
     UT_ASSERT(nic != NULL);
 
-    UT_ASSERT_EQUAL_STR("193.55.95.39", adm_nic_ip_str(nic));
+    UT_ASSERT_EQUAL_STR("193.55.95.42", adm_nic_ip_str(nic));
     UT_ASSERT_EQUAL_STR("isima.fr", adm_nic_get_hostname(nic));
 
     adm_nic_free(nic);
