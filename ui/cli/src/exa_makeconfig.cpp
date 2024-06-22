@@ -223,12 +223,9 @@ void exa_makeconfig::run()
          * Create a big list with all node/disk combination
          * Form of the list is node, dev1, node, dev2, node2, dev1, ...
          */
-        int disk_id = 0;
         for (vector<string>::iterator it_rdev = rdev_list.begin();
              it_rdev != rdev_list.end(); ++it_rdev)
         {
-            disk_id++;
-
             for (std::set<std::string>::const_iterator it = nodelist.begin();
                  it != nodelist.end(); ++it)
             {
