@@ -21,8 +21,8 @@ EXAMSG_DCLMSG(md_examsg_control_status_reply_t, md_service_status_t status);
 
 exa_error_code md_client_control_start(ExamsgHandle local_mh,
 				       exa_nodeid_t node_id,
-				       char *node_name,
-				       char *master_agentx_host,
+				       const char *node_name,
+				       const char *master_agentx_host,
 				       uint32_t master_agentx_port)
 {
     int ret;

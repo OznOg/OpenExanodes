@@ -27,12 +27,6 @@ const std::string exa_clmonitorstart::OPT_ARG_SNMPDHOST_HOST(Command::Boldify(
 const std::string exa_clmonitorstart::OPT_ARG_SNMPDPORT_PORT(Command::Boldify(
                                                                  "PORT"));
 
-exa_clmonitorstart::exa_clmonitorstart(int argc, char *argv[])
-    : _snmpd_host("")
-    , _snmpd_port(MD_DEFAULT_MASTER_AGENTX_PORT)
-{}
-
-
 exa_clmonitorstart::exa_clmonitorstart()
 {
     add_option('s', "snmpdhost", "Specify the host on which snmpd is running.",

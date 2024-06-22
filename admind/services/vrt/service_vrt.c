@@ -286,7 +286,7 @@ static int vrt_update_disks(struct adm_group *group)
 		continue;
 #ifdef WITH_MONITORING
 	    {
-	    struct adm_node *node = adm_cluster_get_node_by_id(disk->node_id);
+	    const struct adm_node *node = adm_cluster_get_node_by_id(disk->node_id);
 	    /* send a trap to monitoring daemon */
 	    md_client_notify_disk_up(adm_wt_get_localmb(),
 		    &disk->vrt_uuid,
@@ -303,7 +303,7 @@ static int vrt_update_disks(struct adm_group *group)
 		continue;
 #ifdef WITH_MONITORING
 	    {
-	    struct adm_node *node = adm_cluster_get_node_by_id(disk->node_id);
+	    const struct adm_node *node = adm_cluster_get_node_by_id(disk->node_id);
 	    /* send a trap to monitoring daemon */
 	    md_client_notify_disk_down(adm_wt_get_localmb(),
 		    &disk->vrt_uuid,
