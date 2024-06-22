@@ -461,7 +461,7 @@ ut_test(exa_get_size_kb)
     ret = exa_get_size_kb("213446343", &size);
     UT_ASSERT(ret == -EINVAL);
 
-    ret = exa_get_size_kb("9999999999999999E", &size);
+    ret = exa_get_size_kb("118973e+4921K", &size);
     UT_ASSERT(ret == -ERANGE);
 }
 

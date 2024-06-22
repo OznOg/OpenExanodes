@@ -211,8 +211,11 @@ int exa_get_size_kb(const char *orig_size_string, uint64_t *result)
     errno = 0;
     size_request = strtod(size_string, &endptr);
 
+    if (errno != 0)
+       ret = -errno;
+
     /* If there are remaining chars to parse, it's not a valid number */
-    if (size_string == endptr || *endptr != '\0')
+    else if (size_string == endptr || *endptr != '\0')
         ret = -EINVAL;
 
     os_free(size_string);
