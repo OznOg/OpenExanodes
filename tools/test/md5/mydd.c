@@ -49,7 +49,6 @@ int main(int argc, char **argv)
     char *outFile;
     uint64_t blockSize, readSize;
     uint64_t size;
-    uint64_t intotal;
     uint64_t outTotal;
     char *buf = NULL;
     char hex_output[16 * 2 + 1];
@@ -102,7 +101,6 @@ int main(int argc, char **argv)
         goto done;
     }
 
-    intotal  = 0;
     outTotal = 0;
 
     /* Open the source file*/
@@ -138,7 +136,6 @@ int main(int argc, char **argv)
             goto done;
         }
 
-        intotal += inCc;
         cp = buf;
         outCc = 0;
 

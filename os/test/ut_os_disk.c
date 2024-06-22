@@ -211,13 +211,12 @@ ut_test(iterator_passed_last_entry_yields_nothing)
 {
     os_disk_iterator_t *iter;
     const char *disk;
-    unsigned count = 0;
 
     iter = os_disk_iterator_begin(STAR_PATTERN);
     UT_ASSERT(iter != NULL);
 
     while ((disk = os_disk_iterator_get(iter)) != NULL)
-        count++;
+        ;
     UT_ASSERT(os_disk_iterator_get(iter) == NULL);
 
     os_disk_iterator_end(iter);
