@@ -6,18 +6,14 @@
 # directory of the project.
 #
 
-if (WITH_NODES)
-    if (WITH_TOOLS)
-        if (WIN32)
-            install(PROGRAMS exatest_kill.bat DESTINATION ${SBIN_DIR})
-        else (WIN32)
-            install(PROGRAMS exatest_kill DESTINATION ${SBIN_DIR})
-            install(PROGRAMS exa_gdb DESTINATION ${SBIN_DIR})
-            install(PROGRAMS exa_enable_valgrind DESTINATION ${SBIN_DIR})
-        endif (WIN32 )
-    endif (WITH_TOOLS)
+if(WITH_NODES)
+    if(WITH_TOOLS)
+        install(PROGRAMS exatest_kill DESTINATION ${SBIN_DIR})
+        install(PROGRAMS exa_gdb DESTINATION ${SBIN_DIR})
+        install(PROGRAMS exa_enable_valgrind DESTINATION ${SBIN_DIR})
+    endif()
 
-    if (WITH_TEST)
+    if(WITH_TEST)
         add_subdirectory(test)
-    endif (WITH_TEST)
-endif (WITH_NODES)
+    endif()
+endif()

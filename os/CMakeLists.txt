@@ -6,18 +6,9 @@
 # directory of the project.
 #
 
-if (WIN32)
-    set(OS_SUBDIR src-windows)
-elseif (UNIX)
-    set(OS_SUBDIR src-linux)
-else (UNKNOWN)
-    message(FATAL_ERROR "Unknown target system")
-endif (WIN32)
-
-add_subdirectory(${OS_SUBDIR})
+add_subdirectory(src-linux)
 add_subdirectory(src-common)
 
-if (WITH_UT)
+if(WITH_UT)
     add_subdirectory(test)
 endif()
-

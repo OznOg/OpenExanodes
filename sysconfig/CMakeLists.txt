@@ -6,17 +6,13 @@
 # directory of the project.
 #
 
-if (WITH_NODES AND NOT WIN32)
+if(WITH_NODES)
     add_subdirectory(init.d)
     add_subdirectory(exanodes)
     add_subdirectory(logrotate.d)
     add_subdirectory(udev)
-endif (WITH_NODES AND NOT WIN32)
+endif()
 
-if (WITH_NODES AND WIN32)
-    add_subdirectory(exanodes)
-endif (WITH_NODES AND WIN32)
-
-if (WITH_SELINUX AND NOT WIN32)
+if(WITH_SELINUX)
     add_subdirectory(selinux/targeted)
-endif (WITH_SELINUX AND NOT WIN32)
+endif()
