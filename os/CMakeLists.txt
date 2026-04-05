@@ -19,5 +19,5 @@ add_subdirectory(src-common)
 
 if (WITH_UT)
     add_subdirectory(test)
-endif(WITH_UT)
+endif()
 

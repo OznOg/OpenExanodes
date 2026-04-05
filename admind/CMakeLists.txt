@@ -15,4 +15,4 @@ endif (WITH_NODES)
 
 if (WITH_NODES AND WITH_UT)
     add_subdirectory(test)
-endif(WITH_NODES AND WITH_UT)
+endif()
